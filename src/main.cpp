@@ -14,8 +14,10 @@ struct GB {
   }
 
   void start() {
-    while (true) {
+    u64 count = 1530000;
+    while (count != 0) {
       cpu.run_instruction();
+      count--;
     }
   }
 };
@@ -24,7 +26,7 @@ int main() {
   GB gb;
 
 
-  const std::string rom = "roms/gb-test-roms/cpu_instrs/cpu_instrs.gb";
+  const std::string rom = "/home/toast/Projects/umibozu/roms/gb-test-roms/cpu_instrs/individual/01-special.gb";
   std::vector<u8> data  = read_file(rom);
   gb.bus.cart.load_cart(data);
 

@@ -280,6 +280,9 @@ std::string Cartridge::get_mapper_string(u8 cartridge_type) {
 void Cartridge::load_cart(std::vector<u8> data) {
   this->memory = data;
 
+  // verify header checksum
+  
+
   info = get_cart_info();
   print_cart_info();
 };
@@ -306,7 +309,17 @@ Cartridge::Cartridge::Info Cartridge::get_cart_info() {
   return info;
 };
 
-u8 Cartridge::read8(const u16 address) { return memory.at(address); }
+u8 Cartridge::read8(const u16 address) { 
+  if(address >= 0xA000 &&  address <= 0xBFFF) {
+    fmt::println("ram bank!");
+    exit(-1);
+  }
+  return memory.at(address); 
+  }
 void Cartridge::write8(const u16 address, const u8 value) {
+  if(address >= 0xA000 && address <= 0xBFFF) {
+    fmt::println("ram bank!");
+    exit(-1);
+  }
   memory.at(address) = value;
 }

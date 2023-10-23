@@ -29,6 +29,7 @@ namespace Umibozu {
     Cartridge();
     ~Cartridge();
     void load_cart(std::vector<u8> data);
+    u32 rom_bank = 0;
     
     u8 read8(const u16);
     void write8(const u16, const u8);
