@@ -30,10 +30,19 @@ namespace Umibozu {
     u16 HL = 0x0;
     u16 SP = 0xFFFE;
     u16 PC = 0x100;
-    
+    u32 cycles = 0;
+    u32 rom_bank = 0;
+
+    // Interrupt master enable
+    bool IME = 0x1;
+
     u8 read8(const u16 address);
     void write8(const u16 address, const u8 value);
-    
+
+    void push_to_stack(const u8 value);
+    u8 pull_from_stack();
+
     void run_instruction();
+    void m_cycle();
   };
 }  // namespace Umibozu

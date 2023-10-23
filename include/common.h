@@ -1,11 +1,11 @@
 #define FMT_HEADER_ONLY
 #include <cstdlib>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <fmt/core.h>
 #include <vector>
 #include <stdexcept>
-#include <array>
 #include <sstream>
 #include <iostream>
 

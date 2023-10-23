@@ -1,13 +1,19 @@
 #pragma once
-#include "common.h"
 #include "cart.h"
+#include "common.h"
 using namespace Umibozu;
-struct Bus {
-  Cartridge* cart;
-  std::vector<u8> wram;
+struct RAM {
+  std::vector<u8> ram;
 
-  Bus() {
-    wram.resize(0xFFF, 0);
-  }
+  u8 read8(const u16 address) { return ram.at(address); }
+  void write8(const u16 address, u8 value) { ram.at(address) = value; }
   
+  RAM(size_t size) {
+    fmt::println("[BUS] RAM size: {:#4x}", size);
+    ram.resize(size, 0);
+  }
+};
+struct Bus {
+  Cartridge cart;
+  RAM ram = RAM(0x10000);
 };

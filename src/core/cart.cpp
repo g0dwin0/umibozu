@@ -278,8 +278,6 @@ std::string Cartridge::get_mapper_string(u8 cartridge_type) {
   return cart_types.at(cartridge_type);
 };
 void Cartridge::load_cart(std::vector<u8> data) {
-  fmt::println("data size: {:d}", data.size());
-
   this->memory = data;
 
   info = get_cart_info();
