@@ -19,7 +19,7 @@ namespace Umibozu {
   enum class FLAG : u8 { CARRY = 4, HALF_CARRY = 5, NEGATIVE = 6, ZERO = 7 };
   class SharpSM83 {
    private:
-    std::vector<u8> wram;
+    // std::vector<u8> wram;
 
    public:
     SharpSM83();
@@ -34,9 +34,8 @@ namespace Umibozu {
     u16 SP     = 0xFFFE;
     u16 PC     = 0x100;
     u32 cycles = 0;
-
     // Interrupt master enable
-    bool IME = 0x1;
+    u8 IME = 0x1;
 
     u8 read8(const u16 address);
     u8 peek(const u16 address);
@@ -50,7 +49,6 @@ namespace Umibozu {
     u8 get_flag(FLAG);
     
     void unset_flag(FLAG);
-    
     void set_zero();
     void set_negative();
     void set_half_carry();
@@ -59,6 +57,8 @@ namespace Umibozu {
     void reset_negative();
     void reset_half_carry();
     void reset_carry();
+
+    void init_hw_regs();
 
     void run_instruction();
     void m_cycle();

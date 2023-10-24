@@ -4,10 +4,11 @@
 #include <stdexcept>
 
 #include "core/cart.h"
+#include "fmt/core.h"
 
 using namespace Umibozu;
 
-SharpSM83::SharpSM83() { wram.resize(8192, 0); }
+SharpSM83::SharpSM83() {}
 SharpSM83::~SharpSM83() {}
 
 void SharpSM83::m_cycle() { cycles += 4; }
@@ -27,10 +28,15 @@ u8 SharpSM83::read8(const u16 address) {
     return bus->ram.read8((address & 0xDDFF));
   }
   if (address >= 0xFE00 && address <= 0xFFFE) {
+    if (address == 0xFF44)
+      return 0x90;
     return bus->ram.read8(address);
+    exit(-1);
+    throw std::runtime_error(
+        fmt::format("reading register address space: {:#04x}", address));
   }
   if (address == 0xFFFF) {
-    fmt::println("IME: {:#4x}", IME);
+    // fmt::println("IME: {:#4x}", IME);
     return IME;
   }
 
@@ -43,7 +49,7 @@ u8 SharpSM83::peek(const u16 address) {
     return bus->cart.read8(address);
   }
   if (address >= 0x4000 && address <= 0x7FFF) {
-    return bus->cart.read8((0x4000 * bus->cart.rom_bank) + address);
+    return bus->cart.read8(address);
   }
   if (address >= 0x8000 && address <= 0xDFFF) {
     return bus->ram.read8(address);
@@ -52,10 +58,13 @@ u8 SharpSM83::peek(const u16 address) {
     return bus->ram.read8((address & 0xDDFF));
   }
   if (address >= 0xFE00 && address <= 0xFFFE) {
+    if (address >= 0xFE0 && address <= 0xFEFF) {
+      return 0;
+    }
     return bus->ram.read8(address);
   }
   if (address == 0xFFFF) {
-    fmt::println("IME: {:#4x}", IME);
+    // fmt::println("IME: {:#4x}", IME);
     return IME;
   }
 
@@ -63,11 +72,14 @@ u8 SharpSM83::peek(const u16 address) {
       fmt::format("[CPU] out of bounds CPU read: {:#04x}", address));
 }
 
+// void SharpSM83::init_hw_regs() {
+//   dfgknndklk
+// }
 void SharpSM83::write8(const u16 address, const u8 value) {
   m_cycle();
   if (address >= 0x0 && address <= 0x7FFF) {
     address >= 0x2000 ? (bus->cart.rom_bank = value & 0b00000111) : 0;
-    // return bus->cart->write8(address, value);
+    throw std::runtime_error("write to ROM area/MBC register");
   }
   if (address >= 0x8000 && address <= 0xDFFF) {
     return bus->ram.write8(address, value);
@@ -76,6 +88,7 @@ void SharpSM83::write8(const u16 address, const u8 value) {
     return bus->ram.write8((address & 0xDDFF), value);
   }
   if (address >= 0xFE00 && address <= 0xFFFE) {
+    // throw std::runtime_error("handle dat");
     return bus->ram.write8(address, value);
   }
   if (address == 0xFFFF) {
@@ -86,9 +99,9 @@ void SharpSM83::write8(const u16 address, const u8 value) {
   throw std::runtime_error(
       fmt::format("[CPU] out of bounds CPU write: {:#04x}", address));
 }
-void SharpSM83::push_to_stack(const u8 value) { write8(SP--, value); }
+void SharpSM83::push_to_stack(const u8 value) { write8(--SP, value); }
 
-u8 SharpSM83::pull_from_stack() {return read8(SP++); }
+u8 SharpSM83::pull_from_stack() { return read8(SP++); }
 
 void SharpSM83::set_flag(FLAG flag) {
   auto bitset = std::bitset<16>(AF);
@@ -121,8 +134,8 @@ void SharpSM83::run_instruction() {
   fmt::println(
       "A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} "
       "L: {:02X} SP: {:02X} PC: {:02X}:{:04X} ({:02X} {:02X} {:02X} {:02X})",
-      A, (AF & 0b11111111), B, C, D, E, H, L, SP, bus->cart.rom_bank, PC,
-      peek(PC), peek(PC + 1), peek(PC + 2), peek(PC + 3));
+      A, (AF & 0xFF), B, C, D, E, H, L, SP, bus->cart.rom_bank, PC, peek(PC),
+      peek(PC + 1), peek(PC + 2), peek(PC + 3));
   u8 opcode = read8(PC++);
   switch (opcode) {
     case 0x0: {
@@ -134,6 +147,13 @@ void SharpSM83::run_instruction() {
       BC = (B << 8) + C;
       break;
     }
+    case 0x3: {
+      m_cycle();
+      BC++;
+      B = (BC & 0xFF00) >> 8;
+      C = (BC & 0xFF);
+      break;
+    }
     case 0x4: {
       if (B == 0b1111) {
         set_half_carry();
@@ -143,10 +163,16 @@ void SharpSM83::run_instruction() {
       break;
     }
     case 0x5: {
-      // half carry?
+       if (((B & 0xf) - (1 & 0xf)) & 0x10) {
+        set_half_carry();
+      } else {
+        reset_half_carry();
+      }
       B--;
       if (B == 0) {
         set_zero();
+      } else {
+        reset_zero();
       }
       set_negative();
       break;
@@ -156,7 +182,7 @@ void SharpSM83::run_instruction() {
       PC++;
       break;
     }
-    case 0x0D: {
+    case 0xD: {
       if (((C & 0xf) - (1 & 0xf)) & 0x10) {
         set_half_carry();
       } else {
@@ -189,6 +215,13 @@ void SharpSM83::run_instruction() {
       write8(DE, A);
       break;
     }
+    case 0x13: {
+      m_cycle();
+      DE++;
+      D = (DE & 0xFF00) >> 8;
+      E = (DE & 0xFF);
+      break;
+    }
     case 0x14: {
       if (((D & 0xf) + (1 & 0xf)) & 0x10) {
         set_half_carry();
@@ -196,7 +229,7 @@ void SharpSM83::run_instruction() {
         reset_half_carry();
       }
       D++;
-
+      DE = (D << 8) + E;
       if (D == 0) {
         set_zero();
       } else {
@@ -212,6 +245,10 @@ void SharpSM83::run_instruction() {
       PC = PC + offset;
       break;
     }
+    case 0x1A: {
+      A = read8(DE);
+      break;
+    }
     case 0x1C: {
       if (((E & 0xf) + (1 & 0xf)) & 0x10) {
         set_half_carry();
@@ -219,6 +256,7 @@ void SharpSM83::run_instruction() {
         reset_half_carry();
       }
       E++;
+      DE = (D << 8) + E;
       // fmt::println("E: {:d}", E);
 
       if (E == 0) {
@@ -244,18 +282,78 @@ void SharpSM83::run_instruction() {
       HL = (H << 8) + L;
       break;
     }
+    case 0x22: {
+      write8(HL++, A);
+
+      H  = (HL & 0xFF00) >> 8;
+      L  = (HL & 0xFF);
+      AF = (A << 8) + (AF & 0xFF);
+      break;
+    }
+    
+    case 0x23: {
+      m_cycle();
+      HL++;
+      H = (HL & 0xFF00) >> 8;
+      L = (HL & 0xFF);
+      break;
+    }
+    case 0x24: {
+      if (((H & 0xf) + (1 & 0xf)) & 0x10) {
+        set_half_carry();
+      } else {
+        reset_half_carry();
+      }
+      H++;
+      HL = (H << 8) + L;
+      if (H == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      break;
+    }
+
     case 0x26: {
       H = read8(PC++);
       break;
     }
-    case 0x2A: {
-      A = read8(HL++);
-      
-      H = (HL & 0xFF00) >> 8;
-      L = (HL & 0xFF);
-
+    case 0x28: {
+      i8 offset = (i8)read8(PC++);
+      if (get_flag(FLAG::ZERO)) {
+        m_cycle();
+        PC = PC + offset;
+      }
       break;
     }
+    case 0x2A: {
+      A = read8(HL++);
+
+      H  = (HL & 0xFF00) >> 8;
+      L  = (HL & 0xFF);
+      AF = (A << 8) + (AF & 0xFF);
+      break;
+    }
+    case 0x2C: {
+      if (((L & 0xf) + (1 & 0xf)) & 0x10) {
+        set_half_carry();
+      } else {
+        reset_half_carry();
+      }
+      L++;
+      HL = (H << 8) + L;
+      if (L == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      break;
+    }
+
     case 0x2F: {
       A = A ^ 0xFF;
       set_negative();
@@ -267,28 +365,179 @@ void SharpSM83::run_instruction() {
       PC += 2;
       break;
     }
+    case 0x33: {
+      m_cycle();
+      SP++;
+      break;
+    }
     case 0x3C: {
       A++;
+      AF = (A << 8) + (AF & 0xFF);
       break;
     }
     case 0x3E: {
-      A = read8(PC++);
+      A  = read8(PC++);
+      AF = (A << 8) + (AF & 0xFF);
+      break;
+    }
+    case 0x40: {
+      break;
+    }
+    case 0x41: {
+      B  = C;
+      BC = (B << 8) + C;
+      break;
+    }
+
+    case 0x42: {
+      B  = D;
+      BC = (B << 8) + C;
+      break;
+    }
+    case 0x43: {
+      B  = E;
+      BC = (B << 8) + C;
+      break;
+    }
+    case 0x44: {
+      B  = H;
+      BC = (B << 8) + C;
+      break;
+    }
+    case 0x45: {
+      B  = L;
+      BC = (B << 8) + C;
+      break;
+    }
+    case 0x46: {
+      B  = read8(HL);
+      BC = (B << 8) + C;
       break;
     }
     case 0x47: {
-      B = A;
+      B  = A;
+      BC = (B << 8) + C;
+      break;
+    }
+
+    case 0x48: {
+      C  = B;
+      BC = (B << 8) + C;
+      break;
+    }
+    case 0x49: {
+      break;
+    }
+    case 0x4A: {
+      C  = D;
+      BC = (B << 8) + C;
+      break;
+    }
+    case 0x4B: {
+      C  = E;
+      BC = (B << 8) + C;
+      break;
+    }
+    case 0x4C: {
+      C  = H;
+      BC = (B << 8) + C;
+      break;
+    }
+    case 0x4D: {
+      C  = L;
+      BC = (B << 8) + C;
+      break;
+    }
+    case 0x4E: {
+      C  = read8(HL);
+      BC = (B << 8) + C;
+      break;
+    }
+    case 0x4F: {
+      C  = H;
+      BC = (B << 8) + C;
+      break;
+    }
+
+    case 0x50: {
+      D  = B;
+      DE = (D << 8) + E;
+      break;
+    }
+    case 0x51: {
+      D  = C;
+      DE = (D << 8) + E;
+      break;
+    }
+    case 0x52: {
+      break;
+    }
+    case 0x53: {
+      D  = E;
+      DE = (D << 8) + E;
+      break;
+    }
+    case 0x54: {
+      D  = H;
+      DE = (D << 8) + E;
+      break;
+    }
+    case 0x55: {
+      D  = L;
+      DE = (D << 8) + E;
+      break;
+    }
+    case 0x56: {
+      D  = read8(HL);
+      DE = (D << 8) + E;
       break;
     }
     case 0x57: {
-      D = A;
+      D  = A;
+      DE = (D << 8) + E;
+      break;
+    }
+    case 0x58: {
+      E  = B;
+      DE = (D << 8) + E;
+      break;
+    }
+    case 0x59: {
+      E  = C;
+      DE = (D << 8) + E;
       break;
     }
     case 0x5A: {
-      E = D;
+      E  = D;
+      DE = (D << 8) + E;
+      break;
+    }
+    case 0x5B: {
+      break;
+    }
+    case 0x5C: {
+      E  = H;
+      DE = (D << 8) + E;
+      break;
+    }
+    case 0x5D: {
+      E  = L;
+      DE = (D << 8) + E;
       break;
     }
     case 0x5E: {
-      E = read8(HL);
+      E  = read8(HL);
+      DE = (D << 8) + E;
+      break;
+    }
+    case 0x5F: {
+      E  = A;
+      DE = (D << 8) + E;
+      break;
+    }
+    case 0x66: {
+      H  = read8(HL);
+      HL = (H << 8) + L;
       break;
     }
     case 0x67: {
@@ -296,68 +545,411 @@ void SharpSM83::run_instruction() {
       HL = (H << 8) + L;
       break;
     }
-    case 0x6f: {
-      L = A;
+    case 0x6c: {
+      L  = H;
+      HL = (H << 8) + L;
       break;
     }
-    // case 0x70: {
-    //   write8(HL, B);
-    //   break;
-    // }
-    // case 0x71: {
-    //   write8(HL, C);
-    //   break;
-    // }
-    // case 0x72: {
-    //   write8(HL, D);
-    //   break;
-    // }
-    // case 0x73: {
-    //   write8(HL, E);
-    //   break;
-    // }
-    // case 0x74: {
-    //   write8(HL, H);
-    //   break;
-    // }
-    // case 0x75: {
-    //   write8(HL, L);
-    //   break;
-    // }
-    // case 0x77: {
-    //   write8(HL, A);
-    //   break;
-    // }
-    
+    case 0x6f: {
+      L  = A;
+      HL = (H << 8) + L;
+      break;
+    }
+    case 0x70: {
+      write8(HL, B);
+      break;
+    }
+    case 0x71: {
+      write8(HL, C);
+      break;
+    }
+    case 0x72: {
+      write8(HL, D);
+      break;
+    }
+    case 0x73: {
+      write8(HL, E);
+      break;
+    }
+    case 0x74: {
+      write8(HL, H);
+      break;
+    }
+    case 0x75: {
+      write8(HL, L);
+      break;
+    }
+    case 0x77: {
+      write8(HL, A);
+      break;
+    }
+
     case 0x78: {
-      A = B;
+      A  = B;
+      AF = (A << 8) + (AF & 0xFF);
       break;
     }
     case 0x79: {
-      A = C;
+      A  = C;
+      AF = (A << 8) + (AF & 0xFF);
       break;
     }
     case 0x7A: {
-      A = D;
+      A  = D;
+      AF = (A << 8) + (AF & 0xFF);
       break;
     }
     case 0x7B: {
-      A = E;
+      A  = E;
+      AF = (A << 8) + (AF & 0xFF);
       break;
     }
     case 0x7C: {
-      A = H;
+      A  = H;
+      AF = (A << 8) + (AF & 0xFF);
       break;
     }
     case 0x7D: {
-      A = L;
+      A  = L;
+      AF = (A << 8) + (AF & 0xFF);
       break;
     }
     case 0x7E: {
-      A = read8(HL);
+      A  = read8(HL);
+      AF = (A << 8) + (AF & 0xFF);
+      break;
+    }
+    case 0x93: {
+      if ((A - E) < 0) {
+        set_carry();
+      }
+      A = A - E;
+      if (A == 0) {
+        set_zero();
+      }
+      set_negative();
+      AF = (A << 8) + (AF & 0xFF);
+      break;
+    }
+    case 0xA0: {
+      A = A & B;
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      set_half_carry();
+      reset_carry();
+      break;
+    }
+    case 0xA1: {
+      A = A & C;
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      set_half_carry();
+      reset_carry();
+      break;
+    }
+    case 0xA2: {
+      A = A & D;
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      set_half_carry();
+      reset_carry();
+      break;
+    }
+    case 0xA3: {
+      A = A & E;
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      set_half_carry();
+      reset_carry();
+      break;
+    }
+    case 0xA5: {
+      A = A & L;
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      set_half_carry();
+      reset_carry();
+      break;
+    }
+    case 0xA6: {
+      A = A & read8(HL);
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      set_half_carry();
+      reset_carry();
+      break;
+    }
+    case 0xA7: {
+      A = A & A;
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      set_half_carry();
+      reset_carry();
+      break;
+    }
+
+    case 0xA8: {
+      A = A ^ B;
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+      reset_carry();
+      break;
+    }
+    case 0xA9: {
+      A = A ^ C;
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+      reset_carry();
+      break;
+    }
+    case 0xAA: {
+      A = A ^ D;
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+      reset_carry();
+      break;
+    }
+    case 0xAB: {
+      A = A ^ E;
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+      reset_carry();
+      break;
+    }
+    case 0xAC: {
+      A = A ^ H;
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+      reset_carry();
+      break;
+    }
+    case 0xAD: {
+      A = A ^ L;
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+      reset_carry();
+      break;
+    }
+    case 0xAE: {
+      A = A ^ read8(HL);
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+      reset_carry();
+      break;
+    }
+    case 0xAF: {
+      A = A ^ A;
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+      reset_carry();
       break;
     }
     
+
+    case 0xB0: {
+      A  = A | B;
+      AF = (A << 8) + (AF & 0xFF);
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+      reset_carry();
+      break;
+    }
+    case 0xB1: {
+      A  = A | C;
+      AF = (A << 8) + (AF & 0xFF);
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+      reset_carry();
+      break;
+    }
+    case 0xB2: {
+      A  = A | D;
+      AF = (A << 8) + (AF & 0xFF);
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+      reset_carry();
+      break;
+    }
+    case 0xB3: {
+      A  = A | E;
+      AF = (A << 8) + (AF & 0xFF);
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+      reset_carry();
+      break;
+    }
+    case 0xB4: {
+      A  = A | H;
+      AF = (A << 8) + (AF & 0xFF);
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+      reset_carry();
+      break;
+    }
+    case 0xB5: {
+      A  = A | L;
+      AF = (A << 8) + (AF & 0xFF);
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+      reset_carry();
+      break;
+    }
+    case 0xB6: {
+      A  = A | read8(HL);
+      AF = (A << 8) + (AF & 0xFF);
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+      reset_carry();
+      break;
+    }
+
     case 0xB9: {
       if ((A - C) < 0) {
         set_carry();
@@ -384,23 +976,52 @@ void SharpSM83::run_instruction() {
       break;
     }
     case 0xC3: {
-      PC = (read8(PC + 1) << 8) + read8(PC);
+      u8 low  = read8(PC++);
+      u8 high = read8(PC++);
+
+      PC = (high << 8) + low;
       m_cycle();
+      break;
+    }
+    case 0xC4: {
+      u8 low  = read8(PC++);
+      u8 high = read8(PC++);
+      if (!get_flag(FLAG::ZERO)) {
+        push_to_stack(((PC & 0xFF00) >> 8));
+        push_to_stack((PC & 0xFF));
+
+        PC = (high << 8) + low;
+        m_cycle();
+      }
+      break;
+    }
+    case 0xC5: {
+      m_cycle();
+      push_to_stack(B);
+      push_to_stack(C);
+      break;
+    }
+    case 0xC7: {
+      m_cycle();
+      push_to_stack((PC & 0xFF00) >> 8);
+      push_to_stack((PC & 0xFF));
+      PC = 0x0;
       break;
     }
     case 0xC9: {
       u8 low  = pull_from_stack();
       u8 high = pull_from_stack();
-      PC      = (high << 8) + low;
       m_cycle();
+      PC = (high << 8) + low;
+      // exit(0);
       break;
     }
     case 0xCD: {
-      push_to_stack((PC & 0xFF00) >> 8);
-      push_to_stack(PC & 0xFF);
-
       u8 low  = read8(PC++);
       u8 high = read8(PC++);
+
+      push_to_stack(((PC & 0xFF00) >> 8));
+      push_to_stack((PC & 0xFF));
 
       PC = (high << 8) + low;
       m_cycle();
@@ -419,28 +1040,83 @@ void SharpSM83::run_instruction() {
         set_zero();
       break;
     }
+    case 0xD5: {
+      m_cycle();
+      push_to_stack(D);
+      push_to_stack(E);
+      break;
+    }
     case 0xD6: {
       A -= read8(PC++);
       break;
     }
     case 0xE0: {
-      write8(0xFF00 + read8(PC++), A);
+      u16 address = 0xFF00 + read8(PC++);
+      fmt::println("address: {:04x}", address);
+      write8(address, A);
+      break;
+    }
+
+    case 0xE1: {
+      L  = pull_from_stack();
+      H  = pull_from_stack();
+      HL = (H << 8) + L;
+      break;
+    }
+    case 0xE5: {
+      m_cycle();
+      push_to_stack(H);
+      push_to_stack(L);
+      break;
+    }
+    case 0xE6: {
+      A  = A & read8(PC++);
+      AF = (A << 8) + (AF & 0xFF);
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      set_half_carry();
+
+      reset_negative();
+      reset_carry();
       break;
     }
     case 0xEA: {
       u8 low  = read8(PC++);
       u8 high = read8(PC++);
-      write8((high << 8) + low, A);
+      write8(((high << 8) + low), A);
+      break;
+    }
+    case 0xF0: {
+      A = read8(0xFF00 + read8(PC++));
+      break;
+    }
+    case 0xF1: {
+      u8 f = pull_from_stack();
+      A    = pull_from_stack();
+      AF   = (A << 8) + f;
+
+      break;
+    }
+    case 0xF3: {
+      IME = false;
       break;
     }
     case 0xFA: {
       u8 low  = read8(PC++);
       u8 high = read8(PC++);
       A       = read8((high << 8) + low);
+      AF      = (A << 8) + (AF & 0xFF);
       break;
     }
-    case 0xF3: {
-      IME = false;
+    case 0xF5: {
+      m_cycle();
+      push_to_stack(A);
+      push_to_stack(AF & 0xFF);
       break;
     }
     case 0xF9: {
@@ -454,6 +1130,22 @@ void SharpSM83::run_instruction() {
       IME = true;
       break;
     }
+    case 0xFE: {
+      u8 val = read8(PC++);
+      if ((A - val) < 0) {
+        set_carry();
+      }
+      if (((A & 0xf) - (val & 0xf)) & 0x10) {
+        set_half_carry();
+      } else {
+        reset_half_carry();
+      }
+      if ((A - val) == 0)
+        set_zero();
+
+      set_negative();
+      break;
+    }
     case 0xFF: {
       m_cycle();
       push_to_stack((PC & 0xFF00) >> 8);
@@ -462,6 +1154,9 @@ void SharpSM83::run_instruction() {
       break;
     }
     default: {
+      fmt::println("[CPU] unimplemented opcode: {:#04x}", opcode);
+      ;
+      exit(0);
       throw std::runtime_error(
           fmt::format("[CPU] unimplemented opcode: {:#04x}", opcode));
     }

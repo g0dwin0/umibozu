@@ -280,11 +280,8 @@ std::string Cartridge::get_mapper_string(u8 cartridge_type) {
 void Cartridge::load_cart(std::vector<u8> data) {
   this->memory = data;
 
-  // verify header checksum
-  
-
   info = get_cart_info();
-  print_cart_info();
+  // print_cart_info();
 };
 Cartridge::Cartridge::Info Cartridge::get_cart_info() {
   Info info;
