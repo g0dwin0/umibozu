@@ -155,15 +155,22 @@ void SharpSM83::run_instruction() {
       break;
     }
     case 0x4: {
-      if (B == 0b1111) {
+      if (((B & 0xf) + (1 & 0xf)) & 0x10) {
         set_half_carry();
+      } else {
+        reset_half_carry();
       }
       B++;
+      if (B == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
       reset_negative();
       break;
     }
     case 0x5: {
-       if (((B & 0xf) - (1 & 0xf)) & 0x10) {
+      if (((B & 0xf) - (1 & 0xf)) & 0x10) {
         set_half_carry();
       } else {
         reset_half_carry();
@@ -290,7 +297,7 @@ void SharpSM83::run_instruction() {
       AF = (A << 8) + (AF & 0xFF);
       break;
     }
-    
+
     case 0x23: {
       m_cycle();
       HL++;
@@ -336,6 +343,24 @@ void SharpSM83::run_instruction() {
       AF = (A << 8) + (AF & 0xFF);
       break;
     }
+    case 0x2D: {
+      if (((L & 0xf) - (1 & 0xf)) & 0x10) {
+        set_half_carry();
+      } else {
+        reset_half_carry();
+      }
+
+      L--;
+      HL = (H << 8) + L;
+      if (L == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      set_negative();
+      break;
+    }
     case 0x2C: {
       if (((L & 0xf) + (1 & 0xf)) & 0x10) {
         set_half_carry();
@@ -353,7 +378,6 @@ void SharpSM83::run_instruction() {
       reset_negative();
       break;
     }
-
     case 0x2F: {
       A = A ^ 0xFF;
       set_negative();
@@ -363,6 +387,14 @@ void SharpSM83::run_instruction() {
     case 0x31: {
       SP = (read8(PC + 1) << 8) + read8(PC);
       PC += 2;
+      break;
+    }
+    case 0x32: {
+      write8(HL--, A);
+
+      H  = (HL & 0xFF00) >> 8;
+      L  = (HL & 0xFF);
+      AF = (A << 8) + (AF & 0xFF);
       break;
     }
     case 0x33: {
@@ -842,7 +874,6 @@ void SharpSM83::run_instruction() {
       reset_carry();
       break;
     }
-    
 
     case 0xB0: {
       A  = A | B;
@@ -950,16 +981,97 @@ void SharpSM83::run_instruction() {
       break;
     }
 
-    case 0xB9: {
-      if ((A - C) < 0) {
-        set_carry();
-      }
-      if ((A - C) == 0)
+    case 0xB7: {
+      A  = A | A;
+      AF = (A << 8) + (AF & 0xFF);
+
+      if (A == 0) {
         set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+      reset_carry();
+      break;
+    }
+    case 0xB8: {
+      if ((A - B) < 0) {
+        set_carry();
+      } else {
+        reset_carry();
+      }
+      if (((A & 0xf) - (B & 0xf)) & 0x10) {
+        set_half_carry();
+      } else {
+        reset_half_carry();
+      }
+      if ((A - B) == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
 
       set_negative();
       break;
     }
+
+    case 0xB9: {
+      if ((A - C) < 0) {
+        set_carry();
+      }
+      if ((A - C) == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      set_negative();
+      break;
+    }
+    case 0xBA: {
+      if ((A - D) < 0) {
+        set_carry();
+      } else {
+        reset_carry();
+      }
+      if (((A & 0xf) - (D & 0xf)) & 0x10) {
+        set_half_carry();
+      } else {
+        reset_half_carry();
+      }
+      if ((A - D) == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      set_negative();
+      break;
+    }
+
+    case 0xBB: {
+      if ((A - E) < 0) {
+        set_carry();
+      } else {
+        reset_carry();
+      }
+      if (((A & 0xf) - (E & 0xf)) & 0x10) {
+        set_half_carry();
+      } else {
+        reset_half_carry();
+      }
+      if ((A - E) == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      set_negative();
+      break;
+    }
+
     case 0xC1: {
       C  = pull_from_stack();
       B  = pull_from_stack();
@@ -1001,6 +1113,29 @@ void SharpSM83::run_instruction() {
       push_to_stack(C);
       break;
     }
+    case 0xC6: {
+      u8 vl = read8(PC++);
+      if (((A & 0xf) + (vl & 0xf)) & 0x10) {
+        set_half_carry();
+      } else {
+        reset_half_carry();
+      }
+      if ((A + vl) > 255) {
+        set_carry();
+      } else {
+        reset_carry();
+      }
+      A += vl;
+      AF = (A << 8) + (AF & 0xFF);
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      break;
+    }
     case 0xC7: {
       m_cycle();
       push_to_stack((PC & 0xFF00) >> 8);
@@ -1016,6 +1151,141 @@ void SharpSM83::run_instruction() {
       // exit(0);
       break;
     }
+    case 0xCB: {
+      switch(read8(PC++)) {
+        case 0x38: {
+          if(B & 0x80) {
+            set_carry();
+          } else {
+            reset_carry();
+          }
+          B >>= 1;
+          BC = (B << 8) + C;
+           if(B == 0) {
+            set_zero();
+          } else {
+            reset_zero();
+          }
+          reset_negative();
+          reset_half_carry();
+          break;
+        }
+        case 0x39: {
+          if(C & 0x80) {
+            set_carry();
+          } else {
+            reset_carry();
+          }
+          C >>= 1;
+          BC = (B << 8) + C;
+           if(C == 0) {
+            set_zero();
+          } else {
+            reset_zero();
+          }
+          reset_negative();
+          reset_half_carry();
+          break;
+        }
+        case 0x3A: {
+          if(D & 0x80) {
+            set_carry();
+          } else {
+            reset_carry();
+          }
+          D >>= 1;
+          DE = (D << 8) + E;
+           if(D == 0) {
+            set_zero();
+          } else {
+            reset_zero();
+          }
+          reset_negative();
+          reset_half_carry();
+          break;
+        }
+        case 0x3B: {
+          if(E & 0x80) {
+            set_carry();
+          } else {
+            reset_carry();
+          }
+          E >>= 1;
+          DE = (D << 8) + E;
+           if(E == 0) {
+            set_zero();
+          } else {
+            reset_zero();
+          }
+          reset_negative();
+          reset_half_carry();
+          break;
+        }
+        case 0x3C: {
+         if(H & 0x80) {
+            set_carry();
+          } else {
+            reset_carry();
+          }
+          H >>= 1;
+          if(H == 0) {
+            set_zero();
+          } else {
+            reset_zero();
+          }
+          HL = (H << 8) + L;
+          reset_negative();
+          reset_half_carry();
+          break;
+        }
+        case 0x3D: {
+         if(L & 0x80) {
+            set_carry();
+          } else {
+            reset_carry();
+          }
+          L >>= 1;
+          if(L == 0) {
+            set_zero();
+          } else {
+            reset_zero();
+          }
+          HL = (H << 8) + L;
+          reset_negative();
+          reset_half_carry();
+          break;
+        }
+        // case 0x3E: {
+        //   if(B & 0x80) {
+        //     set_carry();
+        //   } else {
+        //     reset_carry();
+        //   }
+        //   B >>= 1;
+        //   reset_negative();
+        //   reset_half_carry();
+        //   break;
+        // }
+        // case 0x3F: {
+        //   if(B & 0x80) {
+        //     set_carry();
+        //   } else {
+        //     reset_carry();
+        //   }
+        //   B >>= 1;
+        //   reset_negative();
+        //   reset_half_carry();
+        //   break;
+        // }
+        
+        
+        default: {
+          fmt::println("[CPU] unimplemented CB op: {:#04x}", peek(PC - 1));
+          exit(-1);
+        }
+      }
+      break;
+    }
     case 0xCD: {
       u8 low  = read8(PC++);
       u8 high = read8(PC++);
@@ -1029,15 +1299,26 @@ void SharpSM83::run_instruction() {
       break;
     }
     case 0xCE: {
-      reset_negative();
       u8 val = read8(PC++);
-      if ((A & 16) == 0 && (A + val + get_flag(FLAG::CARRY) & 16))
+
+      if (((A & 0xf) + ((val + get_flag(FLAG::CARRY)) & 0xf)) & 0x10) {
         set_half_carry();
-      if (A + val + get_flag(FLAG::CARRY) > 255)
+      } else {
+        reset_half_carry();
+      }
+
+      if (A + val + get_flag(FLAG::CARRY) > 255) {
         set_carry();
+      } else {
+        reset_carry();
+      }
       A = A + val + get_flag(FLAG::CARRY);
-      if (A == 0)
+      if (A == 0) {
         set_zero();
+      } else {
+        reset_zero();
+      }
+      reset_negative();
       break;
     }
     case 0xD5: {
@@ -1047,12 +1328,32 @@ void SharpSM83::run_instruction() {
       break;
     }
     case 0xD6: {
-      A -= read8(PC++);
+      u8 val = read8(PC++);
+      if (((A & 0xf) - ((val)&0xf)) & 0x10) {
+        set_half_carry();
+      } else {
+        reset_half_carry();
+      }
+      if((A - val) < 0) {
+        set_carry();
+      } else {
+        reset_carry();
+      }
+      A -= val;
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+      AF = (A << 8) + (AF & 0xFF);
+
+      set_negative();
       break;
     }
     case 0xE0: {
       u16 address = 0xFF00 + read8(PC++);
-      fmt::println("address: {:04x}", address);
+      // fmt::println("address: {:04x}", address);
       write8(address, A);
       break;
     }
