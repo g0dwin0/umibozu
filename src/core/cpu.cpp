@@ -81,8 +81,8 @@ void SharpSM83::write8(const u16 address, const u8 value) {
   m_cycle();
   if (address >= 0x0 && address <= 0x7FFF) {
     address >= 0x2000 ? (bus->cart.rom_bank = value & 0b00000111) : 0;
+    fmt::println("write to ROM area/MBC register: {:04x}", address);
     exit(-1);
-    throw std::runtime_error("write to ROM area/MBC register");
   }
   if (address >= 0x8000 && address <= 0xDFFF) {
     return bus->ram.write8(address, value);
@@ -91,6 +91,7 @@ void SharpSM83::write8(const u16 address, const u8 value) {
     return bus->ram.write8((address & 0xDDFF), value);
   }
   if (address >= 0xFE00 && address <= 0xFFFE) {
+    fmt::println("write to system register: {:04x}", address);
     // throw std::runtime_error("handle dat");
     return bus->ram.write8(address, value);
   }
@@ -411,7 +412,10 @@ void SharpSM83::run_instruction() {
       SET_HL();
       break;
     }
+
     case 0x27: {
+      // WTF is the DAA instruction?
+      // https://ehaskins.com/2018-01-30%20Z80%20DAA/
       u8 adjustment = 0;
       if (get_flag(FLAG::HALF_CARRY) ||
           (!get_flag(FLAG::NEGATIVE) && (A & 0xf) > 9)) {
@@ -440,6 +444,7 @@ void SharpSM83::run_instruction() {
       reset_half_carry();
       break;
     }
+
     case 0x28: {
       i8 offset = (i8)read8(PC++);
       if (get_flag(FLAG::ZERO)) {
