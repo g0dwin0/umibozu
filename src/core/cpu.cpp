@@ -33,8 +33,9 @@ u8 SharpSM83::read8(const u16 address) {
     return bus->ram.read8((address & 0xDDFF));
   }
   if (address >= 0xFE00 && address <= 0xFFFE) {
-    if (address == 0xFF44)
+    if (address == 0xFF44) {
       return 0x90;
+    }
     return bus->ram.read8(address);
     exit(-1);
     throw std::runtime_error(
@@ -410,6 +411,35 @@ void SharpSM83::run_instruction() {
       SET_HL();
       break;
     }
+    case 0x27: {
+      u8 adjustment = 0;
+      if (get_flag(FLAG::HALF_CARRY) ||
+          (!get_flag(FLAG::NEGATIVE) && (A & 0xf) > 9)) {
+        adjustment |= 0x6;
+      }
+
+      if (get_flag(FLAG::CARRY) || (!get_flag(FLAG::NEGATIVE) && A > 0x99)) {
+        adjustment |= 0x60;
+        set_carry();
+      }
+
+      if (get_flag(FLAG::NEGATIVE)) {
+        A += -adjustment;
+      } else {
+        A += adjustment;
+      }
+
+      A &= 0xff;
+      SET_AF();
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+      reset_half_carry();
+      break;
+    }
     case 0x28: {
       i8 offset = (i8)read8(PC++);
       if (get_flag(FLAG::ZERO)) {
@@ -424,8 +454,6 @@ void SharpSM83::run_instruction() {
       } else {
         reset_carry();
       };
-
-
 
       if (((HL & 0xfff) + (HL & 0xfff)) & 0x1000) {
         set_half_carry();
@@ -1590,7 +1618,6 @@ void SharpSM83::run_instruction() {
         }
 
         case 0x38: {
-          
           if (B & 0x1) {
             set_carry();
           } else {
@@ -1707,7 +1734,6 @@ void SharpSM83::run_instruction() {
           reset_half_carry();
           break;
         }
-          
 
         default: {
           fmt::println("[CPU] unimplemented CB op: {:#04x}", peek(PC - 1));
@@ -1797,6 +1823,16 @@ void SharpSM83::run_instruction() {
       set_negative();
       break;
     }
+    case 0xD8: {
+      m_cycle();
+      if (get_flag(FLAG::CARRY)) {
+        u8 low  = pull_from_stack();
+        u8 high = pull_from_stack();
+        m_cycle();
+        PC = (high << 8) + low;
+      }
+      break;
+    }
     case 0xE0: {
       u16 address = 0xFF00 + read8(PC++);
       write8(address, A);
@@ -1842,6 +1878,11 @@ void SharpSM83::run_instruction() {
     case 0xEE: {
       A ^= read8(PC++);
 
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
       reset_negative();
       reset_half_carry();
       reset_carry();
@@ -1857,7 +1898,7 @@ void SharpSM83::run_instruction() {
       A    = pull_from_stack();
 
       if (F & 0xF) {
-        F = (F & 0b11110000); // truncate unused bits
+        F = (F & 0b11110000);  // truncate unused bits
       }
       AF = (A << 8) + F;
       break;
@@ -1918,7 +1959,6 @@ void SharpSM83::run_instruction() {
     }
     default: {
       fmt::println("[CPU] unimplemented opcode: {:#04x}", opcode);
-      ;
       exit(0);
       throw std::runtime_error(
           fmt::format("[CPU] unimplemented opcode: {:#04x}", opcode));
