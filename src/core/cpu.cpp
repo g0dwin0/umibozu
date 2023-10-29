@@ -3,6 +3,7 @@
 #include <bitset>
 #include <stdexcept>
 
+#include "common.h"
 #include "core/cart.h"
 #include "fmt/core.h"
 
@@ -16,7 +17,33 @@ using namespace Umibozu;
 SharpSM83::SharpSM83() {}
 SharpSM83::~SharpSM83() {}
 
-void SharpSM83::m_cycle() { cycles += 4; }
+void SharpSM83::request_interrupt(InterruptType t) {
+  bus->ram.ram[IF] |= (1 << (u8)t);
+}
+void SharpSM83::m_cycle() {
+  bus->ram.ram[DIV] += 1;
+  if (tima_to_tma) {
+    bus->ram.ram[TIMA] = bus->ram.ram[TMA];
+    tima_to_tma = false;
+  }
+  if ((bus->ram.ram[TAC] & 0x4)) {
+    if ((bus->ram.ram[TIMA] +
+         (1'048'576 / (clock_select_table[(bus->ram.ram[TAC] & 0x3)]))) >
+        0x100) {
+      bus->ram.ram[TIMA] = 0;
+            fmt::println("TIMA: {:#04x}", bus->ram.ram[TIMA]);
+
+      tima_to_tma = true;
+      request_interrupt(InterruptType::TIMER);
+      fmt::println("timer interrupt requested...");
+    } else {
+      bus->ram.ram[TIMA] +=
+          1'048'576 / (clock_select_table[(bus->ram.ram[TAC] & 0x3)]);
+      fmt::println("TIMA: {:#04x}", bus->ram.ram[TIMA]);
+    }
+  }
+  // handle_interrupts();
+}
 
 u8 SharpSM83::read8(const u16 address) {
   m_cycle();
@@ -33,22 +60,22 @@ u8 SharpSM83::read8(const u16 address) {
     return bus->ram.read8((address & 0xDDFF));
   }
   if (address >= 0xFE00 && address <= 0xFFFE) {
+    if (address >= 0xFF00 && address <= 0xFF7F) {
+      fmt::println("[READ8] {:#04x}: {:#04x}", address, peek(address));
+    }
     if (address == 0xFF44) {
       return 0x90;
     }
     return bus->ram.read8(address);
-    exit(-1);
-    throw std::runtime_error(
-        fmt::format("reading register address space: {:#04x}", address));
   }
   if (address == 0xFFFF) {
-    // fmt::println("IME: {:#4x}", IME);
-    return IME;
+    return bus->ram.ram[IE];
   }
 
   throw std::runtime_error(
       fmt::format("[CPU] out of bounds CPU read: {:#04x}", address));
 }
+
 // debug only!
 u8 SharpSM83::peek(const u16 address) {
   if (address >= 0 && address <= 0x3FFF) {
@@ -64,14 +91,13 @@ u8 SharpSM83::peek(const u16 address) {
     return bus->ram.read8((address & 0xDDFF));
   }
   if (address >= 0xFE00 && address <= 0xFFFE) {
-    if (address >= 0xFE0 && address <= 0xFEFF) {
+    if (address <= 0xFEFF) {
       return 0;
     }
     return bus->ram.read8(address);
   }
   if (address == 0xFFFF) {
-    // fmt::println("IME: {:#4x}", IME);
-    return IME;
+    return bus->ram.ram[IE];
   }
 
   throw std::runtime_error(
@@ -79,6 +105,7 @@ u8 SharpSM83::peek(const u16 address) {
 }
 void SharpSM83::write8(const u16 address, const u8 value) {
   m_cycle();
+
   if (address >= 0x0 && address <= 0x7FFF) {
     address >= 0x2000 ? (bus->cart.rom_bank = value & 0b00000111) : 0;
     fmt::println("write to ROM area/MBC register: {:04x}", address);
@@ -91,15 +118,61 @@ void SharpSM83::write8(const u16 address, const u8 value) {
     return bus->ram.write8((address & 0xDDFF), value);
   }
   if (address >= 0xFE00 && address <= 0xFFFE) {
-    fmt::println("write to system register: {:04x}", address);
-    // throw std::runtime_error("handle dat");
-    return bus->ram.write8(address, value);
+    if (address >= 0xFF00 && address <= 0xFF4B) {
+      if (address == SC || address == SB) {
+        if ((value & 0x7) == 0 && bus->ram.ram[SC] & 0x80) {
+          fmt::println("transfer ended");
+          exit(-1);
+        }
+        return;
+      }
+      fmt::println("write to system register: {:#04x}, val: {:#04x}", address,
+                   value);
+      switch (address) {
+        case DIV: {
+          // if(DIV % 8 == 1) {
+          //   if()
+          // }
+          bus->ram.ram[DIV] = 0x0;
+          return;
+        }
+        case TMA: {
+          fmt::println("TMA value: {:08b}", value);
+          bus->ram.ram[TMA] = value;
+          return;
+        }
+        case TIMA: {
+          fmt::println("TIMA value: {:08b}", value);
+          bus->ram.ram[TIMA] = value;
+          return;
+        }
+        case TAC: {
+          fmt::println("TAC value: {:08b}", value);
+          bus->ram.ram[TAC] = value;
+          fmt::println("new cycle increment count: {:d}",
+                       clock_select_table[value & 0x3]);
+          return;
+        }
+        case IF: {
+          bus->ram.ram[IF] = value;
+          fmt::println("IE: {:08b}", bus->ram.ram[IE]);
+          fmt::println("IF: {:08b}", bus->ram.ram[IF]);
+          return;
+        }
+        case IE: {
+          bus->ram.ram[IE] = value;
+          fmt::println("IE: {:08b}", bus->ram.ram[IE]);
+          fmt::println("IF: {:08b}", bus->ram.ram[IF]);
+          return;
+        }
+        default: {
+          fmt::println("unhandled io reg write");
+          break;
+        }
+      }
+    }
   }
-  if (address == 0xFFFF) {
-    IME = value;
-    return;
-  }
-
+  return bus->ram.write8(address, value);
   throw std::runtime_error(
       fmt::format("[CPU] out of bounds CPU write: {:#04x}", address));
 }
@@ -107,6 +180,7 @@ void SharpSM83::push_to_stack(const u8 value) { write8(--SP, value); }
 
 u8 SharpSM83::pull_from_stack() { return read8(SP++); }
 
+#pragma region FLAGS
 void SharpSM83::set_flag(FLAG flag) {
   auto bitset = std::bitset<16>(AF);
 
@@ -134,6 +208,45 @@ void SharpSM83::reset_zero() { unset_flag(FLAG::ZERO); };
 void SharpSM83::reset_negative() { unset_flag(FLAG::NEGATIVE); };
 void SharpSM83::reset_half_carry() { unset_flag(FLAG::HALF_CARRY); };
 void SharpSM83::reset_carry() { unset_flag(FLAG::CARRY); };
+#pragma endregion FLAGS
+void SharpSM83::handle_interrupts() {
+  if (IME && bus->ram.ram[IE] && bus->ram.ram[IF]) {
+    // fmt::println("[HANDLE INTERRUPTS] hello!");
+    fmt::println("[HANDLE INTERRUPTS] IME:  {:08b}", IME);
+    fmt::println("[HANDLE INTERRUPTS] IE:   {:08b}", bus->ram.ram[IE]);
+    fmt::println("[HANDLE INTERRUPTS] IF:   {:08b}", bus->ram.ram[IF]);
+
+    // IE -> what specific interrupt handler is allowed to be called? (per bit)
+    // IF -> requested interrupts (handle here!)
+
+    std::bitset<8> ie_set(bus->ram.ram[IE]);
+    std::bitset<8> if_set(bus->ram.ram[IF]);
+
+    for (size_t i = 0; i < if_set.size(); i++) {
+      if (if_set[i] == true && ie_set[i] == true) {
+        IME = false;
+
+        fmt::println("handling interrupt: {:#04x}", i);
+        fmt::println("[INTERRUPT HANDLER] PC: {:#04x}", PC);
+        fmt::println("{}", if_set.to_string());
+        if_set[i].flip();
+        fmt::println("{}", if_set.to_string());
+        m_cycle();
+        m_cycle();
+        push_to_stack(((PC & 0xFF00) >> 8));
+        push_to_stack((PC & 0xFF));
+        PC = interrupt_table[i];
+        m_cycle();
+        fmt::println("[INTERRUPT HANDLER] AFTER PC: {:#04x}", PC);
+      };
+    }
+
+    bus->ram.ram[IE] = ie_set.to_ulong();
+    bus->ram.ram[IF] = if_set.to_ulong();
+    // Bit 0 (VBlank) has the highest priority, and Bit 4 (Joypad) has the
+    // lowest priority.
+  }
+};
 void SharpSM83::run_instruction() {
   fmt::println(
       "A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} "
@@ -189,8 +302,7 @@ void SharpSM83::run_instruction() {
       break;
     }
     case 0x6: {
-      B = read8(PC);
-      PC++;
+      B = read8(PC++);
       break;
     }
     case 0xC: {
@@ -346,8 +458,8 @@ void SharpSM83::run_instruction() {
     case 0x20: {
       i8 offset = (i8)read8(PC++);
       if (!get_flag(FLAG::ZERO)) {
-        PC = PC + offset;
         m_cycle();
+        PC = PC + offset;
       }
       break;
     }
@@ -526,8 +638,8 @@ void SharpSM83::run_instruction() {
     case 0x30: {
       i8 offset = (i8)read8(PC++);
       if (!get_flag(FLAG::CARRY)) {
-        PC = PC + offset;
         m_cycle();
+        PC = PC + offset;
       }
       break;
     }
@@ -862,6 +974,9 @@ void SharpSM83::run_instruction() {
     case 0x75: {
       write8(HL, L);
       break;
+    }
+    case 0x76: {
+      exit(-1);
     }
     case 0x77: {
       write8(HL, A);
@@ -1375,7 +1490,7 @@ void SharpSM83::run_instruction() {
       } else {
         reset_half_carry();
       }
-      if ((A + vl) > 255) {
+      if ((A + vl) > 0xFF) {
         set_carry();
       } else {
         reset_carry();
@@ -1413,6 +1528,15 @@ void SharpSM83::run_instruction() {
       u8 high = pull_from_stack();
       m_cycle();
       PC = (high << 8) + low;
+      break;
+    }
+    case 0xCA: {
+      u8 low  = read8(PC++);
+      u8 high = read8(PC++);
+      if (get_flag(FLAG::ZERO)) {
+        m_cycle();
+        PC = (high << 8) + low;
+      }
       break;
     }
     case 0xCB: {
@@ -1838,6 +1962,10 @@ void SharpSM83::run_instruction() {
       }
       break;
     }
+    case 0xD9: {
+      fmt::println("called, not implemented");
+      exit(-1);
+    }
     case 0xE0: {
       u16 address = 0xFF00 + read8(PC++);
       write8(address, A);
@@ -1910,13 +2038,7 @@ void SharpSM83::run_instruction() {
     }
     case 0xF3: {
       IME = false;
-      break;
-    }
-    case 0xFA: {
-      u8 low  = read8(PC++);
-      u8 high = read8(PC++);
-      A       = read8((high << 8) + low);
-      AF      = (A << 8) + (AF & 0xFF);
+      fmt::println("[CPU] IME disabled");
       break;
     }
     case 0xF5: {
@@ -1925,13 +2047,48 @@ void SharpSM83::run_instruction() {
       push_to_stack((AF & 0xFF));
       break;
     }
+    case 0xF8: {
+      u8 vk  = read8(PC++);
+      i8 val = (i8)vk;
+
+      if (((SP & 0xfff) + ((val)&0xfff)) & 0x1000) {
+        set_half_carry();
+      } else {
+        reset_half_carry();
+      }
+
+      if ((SP + val) > 0xFF) {
+        set_carry();
+      } else {
+        reset_carry();
+      }
+
+      HL = SP + val;
+      H  = (HL & 0xFF00) >> 8;
+      L  = (HL & 0xFF);
+
+      m_cycle();
+
+      reset_zero();
+      reset_negative();
+      break;
+    }
     case 0xF9: {
       SP = HL;
       m_cycle();
       break;
     }
+    case 0xFA: {
+      u8 low  = read8(PC++);
+      u8 high = read8(PC++);
+      A       = read8((high << 8) + low);
+      SET_AF();
+      break;
+    }
+
     case 0xFB: {
       IME = true;
+      fmt::println("[CPU] IME enabled");
       break;
     }
     case 0xFE: {
@@ -1969,4 +2126,5 @@ void SharpSM83::run_instruction() {
           fmt::format("[CPU] unimplemented opcode: {:#04x}", opcode));
     }
   }
+  handle_interrupts();
 }

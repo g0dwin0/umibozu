@@ -2,25 +2,10 @@
 #include <ratio>
 
 #include "common.h"
-#include "core/cart.h"
-#include "core/cpu.h"
+#include "core/gb.h"
 #include "io.hpp"
 using namespace Umibozu;
 
-struct GB {
-  SharpSM83 cpu;
-  Bus bus;
-
-  GB() { cpu.bus = &bus; }
-
-  void start() {
-    u32 count = 100'000'000;
-    while (count != 0) {
-      cpu.run_instruction();
-      count--;
-    }
-  }
-};
 
 int main() {
   GB gb;

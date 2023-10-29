@@ -1,6 +1,6 @@
 CPPFLAGS = -Iinclude -std=c++20
 OBJ_DIR = build/obj
-FINAL_FILES = $(OBJ_DIR)/main.o $(OBJ_DIR)/cart.o $(OBJ_DIR)/cpu.o
+FINAL_FILES = $(OBJ_DIR)/main.o $(OBJ_DIR)/cart.o $(OBJ_DIR)/cpu.o $(OBJ_DIR)/bus.o $(OBJ_DIR)/gb.o
 CC=g++
 
 all: final
@@ -18,12 +18,21 @@ $(OBJ_DIR)/cart.o: src/core/cart.cpp
 	@echo "compiling cart..."
 	$(CC) $(CPPFLAGS) -c src/core/cart.cpp -o $(OBJ_DIR)/cart.o
 
-$(OBJ_DIR)/cpu.o: src/core/cpu.cpp
+$(OBJ_DIR)/cpu.o: src/core/cpu.cpp include/core/cpu.h
 	@echo "compiling cpu..."
 	$(CC) $(CPPFLAGS) -c src/core/cpu.cpp -o $(OBJ_DIR)/cpu.o
 
+$(OBJ_DIR)/bus.o: src/core/bus.cpp
+	@echo "compiling bus..."
+	$(CC) $(CPPFLAGS) -c src/core/bus.cpp -o $(OBJ_DIR)/bus.o
+
+$(OBJ_DIR)/gb.o: src/core/gb.cpp
+	@echo "compiling gb..."
+	$(CC) $(CPPFLAGS) -c src/core/gb.cpp -o $(OBJ_DIR)/gb.o
+
+
 clean:
-	rm $(OBJ_DIR)/cart.o $(OBJ_DIR)/main.o $(OBJ_DIR)/cpu.o
+	rm $(OBJ_DIR)/cart.o $(OBJ_DIR)/main.o $(OBJ_DIR)/cpu.o $(OBJ_DIR)/bus.o $(OBJ_DIR)/gb.o 
 
 umibozu:
 	cat /dev/null > MyLog.txt
