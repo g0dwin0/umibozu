@@ -2240,6 +2240,11 @@ void SharpSM83::run_instruction() {
       SET_HL();
       break;
     }
+    case 0xE2: {
+      u16 address = 0xFF00 + C;
+      write8(address, A);
+      break;
+    }
     case 0xE5: {
       m_cycle();
       push_to_stack(H);
@@ -2333,6 +2338,10 @@ void SharpSM83::run_instruction() {
         F = (F & 0b11110000);  // truncate unused bits
       }
       AF = (A << 8) + F;
+      break;
+    }
+    case 0xF2: {
+      A = read8(0xFF00 + C);
       break;
     }
     case 0xF3: {

@@ -11,7 +11,7 @@ int main() {
   GB gb;
 
   const std::string rom =
-      "/home/toast/Projects/umibozu/roms/gb-test-roms/cpu_instrs/individual/07-jr,jp,call,ret,rst.gb";
+      "/home/toast/Projects/umibozu/roms/gb-test-roms/cpu_instrs/individual/08-misc instrs.gb";
   std::vector<u8> data = read_file(rom);
   gb.bus.cart.load_cart(data);
 
