@@ -315,6 +315,24 @@ void SharpSM83::run_instruction() {
       write8(address + 1, (SP & 0xFF00) >> 8);
       break;
     }
+    case 0x9: {
+      if (((HL & 0xfff) + (BC & 0xfff)) & 0x1000) {
+        set_half_carry();
+      } else {
+        reset_half_carry();
+      }
+      if((HL + BC) > 0xFFFF) {
+        set_carry();
+      } else {
+        reset_carry();
+      }
+      HL += BC;
+      H = (HL & 0xFF00) >> 8;
+      L = (HL & 0xFF);
+      m_cycle();
+      reset_negative();
+      break;
+    }
     case 0xB: {
       BC--;
       B = (BC & 0xFF00) >> 8;
@@ -402,6 +420,24 @@ void SharpSM83::run_instruction() {
       i8 offset = (i8)read8(PC++);
       m_cycle();
       PC = PC + offset;
+      break;
+    }
+    case 0x19: {
+      if (((HL & 0xfff) + (DE & 0xfff)) & 0x1000) {
+        set_half_carry();
+      } else {
+        reset_half_carry();
+      }
+      if((HL + DE) > 0xFFFF) {
+        set_carry();
+      } else {
+        reset_carry();
+      }
+      HL += DE;
+      H = (HL & 0xFF00) >> 8;
+      L = (HL & 0xFF);
+      m_cycle();
+      reset_negative();
       break;
     }
     case 0x1A: {
