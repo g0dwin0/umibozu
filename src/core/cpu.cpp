@@ -394,6 +394,10 @@ void SharpSM83::run_instruction() {
       reset_negative();
       break;
     }
+    case 0x16: {
+      D = read8(PC++);
+      break;
+    }
     case 0x18: {
       i8 offset = (i8)read8(PC++);
       m_cycle();
@@ -444,6 +448,10 @@ void SharpSM83::run_instruction() {
       }
 
       set_negative();
+      break;
+    }
+    case 0x1E: {
+      E = read8(PC++);
       break;
     }
     case 0x1F: {
@@ -713,6 +721,10 @@ void SharpSM83::run_instruction() {
       }
 
       set_negative();
+      break;
+    }
+    case 0x36: {
+      write8(HL, read8(PC++));
       break;
     }
     case 0x39: {
@@ -1984,18 +1996,20 @@ void SharpSM83::run_instruction() {
       u8 val   = read8(PC++);
       u8 carry = get_flag(FLAG::CARRY);
 
-      if (((A & 0xf) + ((val + carry) & 0xf)) & 0x10) {
+      if (((A & 0xf) + (val & 0xf)) + carry & 0x10) {
         set_half_carry();
       } else {
         reset_half_carry();
       }
 
-      if (A + val + carry > 0xFF) {
+      if ((A + val + carry) > 0xFF) {
         set_carry();
       } else {
         reset_carry();
       }
+
       A = A + val + carry;
+      SET_AF();
       if (A == 0) {
         set_zero();
       } else {
@@ -2057,6 +2071,32 @@ void SharpSM83::run_instruction() {
         m_cycle();
         PC = (high << 8) + low;
       }
+      break;
+    }
+    case 0xDE: {
+      u8 val   = read8(PC++);
+      u8 carry = get_flag(FLAG::CARRY);
+
+      if (((A & 0xf) - (val & 0xf)) - carry & 0x10) {
+        set_half_carry();
+      } else {
+        reset_half_carry();
+      }
+
+      if ((A - val - carry) < 0) {
+        set_carry();
+      } else {
+        reset_carry();
+      }
+
+      A = A - val - carry;
+      SET_AF();
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+      set_negative();
       break;
     }
     case 0xE0: {
@@ -2161,6 +2201,20 @@ void SharpSM83::run_instruction() {
       m_cycle();
       push_to_stack(A);
       push_to_stack((AF & 0xFF));
+      break;
+    }
+    case 0xF6: {
+      A |= read8(PC++);
+
+      if (A == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+      reset_carry();
       break;
     }
     case 0xF8: {
