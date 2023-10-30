@@ -402,7 +402,7 @@ void SharpSM83::run_instruction() {
         reset_half_carry();
       }
       D++;
-      DE = (D << 8) + E;
+      SET_DE();
       if (D == 0) {
         set_zero();
       } else {
@@ -655,10 +655,11 @@ void SharpSM83::run_instruction() {
       break;
     }
     case 0x2A: {
-      A = read8(HL++);
-
+      A = read8(HL);
+      HL++;
       H = (HL & 0xFF00) >> 8;
       L = (HL & 0xFF);
+      SET_HL();
       SET_AF();
       break;
     }
