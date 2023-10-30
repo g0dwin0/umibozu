@@ -321,7 +321,7 @@ void SharpSM83::run_instruction() {
       } else {
         reset_half_carry();
       }
-      if((HL + BC) > 0xFFFF) {
+      if ((HL + BC) > 0xFFFF) {
         set_carry();
       } else {
         reset_carry();
@@ -428,7 +428,7 @@ void SharpSM83::run_instruction() {
       } else {
         reset_half_carry();
       }
-      if((HL + DE) > 0xFFFF) {
+      if ((HL + DE) > 0xFFFF) {
         set_carry();
       } else {
         reset_carry();
@@ -762,6 +762,14 @@ void SharpSM83::run_instruction() {
     }
     case 0x36: {
       write8(HL, read8(PC++));
+      break;
+    }
+    case 0x38: {
+      i8 offset = (i8)read8(PC++);
+      if (get_flag(FLAG::CARRY)) {
+        m_cycle();
+        PC = PC + offset;
+      }
       break;
     }
     case 0x39: {
@@ -2017,6 +2025,18 @@ void SharpSM83::run_instruction() {
       }
       break;
     }
+    case 0xCC: {
+      u8 low  = read8(PC++);
+      u8 high = read8(PC++);
+      if (get_flag(FLAG::ZERO)) {
+        push_to_stack(((PC & 0xFF00) >> 8));
+        push_to_stack((PC & 0xFF));
+
+        PC = (high << 8) + low;
+        m_cycle();
+      }
+      break;
+    }
     case 0xCD: {
       u8 low  = read8(PC++);
       u8 high = read8(PC++);
@@ -2027,6 +2047,13 @@ void SharpSM83::run_instruction() {
       PC = (high << 8) + low;
       m_cycle();
 
+      break;
+    }
+    case 0xCF: {
+      m_cycle();
+      push_to_stack((PC & 0xFF00) >> 8);
+      push_to_stack(PC & (0xFF));
+      PC = 0x8;
       break;
     }
     case 0xCE: {
@@ -2071,6 +2098,27 @@ void SharpSM83::run_instruction() {
       SET_DE();
       break;
     }
+    case 0xD2: {
+      u8 low  = read8(PC++);
+      u8 high = read8(PC++);
+      if (!get_flag(FLAG::CARRY)) {
+        m_cycle();
+        PC = (high << 8) + low;
+      }
+      break;
+    }
+    case 0xD4: {
+      u8 low  = read8(PC++);
+      u8 high = read8(PC++);
+      if (!get_flag(FLAG::CARRY)) {
+        push_to_stack(((PC & 0xFF00) >> 8));
+        push_to_stack((PC & 0xFF));
+
+        PC = (high << 8) + low;
+        m_cycle();
+      }
+      break;
+    }
     case 0xD5: {
       m_cycle();
       push_to_stack(D);
@@ -2100,6 +2148,13 @@ void SharpSM83::run_instruction() {
       set_negative();
       break;
     }
+    case 0xD7: {
+      m_cycle();
+      push_to_stack((PC & 0xFF00) >> 8);
+      push_to_stack(PC & (0xFF));
+      PC = 0x10;
+      break;
+    }
     case 0xD8: {
       m_cycle();
       if (get_flag(FLAG::CARRY)) {
@@ -2108,6 +2163,43 @@ void SharpSM83::run_instruction() {
         m_cycle();
         PC = (high << 8) + low;
       }
+      break;
+    }
+    case 0xD9: {
+      u8 low  = pull_from_stack();
+      u8 high = pull_from_stack();
+      m_cycle();
+      IME = true;
+      PC = (high << 8) + low;
+      break;
+    }
+    case 0xDA: {
+      m_cycle();
+      u8 low  = read8(PC++);
+      u8 high = read8(PC++);
+      if (get_flag(FLAG::CARRY)) {
+        m_cycle();
+        PC = (high << 8) + low;
+      }
+      break;
+    }
+    case 0xDC: {
+      u8 low  = read8(PC++);
+      u8 high = read8(PC++);
+      if (get_flag(FLAG::CARRY)) {
+        push_to_stack(((PC & 0xFF00) >> 8));
+        push_to_stack((PC & 0xFF));
+
+        PC = (high << 8) + low;
+        m_cycle();
+      }
+      break;
+    }
+    case 0xDF: {
+      m_cycle();
+      push_to_stack((PC & 0xFF00) >> 8);
+      push_to_stack(PC & (0xFF));
+      PC = 0x18;
       break;
     }
     case 0xDE: {
@@ -2168,6 +2260,13 @@ void SharpSM83::run_instruction() {
       reset_carry();
       break;
     }
+    case 0xE7: {
+      m_cycle();
+      push_to_stack((PC & 0xFF00) >> 8);
+      push_to_stack(PC & (0xFF));
+      PC = 0x20;
+      break;
+    }
     case 0xE8: {
       u8 op  = read8(PC++);
       i8 val = op;
@@ -2215,6 +2314,13 @@ void SharpSM83::run_instruction() {
 
       break;
     }
+    case 0xEF: {
+      m_cycle();
+      push_to_stack((PC & 0xFF00) >> 8);
+      push_to_stack(PC & (0xFF));
+      PC = 0x28;
+      break;
+    }
     case 0xF0: {
       A = read8(0xFF00 + read8(PC++));
       break;
@@ -2231,7 +2337,7 @@ void SharpSM83::run_instruction() {
     }
     case 0xF3: {
       IME = false;
-      fmt::println("[CPU] IME disabled");
+      // fmt::println("[CPU] IME disabled");
       break;
     }
     case 0xF5: {
@@ -2252,6 +2358,13 @@ void SharpSM83::run_instruction() {
       reset_negative();
       reset_half_carry();
       reset_carry();
+      break;
+    }
+    case 0xF7: {
+      m_cycle();
+      push_to_stack((PC & 0xFF00) >> 8);
+      push_to_stack(PC & (0xFF));
+      PC = 0x30;
       break;
     }
     case 0xF8: {
