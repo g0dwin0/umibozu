@@ -24,11 +24,15 @@ void GB::init_hw_regs() {
   bus.ram.ram[WY]   = 0x00;
   bus.ram.ram[WX]   = 0x00;
   bus.ram.ram[IE]   = 0x00;
+
+  cpu.AF = 0x01B0;
+  cpu.BC = 0x0013;
+  cpu.DE = 0x00D8;
+  cpu.HL = 0x014D;
 }
 
 void GB::start() {
-  init_hw_regs();
-  u32 count = 287'999;
+  u32 count = 4'420'381;
   while (count != 0) {
     cpu.run_instruction();
     count--;

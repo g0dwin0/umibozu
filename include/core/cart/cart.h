@@ -1,20 +1,21 @@
 #pragma once
 #include <string>
-#include "common.h"
+#include <unordered_map>
 
+#include "common.h"
+#include "cart_constants.hpp"
 namespace Umibozu {
   class Cartridge {
     struct Info {
-        std::string title;
-        std::string manufacturer;
-        std::string mapper_string;
-        u32 rom_size;
-        u32 ram_size;
-        u8 destination_code;
-        bool cgb_enhancements;
+      std::string title;
+      std::string manufacturer;
+      std::string mapper_string;
+      u32 rom_size;
+      u32 ram_size;
+      u8 destination_code;
+      bool cgb_enhancements;
     };
-    
-    
+
    private:
     std::vector<u8> memory;
     Info info;
@@ -30,7 +31,7 @@ namespace Umibozu {
     ~Cartridge();
     void load_cart(std::vector<u8> data);
     u32 rom_bank = 0;
-    
+
     u8 read8(const u16);
     void write8(const u16, const u8);
   };

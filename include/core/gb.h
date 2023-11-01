@@ -1,12 +1,15 @@
 #pragma once
-#include "core/cart.h"
-#include "core/cpu.h"
+#include "core/cart/cart.h"
+#include "core/cpu/cpu.h"
 
 struct GB {
   SharpSM83 cpu;
   Bus bus;
 
-  GB() { cpu.bus = &bus; }
+  GB() {
+    cpu.bus = &bus;
+    init_hw_regs();
+  }
 
   void init_hw_regs();
   void start();
