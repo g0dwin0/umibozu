@@ -1,6 +1,7 @@
 #pragma once
 #include <bitset>
 #include <cstddef>
+#include <stdexcept>
 
 #include "bus.h"
 #include "common.h"
@@ -26,6 +27,9 @@
 #define TIMER_INTERRUPT 0x50
 #define SERIAL_INTERRUPT 0x58
 #define JOYPAD_INTERRUPT 0x60
+#define OP_NOT_IMPL(r)                                 \
+  fmt::println("[CPU] not implemented: {}", __func__); \
+  exit(-1);
 namespace Umibozu {
 
   enum class FLAG : u8 { CARRY = 4, HALF_CARRY = 5, NEGATIVE = 6, ZERO = 7 };
@@ -459,6 +463,228 @@ namespace Umibozu {
       reset_negative();
       reset_half_carry();
       reset_carry();
+    }
+
+    inline void RLC(u8& r) {
+      if (r & 0x80) {
+        set_carry();
+      } else {
+        reset_carry();
+      }
+      r <<= 1;
+      r |= get_flag(FLAG::CARRY);
+      if (r == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+    }
+
+    inline void RLC_HL() {
+      u8 _hl = read8(HL);
+      RLC(_hl);
+      write8(HL, _hl);
+    }
+
+    inline void RRC(u8& r) {
+      if (r & 0x1) {
+        set_carry();
+      } else {
+        reset_carry();
+      }
+      r >>= 1;
+      r |= get_flag(FLAG::CARRY) ? 0x80 : 0;
+      if (r == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+    }
+    inline void RRC_HL() {
+      u8 _hl = read8(HL);
+      RRC(_hl);
+      write8(HL, _hl);
+    }
+    inline void SLA(u8& r) {
+      if (r & 0x80) {
+        set_carry();
+      } else {
+        reset_carry();
+      }
+      r <<= 1;
+
+      if (r == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+    }
+    inline void SRA(u8& r) {
+      u8 msb = r & 0x80;
+      if (r & 0x1) {
+        set_carry();
+      } else {
+        reset_carry();
+      }
+      r >>= 1;
+      r += msb;
+      if (r == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+    }
+    inline void SRA_HL() {
+      u8 _hl = read8(HL);
+      SRA(_hl);
+      write8(HL, _hl);
+    }
+    inline void SLA_HL() {
+      u8 _hl = read8(HL);
+      SLA(_hl);
+      write8(HL, _hl);
+    }
+
+    inline void RR(u8& r) {
+      if (get_flag(FLAG::CARRY)) {
+        if (r & 0x1) {
+          r >>= 1;
+          r += 0x80;
+          set_carry();
+        } else {
+          r >>= 1;
+          r += 0x80;
+          reset_carry();
+        }
+      } else {
+        if (r & 0x1) {
+          r >>= 1;
+          set_carry();
+        } else {
+          r >>= 1;
+          reset_carry();
+        }
+      }
+
+      if (r == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+    }
+
+    inline void RL(u8& r) {
+      if (get_flag(FLAG::CARRY)) {
+        if (r & 0x80) {
+          r <<= 1;
+          r += 0x1;
+          set_carry();
+        } else {
+          r <<= 1;
+          r += 0x1;
+          reset_carry();
+        }
+      } else {
+        if (r & 0x80) {
+          r <<= 1;
+          set_carry();
+        } else {
+          r <<= 1;
+          reset_carry();
+        }
+      }
+
+      if (r == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+
+      reset_negative();
+      reset_half_carry();
+    }
+
+    inline void RL_HL() {
+      u8 r = read8(HL);
+      RL(r);
+      write8(HL, r);
+    }
+
+    inline void RR_HL() {
+      u8 r = read8(HL);
+      RR(r);
+      write8(HL, r);
+    }
+
+    inline void SWAP(u8& r) {
+      u8 hi = (r & 0xF0);
+      u8 lo = r & 0xF;
+
+      r = (lo << 4) + (hi >> 4);
+
+      if (r == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+      reset_carry();
+      reset_half_carry();
+      reset_negative();
+    }
+    inline void SWAP_HL() {
+      u8 r = read8(HL);
+      SWAP(r);
+      write8(HL, r);
+    }
+
+    inline void SRL(u8& r) {
+      if (r & 0x1) {
+        set_carry();
+      } else {
+        reset_carry();
+      }
+      r >>= 1;
+
+      if (r == 0) {
+        set_zero();
+      } else {
+        reset_zero();
+      }
+      reset_negative();
+      reset_half_carry();
+    }
+    inline void SRL_HL() {
+      u8 r = read8(HL);
+      SRL(r);
+      write8(HL, r);
+    }
+
+    inline void SET(u8& r, u8 p) { r |= (1 << p); }
+    inline void RES(u8& r, u8 p) { r &= ~(1 << p); }
+    inline void BIT(u8& r, u8 p) {
+      if (r & (1 << p)) {
+        set_zero();
+      } else {
+        set_zero();
+      }
+
+      reset_negative();
+      set_half_carry();
     }
   };
 }  // namespace Umibozu

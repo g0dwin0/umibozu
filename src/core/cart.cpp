@@ -28,7 +28,7 @@ void Cartridge::print_cart_info() {
   fmt::println("ram size: {:d} KiB", info.ram_size);
   fmt::println("destination: {}",
                info.destination_code ? "japanese" : "overseas");
-  fmt::println("cgb support: {}", info.cgb_enhancements);
+  fmt::println("cgb support: {}", info.supports_cgb_enhancements);
 }
 std::string Cartridge::get_mapper_string(u8 cartridge_type) {
   
@@ -58,7 +58,7 @@ Cartridge::Cartridge::Info Cartridge::get_cart_info() {
   info.rom_size         = rom_size;
   info.ram_size         = ram_size;
   info.destination_code = destination_code;
-  info.cgb_enhancements = cgb_enhancements;
+  info.supports_cgb_enhancements = cgb_enhancements;
 
   return info;
 };

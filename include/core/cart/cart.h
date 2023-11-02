@@ -13,7 +13,7 @@ namespace Umibozu {
       u32 rom_size;
       u32 ram_size;
       u8 destination_code;
-      bool cgb_enhancements;
+      bool supports_cgb_enhancements;
     };
 
    private:

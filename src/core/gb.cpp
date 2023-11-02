@@ -32,7 +32,7 @@ void GB::init_hw_regs() {
 }
 
 void GB::start() {
-  u32 count = 4'420'381;
+  u32 count = 4'420'383;
   while (count != 0) {
     cpu.run_instruction();
     count--;
