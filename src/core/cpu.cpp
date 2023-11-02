@@ -16,28 +16,7 @@ void SharpSM83::request_interrupt(InterruptType t) {
   bus->ram.ram[IF] |= (1 << (u8)t);
 }
 void SharpSM83::m_cycle() {
-  bus->ram.ram[DIV] += 1;
-  if (tima_to_tma) {
-    bus->ram.ram[TIMA] = bus->ram.ram[TMA];
-    tima_to_tma        = false;
-  }
-  if ((bus->ram.ram[TAC] & 0x4)) {
-    if ((bus->ram.ram[TIMA] +
-         (1'048'576 / (clock_select_table[(bus->ram.ram[TAC] & 0x3)]))) >
-        0x100) {
-      bus->ram.ram[TIMA] = 0;
-      // fmt::println("TIMA: {:#04x}", bus->ram.ram[TIMA]);
-
-      tima_to_tma = true;
-      request_interrupt(InterruptType::TIMER);
-      // fmt::println("timer interrupt requested...");
-    } else {
-      bus->ram.ram[TIMA] +=
-          1'048'576 / (clock_select_table[(bus->ram.ram[TAC] & 0x3)]);
-      // fmt::println("TIMA: {:#04x}", bus->ram.ram[TIMA]);
-    }
-  }
-  // handle_interrupts();
+ return;
 }
 
 u8 SharpSM83::read8(const u16 address) {
@@ -76,9 +55,6 @@ u16 SharpSM83::read16(const u16 address) {
 }
 // debug only!
 u8 SharpSM83::peek(const u16 address) {
-  // if (address <= 0xFEFF) {
-  //   return 0;
-  // }
   if (address <= 0x3FFF) {
     return bus->cart.read8(address);
   }
@@ -104,7 +80,6 @@ u8 SharpSM83::peek(const u16 address) {
 
 void SharpSM83::write8(const u16 address, const u8 value) {
   m_cycle();
-  // fmt::println("[WRITE8] writing {:#04x} to {:#04x}", value, address);
   if (address <= 0x7FFF) {
     address >= 0x2000 ? (bus->cart.rom_bank = value & 0b00000111) : 0;
     return bus->ram.write8(address, value);
@@ -112,14 +87,11 @@ void SharpSM83::write8(const u16 address, const u8 value) {
   if (address >= 0xE000 && address <= 0xFDFF) {
     return bus->ram.write8((address & 0xDDFF), value);
   }
-  // if (address == SB && (bus->ram.ram[SC] & 0x80)) {
-  // }
   if (address == SC && value == 0x81 && bus->ram.ram[SC] & 0x80){
     bus->serial_port_buffer[bus->serial_port_index++] = bus->ram.ram[SB];
     std::string str_data(bus->serial_port_buffer,
                          1024);
     fmt::println("serial data: {}", str_data);
-    // exit(-1);
   }
   return bus->ram.write8(address, value);
   throw std::runtime_error(
@@ -137,7 +109,6 @@ u8 SharpSM83::get_flag(FLAG flag) { return F & (1 << (u8)flag) ? 1 : 0; }
 
 void SharpSM83::handle_interrupts() {
   if (IME && bus->ram.ram[IE] && bus->ram.ram[IF]) {
-    // fmt::println("[HANDLE INTERRUPTS] hello!");
     fmt::println("[HANDLE INTERRUPTS] IME:  {:08b}", IME);
     fmt::println("[HANDLE INTERRUPTS] IE:   {:08b}", bus->ram.ram[IE]);
     fmt::println("[HANDLE INTERRUPTS] IF:   {:08b}", bus->ram.ram[IF]);
