@@ -180,6 +180,10 @@ void SharpSM83::run_instruction() {
       LD_R16_U16(BC, read16(PC++));
       break;
     }
+    case 0x2: {
+      LD_M_R(BC, A);
+      break;
+    }
     case 0x3: {
       INC_16(BC);
       break;
@@ -220,6 +224,10 @@ void SharpSM83::run_instruction() {
       L  = (HL & 0xFF);
       m_cycle();
       reset_negative();
+      break;
+    }
+    case 0xA: {
+      A = read8(BC);
       break;
     }
     case 0xB: {
@@ -491,6 +499,12 @@ void SharpSM83::run_instruction() {
       SP++;
       break;
     }
+    case 0x34: {
+      u8 hl = read8(HL);
+      INC(hl);
+      write8(HL, hl);
+      break;
+    }
     case 0x35: {
       u8 value = read8(HL);
       if (((value & 0xf) - (1 & 0xf)) & 0x10) {
@@ -543,6 +557,10 @@ void SharpSM83::run_instruction() {
       HL = HL + SP;
 
       reset_negative();
+      break;
+    }
+    case 0x3A: {
+      A = read8(HL--);
       break;
     }
     case 0x3B: {
@@ -1476,6 +1494,829 @@ void SharpSM83::run_instruction() {
           break;
         }
 
+        case 0x40: {
+          BIT(0, B);
+          break;
+        }
+        case 0x41: {
+          BIT(0, C);
+          break;
+        }
+        case 0x42: {
+          BIT(0, D);
+          break;
+        }
+        case 0x43: {
+          BIT(0, E);
+          break;
+        }
+        case 0x44: {
+          BIT(0, H);
+          break;
+        }
+        case 0x45: {
+          BIT(0, L);
+          break;
+        }
+        case 0x46: {
+          BIT(0, read8(HL));
+          break;
+        }
+        case 0x47: {
+          BIT(0, A);
+          break;
+        }
+
+        case 0x48: {
+          BIT(1, B);
+          break;
+        }
+        case 0x49: {
+          BIT(1, C);
+          break;
+        }
+        case 0x4A: {
+          BIT(1, D);
+          break;
+        }
+        case 0x4B: {
+          BIT(1, E);
+          break;
+        }
+        case 0x4C: {
+          BIT(1, H);
+          break;
+        }
+        case 0x4D: {
+          BIT(1, L);
+          break;
+        }
+        case 0x4E: {
+          BIT(1, read8(HL));
+          break;
+        }
+        case 0x4F: {
+          BIT(1, A);
+          break;
+        }
+
+        case 0x50: {
+          BIT(2, B);
+          break;
+        }
+        case 0x51: {
+          BIT(2, C);
+          break;
+        }
+        case 0x52: {
+          BIT(2, D);
+          break;
+        }
+        case 0x53: {
+          BIT(2, E);
+          break;
+        }
+        case 0x54: {
+          BIT(2, H);
+          break;
+        }
+        case 0x55: {
+          BIT(2, L);
+          break;
+        }
+        case 0x56: {
+          BIT(2, read8(HL));
+          break;
+        }
+        case 0x57: {
+          BIT(2, A);
+          break;
+        }
+        case 0x58: {
+          BIT(3, B);
+          break;
+        }
+        case 0x59: {
+          BIT(3, C);
+          break;
+        }
+        case 0x5A: {
+          BIT(3, D);
+          break;
+        }
+        case 0x5B: {
+          BIT(3, E);
+          break;
+        }
+        case 0x5C: {
+          BIT(3, H);
+          break;
+        }
+        case 0x5D: {
+          BIT(3, L);
+          break;
+        }
+        case 0x5E: {
+          BIT(3, read8(HL));
+          break;
+        }
+        case 0x5F: {
+          BIT(3, A);
+          break;
+        }
+
+        case 0x60: {
+          BIT(4, B);
+          break;
+        }
+        case 0x61: {
+          BIT(4, C);
+          break;
+        }
+        case 0x62: {
+          BIT(4, D);
+          break;
+        }
+        case 0x63: {
+          BIT(4, E);
+          break;
+        }
+        case 0x64: {
+          BIT(4, H);
+          break;
+        }
+        case 0x65: {
+          BIT(4, L);
+          break;
+        }
+        case 0x66: {
+          BIT(4, read8(HL));
+          break;
+        }
+        case 0x67: {
+          BIT(4, A);
+          break;
+        }
+
+        case 0x68: {
+          BIT(5, B);
+          break;
+        }
+        case 0x69: {
+          BIT(5, C);
+          break;
+        }
+        case 0x6A: {
+          BIT(5, D);
+          break;
+        }
+        case 0x6B: {
+          BIT(5, E);
+          break;
+        }
+        case 0x6C: {
+          BIT(5, H);
+          break;
+        }
+        case 0x6D: {
+          BIT(5, L);
+          break;
+        }
+        case 0x6E: {
+          BIT(5, read8(HL));
+          break;
+        }
+        case 0x6F: {
+          BIT(5, A);
+          break;
+        }
+
+        case 0x70: {
+          BIT(6, B);
+          break;
+        }
+        case 0x71: {
+          BIT(6, C);
+          break;
+        }
+        case 0x72: {
+          BIT(6, D);
+          break;
+        }
+        case 0x73: {
+          BIT(6, E);
+          break;
+        }
+        case 0x74: {
+          BIT(6, H);
+          break;
+        }
+        case 0x75: {
+          BIT(6, L);
+          break;
+        }
+        case 0x76: {
+          BIT(6, read8(HL));
+          break;
+        }
+        case 0x77: {
+          BIT(6, A);
+          break;
+        }
+
+        case 0x78: {
+          BIT(7, B);
+          break;
+        }
+        case 0x79: {
+          BIT(7, C);
+          break;
+        }
+        case 0x7A: {
+          BIT(7, D);
+          break;
+        }
+        case 0x7B: {
+          BIT(7, E);
+          break;
+        }
+        case 0x7C: {
+          BIT(7, H);
+          break;
+        }
+        case 0x7D: {
+          BIT(7, L);
+          break;
+        }
+        case 0x7E: {
+          BIT(7, read8(HL));
+          break;
+        }
+        case 0x7F: {
+          BIT(7, A);
+          break;
+        }
+
+        case 0x80: {
+          RES(0, B);
+          break;
+        }
+        case 0x81: {
+          RES(0, C);
+          break;
+        }
+        case 0x82: {
+          RES(0, D);
+          break;
+        }
+        case 0x83: {
+          RES(0, E);
+          break;
+        }
+        case 0x84: {
+          RES(0, H);
+          break;
+        }
+        case 0x85: {
+          RES(0, L);
+          break;
+        }
+        case 0x86: {
+          u8 _hl = read8(HL);
+          RES(0, _hl);
+          write8(HL, _hl);
+          break;
+        }
+        case 0x87: {
+          RES(0, A);
+          break;
+        }
+
+        case 0x88: {
+          RES(1, B);
+          break;
+        }
+        case 0x89: {
+          RES(1, C);
+          break;
+        }
+        case 0x8A: {
+          RES(1, D);
+          break;
+        }
+        case 0x8B: {
+          RES(1, E);
+          break;
+        }
+        case 0x8C: {
+          RES(1, H);
+          break;
+        }
+        case 0x8D: {
+          RES(1, L);
+          break;
+        }
+        case 0x8E: {
+          u8 _hl = read8(HL);
+          RES(1, _hl);
+          write8(HL, _hl);
+          break;
+        }
+        case 0x8F: {
+          RES(1, A);
+          break;
+        }
+
+        case 0x90: {
+          RES(2, B);
+          break;
+        }
+        case 0x91: {
+          RES(2, C);
+          break;
+        }
+        case 0x92: {
+          RES(2, D);
+          break;
+        }
+        case 0x93: {
+          RES(2, E);
+          break;
+        }
+        case 0x94: {
+          RES(2, H);
+          break;
+        }
+        case 0x95: {
+          RES(2, L);
+          break;
+        }
+        case 0x96: {
+          u8 _hl = read8(HL);
+          RES(2, _hl);
+          write8(HL, _hl);
+          break;
+        }
+        case 0x97: {
+          RES(2, A);
+          break;
+        }
+
+        case 0x98: {
+          RES(3, B);
+          break;
+        }
+        case 0x99: {
+          RES(3, C);
+          break;
+        }
+        case 0x9A: {
+          RES(3, D);
+          break;
+        }
+        case 0x9B: {
+          RES(3, E);
+          break;
+        }
+        case 0x9C: {
+          RES(3, H);
+          break;
+        }
+        case 0x9D: {
+          RES(3, L);
+          break;
+        }
+        case 0x9E: {
+          u8 _hl = read8(HL);
+          RES(3, _hl);
+          write8(HL, _hl);
+          break;
+        }
+        case 0x9F: {
+          RES(3, A);
+          break;
+        }
+
+        case 0xA0: {
+          RES(4, B);
+          break;
+        }
+        case 0xA1: {
+          RES(4, C);
+          break;
+        }
+        case 0xA2: {
+          RES(4, D);
+          break;
+        }
+        case 0xA3: {
+          RES(4, E);
+          break;
+        }
+        case 0xA4: {
+          RES(4, H);
+          break;
+        }
+        case 0xA5: {
+          RES(4, L);
+          break;
+        }
+        case 0xA6: {
+          u8 _hl = read8(HL);
+          RES(4, _hl);
+          write8(HL, _hl);
+          break;
+        }
+        case 0xA7: {
+          RES(4, A);
+          break;
+        }
+
+        case 0xA8: {
+          RES(5, B);
+          break;
+        }
+        case 0xA9: {
+          RES(5, C);
+          break;
+        }
+        case 0xAA: {
+          RES(5, D);
+          break;
+        }
+        case 0xAB: {
+          RES(5, E);
+          break;
+        }
+        case 0xAC: {
+          RES(5, H);
+          break;
+        }
+        case 0xAD: {
+          RES(5, L);
+          break;
+        }
+        case 0xAE: {
+          u8 _hl = read8(HL);
+          RES(5, _hl);
+          write8(HL, _hl);
+          break;
+        }
+        case 0xAF: {
+          RES(5, A);
+          break;
+        }
+
+        case 0xB0: {
+          RES(6, B);
+          break;
+        }
+        case 0xB1: {
+          RES(6, C);
+          break;
+        }
+        case 0xB2: {
+          RES(6, D);
+          break;
+        }
+        case 0xB3: {
+          RES(6, E);
+          break;
+        }
+        case 0xB4: {
+          RES(6, H);
+          break;
+        }
+        case 0xB5: {
+          RES(6, L);
+          break;
+        }
+        case 0xB6: {
+          u8 _hl = read8(HL);
+          RES(6, _hl);
+          write8(HL, _hl);
+          break;
+        }
+        case 0xB7: {
+          RES(6, A);
+          break;
+        }
+
+        case 0xB8: {
+          RES(7, B);
+          break;
+        }
+        case 0xB9: {
+          RES(7, C);
+          break;
+        }
+        case 0xBA: {
+          RES(7, D);
+          break;
+        }
+        case 0xBB: {
+          RES(7, E);
+          break;
+        }
+        case 0xBC: {
+          RES(7, H);
+          break;
+        }
+        case 0xBD: {
+          RES(7, L);
+          break;
+        }
+        case 0xBE: {
+          u8 _hl = read8(HL);
+          RES(7, _hl);
+          write8(HL, _hl);
+          break;
+        }
+        case 0xBF: {
+          RES(7, A);
+          break;
+        }
+
+        case 0xC0: {
+          SET(0, B);
+          break;
+        }
+        case 0xC1: {
+          SET(0, C);
+          break;
+        }
+        case 0xC2: {
+          SET(0, D);
+          break;
+        }
+        case 0xC3: {
+          SET(0, E);
+          break;
+        }
+        case 0xC4: {
+          SET(0, H);
+          break;
+        }
+        case 0xC5: {
+          SET(0, L);
+          break;
+        }
+        case 0xC6: {
+          u8 _hl = read8(HL);
+          SET(0, _hl);
+          write8(HL, _hl);
+          break;
+        }
+        case 0xC7: {
+          SET(0, A);
+          break;
+        }
+
+        case 0xC8: {
+          SET(1, B);
+          break;
+        }
+        case 0xC9: {
+          SET(1, C);
+          break;
+        }
+        case 0xCA: {
+          SET(1, D);
+          break;
+        }
+        case 0xCB: {
+          SET(1, E);
+          break;
+        }
+        case 0xCC: {
+          SET(1, H);
+          break;
+        }
+        case 0xCD: {
+          SET(1, L);
+          break;
+        }
+        case 0xCE: {
+          u8 _hl = read8(HL);
+          SET(1, _hl);
+          write8(HL, _hl);
+          break;
+        }
+        case 0xCF: {
+          SET(1, A);
+          break;
+        }
+
+        case 0xD0: {
+          SET(2, B);
+          break;
+        }
+        case 0xD1: {
+          SET(2, C);
+          break;
+        }
+        case 0xD2: {
+          SET(2, D);
+          break;
+        }
+        case 0xD3: {
+          SET(2, E);
+          break;
+        }
+        case 0xD4: {
+          SET(2, H);
+          break;
+        }
+        case 0xD5: {
+          SET(2, L);
+          break;
+        }
+        case 0xD6: {
+          u8 _hl = read8(HL);
+          SET(2, _hl);
+          write8(HL, _hl);
+          break;
+        }
+        case 0xD7: {
+          SET(2, A);
+          break;
+        }
+
+        case 0xD8: {
+          SET(3, B);
+          break;
+        }
+        case 0xD9: {
+          SET(3, C);
+          break;
+        }
+        case 0xDA: {
+          SET(3, D);
+          break;
+        }
+        case 0xDB: {
+          SET(3, E);
+          break;
+        }
+        case 0xDC: {
+          SET(3, H);
+          break;
+        }
+        case 0xDD: {
+          SET(3, L);
+          break;
+        }
+        case 0xDE: {
+          u8 _hl = read8(HL);
+          SET(3, _hl);
+          write8(HL, _hl);
+          break;
+        }
+        case 0xDF: {
+          SET(3, A);
+          break;
+        }
+
+        case 0xE0: {
+          SET(4, B);
+          break;
+        }
+        case 0xE1: {
+          SET(4, C);
+          break;
+        }
+        case 0xE2: {
+          SET(4, D);
+          break;
+        }
+        case 0xE3: {
+          SET(4, E);
+          break;
+        }
+        case 0xE4: {
+          SET(4, H);
+          break;
+        }
+        case 0xE5: {
+          SET(4, L);
+          break;
+        }
+        case 0xE6: {
+          u8 _hl = read8(HL);
+          SET(4, _hl);
+          write8(HL, _hl);
+          break;
+        }
+        case 0xE7: {
+          SET(4, A);
+          break;
+        }
+
+        case 0xE8: {
+          SET(5, B);
+          break;
+        }
+        case 0xE9: {
+          SET(5, C);
+          break;
+        }
+        case 0xEA: {
+          SET(5, D);
+          break;
+        }
+        case 0xEB: {
+          SET(5, E);
+          break;
+        }
+        case 0xEC: {
+          SET(5, H);
+          break;
+        }
+        case 0xED: {
+          SET(5, L);
+          break;
+        }
+        case 0xEE: {
+          u8 _hl = read8(HL);
+          SET(5, _hl);
+          write8(HL, _hl);
+          break;
+        }
+        case 0xEF: {
+          SET(5, A);
+          break;
+        }
+
+        case 0xF0: {
+          SET(6, B);
+          break;
+        }
+        case 0xF1: {
+          SET(6, C);
+          break;
+        }
+        case 0xF2: {
+          SET(6, D);
+          break;
+        }
+        case 0xF3: {
+          SET(6, E);
+          break;
+        }
+        case 0xF4: {
+          SET(6, H);
+          break;
+        }
+        case 0xF5: {
+          SET(6, L);
+          break;
+        }
+        case 0xF6: {
+          u8 _hl = read8(HL);
+          SET(6, _hl);
+          write8(HL, _hl);
+          break;
+        }
+        case 0xF7: {
+          SET(6, A);
+          break;
+        }
+
+        case 0xF8: {
+          SET(7, B);
+          break;
+        }
+        case 0xF9: {
+          SET(7, C);
+          break;
+        }
+        case 0xFA: {
+          SET(7, D);
+          break;
+        }
+        case 0xFB: {
+          SET(7, E);
+          break;
+        }
+        case 0xFC: {
+          SET(7, H);
+          break;
+        }
+        case 0xFD: {
+          SET(7, L);
+          break;
+        }
+        case 0xFE: {
+          u8 _hl = read8(HL);
+          SET(7, _hl);
+          write8(HL, _hl);
+          break;
+        }
+        case 0xFF: {
+          SET(7, A);
+          break;
+        }
+
         default: {
           fmt::println("[CPU] unimplemented CB op: {:#04x}", peek(PC - 1));
           exit(-1);
@@ -1712,7 +2553,8 @@ void SharpSM83::run_instruction() {
       break;
     }
     case 0xFA: {
-      LD_R_R(A, read8(read16(PC++)));
+      u16 address = read16(PC++);
+      LD_R_R(A, read8(address));
       break;
     }
 

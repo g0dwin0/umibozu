@@ -674,11 +674,11 @@ namespace Umibozu {
       write8(HL, r);
     }
 
-    inline void SET(u8& r, u8 p) { r |= (1 << p); }
-    inline void RES(u8& r, u8 p) { r &= ~(1 << p); }
-    inline void BIT(u8& r, u8 p) {
+    inline void SET(u8 p,u8& r) { r |= (1 << p); }
+    inline void RES(u8 p, u8& r) { r &= ~(1 << p); }
+    inline void BIT(const u8 p, const u8& r) {
       if (r & (1 << p)) {
-        set_zero();
+        reset_zero();
       } else {
         set_zero();
       }

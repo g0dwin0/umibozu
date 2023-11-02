@@ -24,6 +24,7 @@ namespace Umibozu {
     return vec;
   }
 
+
   inline std::vector<u8> get_bytes_in_range(std::vector<u8>& vector, u16 start,
                                             u16 end) {
     if (start > end) {
