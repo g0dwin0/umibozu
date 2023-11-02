@@ -112,6 +112,15 @@ void SharpSM83::write8(const u16 address, const u8 value) {
   if (address >= 0xE000 && address <= 0xFDFF) {
     return bus->ram.write8((address & 0xDDFF), value);
   }
+  // if (address == SB && (bus->ram.ram[SC] & 0x80)) {
+  // }
+  if (address == SC && value == 0x81 && bus->ram.ram[SC] & 0x80){
+    bus->serial_port_buffer[bus->serial_port_index++] = bus->ram.ram[SB];
+    std::string str_data(bus->serial_port_buffer,
+                         1024);
+    fmt::println("serial data: {}", str_data);
+    // exit(-1);
+  }
   return bus->ram.write8(address, value);
   throw std::runtime_error(
       fmt::format("[CPU] out of bounds CPU write: {:#04x}", address));
@@ -165,11 +174,11 @@ void SharpSM83::handle_interrupts() {
   }
 };
 void SharpSM83::run_instruction() {
-  fmt::println(
-      "A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} "
-      "L: {:02X} SP: {:04X} PC: {:02X}:{:04X} ({:02X} {:02X} {:02X} {:02X})",
-      A, F, B, C, D, E, H, L, SP, bus->cart.rom_bank, PC, peek(PC),
-      peek(PC + 1), peek(PC + 2), peek(PC + 3));
+  // fmt::println(
+  //     "A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X}
+  //     " "L: {:02X} SP: {:04X} PC: {:02X}:{:04X} ({:02X} {:02X} {:02X}
+  //     {:02X})", A, F, B, C, D, E, H, L, SP, bus->cart.rom_bank, PC, peek(PC),
+  //     peek(PC + 1), peek(PC + 2), peek(PC + 3));
   u8 opcode = read8(PC++);
   switch (opcode) {
     case 0x0: {
@@ -655,6 +664,11 @@ void SharpSM83::run_instruction() {
       LD_R_R(D, C);
       break;
     }
+    case 0x52: {
+      // LD_R_R(D, D);
+      break;
+    }
+
     case 0x53: {
       LD_R_R(D, E);
       break;

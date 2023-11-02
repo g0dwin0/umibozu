@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 #include "cart/cart.h"
 #include "common.h"
 
@@ -15,4 +16,9 @@ struct RAM {
 struct Bus {
   Cartridge cart;
   RAM ram = RAM(0x10000);
+  u16 serial_port_index = 0;
+  char serial_port_buffer[0xFFFF];
+
+  Bus() {
+  }
 };

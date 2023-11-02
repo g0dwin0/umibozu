@@ -104,7 +104,7 @@ namespace Umibozu {
     REG_16 DE  = REG_16(D, E);
     REG_16 HL  = REG_16(H, L);
     u16 SP     = 0xFFFE;
-    u16 PC     = 0x100;
+    u16 PC     = 0x101;
     u64 cycles = 0;
     // Interrupt master enable
     u8 IME                                             = 0x0;
