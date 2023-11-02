@@ -15,9 +15,7 @@ SharpSM83::~SharpSM83() {}
 void SharpSM83::request_interrupt(InterruptType t) {
   bus->ram.ram[IF] |= (1 << (u8)t);
 }
-void SharpSM83::m_cycle() {
- return;
-}
+void SharpSM83::m_cycle() { return; }
 
 u8 SharpSM83::read8(const u16 address) {
   m_cycle();
@@ -87,10 +85,9 @@ void SharpSM83::write8(const u16 address, const u8 value) {
   if (address >= 0xE000 && address <= 0xFDFF) {
     return bus->ram.write8((address & 0xDDFF), value);
   }
-  if (address == SC && value == 0x81 && bus->ram.ram[SC] & 0x80){
+  if (address == SC && value == 0x81 && bus->ram.ram[SC] & 0x80) {
     bus->serial_port_buffer[bus->serial_port_index++] = bus->ram.ram[SB];
-    std::string str_data(bus->serial_port_buffer,
-                         1024);
+    std::string str_data(bus->serial_port_buffer, 1024);
     fmt::println("serial data: {}", str_data);
   }
   return bus->ram.write8(address, value);
@@ -784,6 +781,11 @@ void SharpSM83::run_instruction() {
     }
     case 0x75: {
       LD_M_R(HL, L);
+      break;
+    }
+
+    case 0x76: {
+      HALT();
       break;
     }
     case 0x77: {

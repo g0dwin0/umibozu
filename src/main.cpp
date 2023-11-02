@@ -10,7 +10,7 @@ int main() {
   GB gb;
 
   const std::string rom =
-      "/home/toast/Projects/umibozu/roms/gb-test-roms/cpu_instrs/individual/11-op a,(hl).gb";
+      "/home/toast/Projects/umibozu/roms/dmg-acid2.gb";
   std::vector<u8> data = read_file(rom);
   gb.bus.cart.load_cart(data);
 

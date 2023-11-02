@@ -135,6 +135,18 @@ namespace Umibozu {
 
     void run_instruction();
     void m_cycle();
+    inline void HALT() {
+      fmt::println("[HALT] waiting for interrupt(s)...");
+      bool halted = true;
+      while (halted) {
+        for (u8 i = 0; i < 8; i++) {
+          
+          if (IE & (1 << i) && IF & (1 << i)) {
+            halted = false;
+          }
+        }
+      };
+    }
     inline void LD_HL_SP_E8() {
       u8 op  = read8(PC++);
       i8 val = op;
@@ -674,7 +686,7 @@ namespace Umibozu {
       write8(HL, r);
     }
 
-    inline void SET(u8 p,u8& r) { r |= (1 << p); }
+    inline void SET(u8 p, u8& r) { r |= (1 << p); }
     inline void RES(u8 p, u8& r) { r &= ~(1 << p); }
     inline void BIT(const u8 p, const u8& r) {
       if (r & (1 << p)) {
