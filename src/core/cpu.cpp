@@ -2520,7 +2520,8 @@ void SharpSM83::run_instruction() {
       break;
     }
     case 0xF1: {
-      POP(AF);
+      F = pull_from_stack() & 0b11110000;
+      A = pull_from_stack();
       break;
     }
     case 0xF2: {
