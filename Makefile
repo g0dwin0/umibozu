@@ -1,17 +1,18 @@
-CPPFLAGS = -Iinclude/ -Iinclude/core -Iinclude/frontend -std=c++20 -Wall -Wextra -Wpedantic -Werror -lpthread -lSDL2
+CPPFLAGS = -Iimgui -Iimgui/backends  -Iinclude/core -Iinclude/frontend -Iinclude/ -std=c++20 -Wall -Wextra -Wpedantic -Werror -lpthread -lSDL2 -lGL
 OBJ_DIR = build/obj
-FINAL_FILES = $(OBJ_DIR)/main.o $(OBJ_DIR)/cart.o $(OBJ_DIR)/cpu.o $(OBJ_DIR)/bus.o $(OBJ_DIR)/gb.o $(OBJ_DIR)/frontend.o 
+OBJ_IMGUI = $(OBJ_DIR)/imgui
+OBJS_IMGUI = $(OBJ_IMGUI)/imgui_demo.o $(OBJ_IMGUI)/imgui_draw.o $(OBJ_IMGUI)/imgui_impl_opengl3.o $(OBJ_IMGUI)/imgui_impl_sdl2.o $(OBJ_IMGUI)/imgui_tables.o $(OBJ_IMGUI)/imgui_widgets.o $(OBJ_IMGUI)/imgui.o
+OBJS = $(OBJ_DIR)/main.o $(OBJ_DIR)/cart.o $(OBJ_DIR)/cpu.o $(OBJ_DIR)/bus.o $(OBJ_DIR)/gb.o $(OBJ_DIR)/frontend.o 
 CC=g++
 
 all: final
 
-final: $(FINAL_FILES)
+final: $(OBJS)
 	@echo "linking...."
-	$(CC) $(FINAL_FILES) -o build/bin/umibozu $(CPPFLAGS)
+	$(CC) $(OBJS) $(OBJS_IMGUI) -o build/bin/umibozu $(CPPFLAGS)
 	chmod +x build/bin/umibozu
 
 $(OBJ_DIR)/main.o: src/main.cpp
-	@echo "compiling main"
 	$(CC) $(CPPFLAGS) -c src/main.cpp -o $(OBJ_DIR)/main.o
 
 $(OBJ_DIR)/cart.o: src/core/cart.cpp include/core/cart/cart.h
@@ -31,9 +32,8 @@ $(OBJ_DIR)/frontend.o: src/frontend/window.cpp include/frontend/window.h
 
 
 
-
 clean:
-	rm $(OBJ_DIR)/cart.o $(OBJ_DIR)/main.o $(OBJ_DIR)/cpu.o $(OBJ_DIR)/bus.o $(OBJ_DIR)/gb.o $(OBJ_DIR)/frontend.o
+	rm $(OBJS)
 
 umibozu:
 	cat /dev/null > MyLog.txt

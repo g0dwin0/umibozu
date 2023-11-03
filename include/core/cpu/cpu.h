@@ -135,568 +135,73 @@ namespace Umibozu {
 
     void run_instruction();
     void m_cycle();
-    inline void HALT() {
-      fmt::println("[HALT] waiting for interrupt(s)...");
-      bool halted = true;
-      while (halted) {
-        for (u8 i = 0; i < 8; i++) {
-          
-          if (IE & (1 << i) && IF & (1 << i)) {
-            halted = false;
-          }
-        }
-      };
-    }
-    inline void LD_HL_SP_E8() {
-      u8 op  = read8(PC++);
-      i8 val = op;
 
-      if (((SP & 0xFF) + op) > 0xFF) {
-        set_carry();
-      } else {
-        reset_carry();
-      }
 
-      if (((SP & 0xf) + (op & 0xf)) > 0xf) {
-        set_half_carry();
-      } else {
-        reset_half_carry();
-      }
 
-      HL = SP + val;
-
-      m_cycle();
-
-      reset_zero();
-      reset_negative();
-    }
-    inline void LD_R_R(u8& r_1, u8 r_2) { r_1 = r_2; };
-    inline void ADD_SP_E8() {
-      u8 op  = read8(PC++);
-      i8 val = op;
-      m_cycle();
-
-      if (((SP & 0xFF) + op) > 0xFF) {
-        set_carry();
-      } else {
-        reset_carry();
-      }
-
-      if (((SP & 0xf) + (op & 0xf)) > 0xf) {
-        set_half_carry();
-      } else {
-        reset_half_carry();
-      }
-
-      SP += val;
-
-      reset_zero();
-      reset_negative();
-    }
+    // ops
+    inline void HALT();
+    inline void LD_HL_SP_E8();
+    inline void LD_R_R(u8& r_1, u8 r_2);
+    inline void ADD_SP_E8();
 
     // load value into memory address
-    inline void LD_M_R(const u16 address, u8 val) { write8(address, val); }
+    inline void LD_M_R(const u16 address, u8 val);
 
-    inline void LD_SP_U16(u16& r_1, u16 val) { r_1 = val; };
-    inline void LD_R16_U16(REG_16& r_1, u16 val) { r_1 = val; };
-    inline void LD_U16_SP(u16 address, u16 sp_val) {
-      write8(address, sp_val & 0xFF);
-      write8(address + 1, (sp_val & 0xFF00) >> 8);
-    }
-    inline void LD_R_AMV(u8& r_1, REG_16& r_16) { r_1 = read8(r_16); }
-    inline void DEC(u8& r) {
-      if (((r & 0xf) - (1 & 0xf)) & 0x10) {
-        set_half_carry();
-      } else {
-        reset_half_carry();
-      }
-      r--;
-      if (r == 0) {
-        set_zero();
-      } else {
-        reset_zero();
-      }
-      set_negative();
-    }
-    inline void SCF() {
-      reset_negative();
-      reset_half_carry();
-      set_carry();
-    }
-    inline void NOP(){};
-    inline void DEC_R16(REG_16& r) {
-      r--;
-      m_cycle();
-    }
-    inline void DEC_SP(u16& sp) {
-      sp--;
-      m_cycle();
-    }
-    inline void CCF() {
-      reset_negative();
-      reset_half_carry();
-      if (get_flag(FLAG::CARRY)) {
-        reset_carry();
-      } else {
-        set_carry();
-      }
-    }
-    inline void INC(u8& r) {
-      if (((r & 0xf) + (1 & 0xf)) & 0x10) {
-        set_half_carry();
-      } else {
-        reset_half_carry();
-      }
-      r++;
-      if (r == 0) {
-        set_zero();
-      } else {
-        reset_zero();
-      }
-      reset_negative();
-    }
-    inline void INC_16(REG_16& r) {
-      m_cycle();
-      r++;
-    };
-    inline void ADD(u8& r, u8 r_2) {
-      if (((r & 0xf) + (r_2 & 0xf)) & 0x10) {
-        set_half_carry();
-      } else {
-        reset_half_carry();
-      }
+    inline void LD_SP_U16(u16& r_1, u16 val);
+    inline void LD_R16_U16(REG_16& r_1, u16 val);
+    inline void LD_U16_SP(u16 address, u16 sp_val);
+    inline void LD_R_AMV(u8& r_1, REG_16& r_16);
+    inline void DEC(u8& r);
+    inline void SCF();
+    inline void NOP();
+    inline void DEC_R16(REG_16& r);
+    inline void DEC_SP(u16& sp);
+    inline void CCF();
+    inline void INC(u8& r);
+    inline void INC_16(REG_16& r);
+    inline void ADD(u8& r, u8 r_2);
+    inline void CP(const u8& r, const u8& r_2);
 
-      if ((r + r_2) > 0xFF) {
-        set_carry();
-      } else {
-        reset_carry();
-      }
+    inline void OR(u8& r, u8 r_2);
+    inline void POP(REG_16& r);
+    inline void PUSH(REG_16& r);
+    inline void RRCA();
+    inline void RLCA();
+    inline void RLA();
+    inline void RST(u8 pc_new);
+    inline void ADC(u8& r, u8 r_2);
+    inline void SBC(u8& r, u8 r_2);
+    inline void SUB(u8& r, u8 r_2);
+    inline void AND(u8& r, u8 r_2);
 
-      r += r_2;
+    inline void XOR(u8& r, u8 r_2);
 
-      if (r == 0) {
-        set_zero();
-      } else {
-        reset_zero();
-      }
-      reset_negative();
-    }
-    inline void CP(const u8& r, const u8& r_2) {
-      if ((r - r_2) < 0) {
-        set_carry();
-      } else {
-        reset_carry();
-      }
-      if (((r & 0xf) - (r_2 & 0xf)) & 0x10) {
-        set_half_carry();
-      } else {
-        reset_half_carry();
-      }
-      if ((r - r_2) == 0) {
-        set_zero();
-      } else {
-        reset_zero();
-      }
+    inline void RLC(u8& r);
+    inline void RLC_HL();
 
-      set_negative();
-    }
+    inline void RRC(u8& r);
+    inline void RRC_HL();
+    inline void SLA(u8& r);
+    inline void SRA(u8& r);
+    inline void SRA_HL();
+    inline void SLA_HL();
 
-    inline void OR(u8& r, u8 r_2) {
-      r = r | r_2;
+    inline void RR(u8& r);
 
-      if (r == 0) {
-        set_zero();
-      } else {
-        reset_zero();
-      }
+    inline void RL(u8& r);
 
-      reset_negative();
-      reset_half_carry();
-      reset_carry();
-    }
-    inline void POP(REG_16& r) {
-      r.low  = pull_from_stack();
-      r.high = pull_from_stack();
-    }
-    inline void PUSH(REG_16& r) {
-      m_cycle();
-      push_to_stack(r.high);
-      push_to_stack(r.low);
-    }
-    inline void RRCA() {
-      if (A & 0x1) {
-        set_carry();
-      } else {
-        reset_carry();
-      }
-      A >>= 1;
-      A |= get_flag(FLAG::CARRY) ? 0x80 : 0;
+    inline void RL_HL();
 
-      reset_zero();
-      reset_negative();
-      reset_half_carry();
-    }
-    inline void RLCA() {
-      if (A & 0x80) {
-        set_carry();
-      } else {
-        reset_carry();
-      }
-      A <<= 1;
-      A |= get_flag(FLAG::CARRY);
+    inline void RR_HL();
 
-      reset_zero();
-      reset_negative();
-      reset_half_carry();
-    }
-    inline void RLA() {
-      if (get_flag(FLAG::CARRY)) {
-        if (A & 0x80) {
-          A <<= 1;
-          A += 0x1;
-          set_carry();
-        } else {
-          A <<= 1;
-          A += 0x1;
-          reset_carry();
-        }
-      } else {
-        if (A & 0x80) {
-          A <<= 1;
-          set_carry();
-        } else {
-          A <<= 1;
-          reset_carry();
-        }
-      }
+    inline void SWAP(u8& r);
+    inline void SWAP_HL();
 
-      reset_zero();
-      reset_negative();
-      reset_half_carry();
-    }
-    inline void RST(u8 pc_new) {
-      m_cycle();
-      push_to_stack((PC & 0xFF00) >> 8);
-      push_to_stack((PC & 0xFF));
-      PC = pc_new;
-    }
-    inline void ADC(u8& r, u8 r_2) {
-      u8 carry = get_flag(FLAG::CARRY);
+    inline void SRL(u8& r);
+    inline void SRL_HL();
 
-      if (((r & 0xf) + (r_2 & 0xf) + carry) & 0x10) {
-        set_half_carry();
-      } else {
-        reset_half_carry();
-      }
-
-      if ((r + r_2 + carry) > 0xFF) {
-        set_carry();
-      } else {
-        reset_carry();
-      }
-
-      r = r + r_2 + carry;
-
-      if (r == 0) {
-        set_zero();
-      } else {
-        reset_zero();
-      }
-      reset_negative();
-    }
-    inline void SBC(u8& r, u8 r_2) {
-      u8 carry = get_flag(FLAG::CARRY);
-
-      if (((r & 0xf) - (r_2 & 0xf) - carry) & 0x10) {
-        set_half_carry();
-      } else {
-        reset_half_carry();
-      }
-
-      if ((r - r_2 - carry) < 0) {
-        set_carry();
-      } else {
-        reset_carry();
-      }
-
-      r = r - r_2 - carry;
-
-      if (r == 0) {
-        set_zero();
-      } else {
-        reset_zero();
-      }
-      set_negative();
-    }
-    inline void SUB(u8& r, u8 r_2) {
-      if (((r & 0xf) - (r_2 & 0xf)) & 0x10) {
-        set_half_carry();
-      } else {
-        reset_half_carry();
-      }
-
-      if ((r - r_2) < 0) {
-        set_carry();
-      } else {
-        reset_carry();
-      }
-      r = r - r_2;
-      if (r == 0) {
-        set_zero();
-      } else {
-        reset_zero();
-      }
-      set_negative();
-    }
-
-    inline void AND(u8& r, u8 r_2) {
-      r = r & r_2;
-
-      if (r == 0) {
-        set_zero();
-      } else {
-        reset_zero();
-      }
-
-      reset_negative();
-      set_half_carry();
-      reset_carry();
-    }
-
-    inline void XOR(u8& r, u8 r_2) {
-      r ^= r_2;
-
-      if (r == 0) {
-        set_zero();
-      } else {
-        reset_zero();
-      }
-
-      reset_negative();
-      reset_half_carry();
-      reset_carry();
-    }
-
-    inline void RLC(u8& r) {
-      if (r & 0x80) {
-        set_carry();
-      } else {
-        reset_carry();
-      }
-      r <<= 1;
-      r |= get_flag(FLAG::CARRY);
-      if (r == 0) {
-        set_zero();
-      } else {
-        reset_zero();
-      }
-
-      reset_negative();
-      reset_half_carry();
-    }
-
-    inline void RLC_HL() {
-      u8 _hl = read8(HL);
-      RLC(_hl);
-      write8(HL, _hl);
-    }
-
-    inline void RRC(u8& r) {
-      if (r & 0x1) {
-        set_carry();
-      } else {
-        reset_carry();
-      }
-      r >>= 1;
-      r |= get_flag(FLAG::CARRY) ? 0x80 : 0;
-      if (r == 0) {
-        set_zero();
-      } else {
-        reset_zero();
-      }
-
-      reset_negative();
-      reset_half_carry();
-    }
-    inline void RRC_HL() {
-      u8 _hl = read8(HL);
-      RRC(_hl);
-      write8(HL, _hl);
-    }
-    inline void SLA(u8& r) {
-      if (r & 0x80) {
-        set_carry();
-      } else {
-        reset_carry();
-      }
-      r <<= 1;
-
-      if (r == 0) {
-        set_zero();
-      } else {
-        reset_zero();
-      }
-
-      reset_negative();
-      reset_half_carry();
-    }
-    inline void SRA(u8& r) {
-      u8 msb = r & 0x80;
-      if (r & 0x1) {
-        set_carry();
-      } else {
-        reset_carry();
-      }
-      r >>= 1;
-      r += msb;
-      if (r == 0) {
-        set_zero();
-      } else {
-        reset_zero();
-      }
-
-      reset_negative();
-      reset_half_carry();
-    }
-    inline void SRA_HL() {
-      u8 _hl = read8(HL);
-      SRA(_hl);
-      write8(HL, _hl);
-    }
-    inline void SLA_HL() {
-      u8 _hl = read8(HL);
-      SLA(_hl);
-      write8(HL, _hl);
-    }
-
-    inline void RR(u8& r) {
-      if (get_flag(FLAG::CARRY)) {
-        if (r & 0x1) {
-          r >>= 1;
-          r += 0x80;
-          set_carry();
-        } else {
-          r >>= 1;
-          r += 0x80;
-          reset_carry();
-        }
-      } else {
-        if (r & 0x1) {
-          r >>= 1;
-          set_carry();
-        } else {
-          r >>= 1;
-          reset_carry();
-        }
-      }
-
-      if (r == 0) {
-        set_zero();
-      } else {
-        reset_zero();
-      }
-
-      reset_negative();
-      reset_half_carry();
-    }
-
-    inline void RL(u8& r) {
-      if (get_flag(FLAG::CARRY)) {
-        if (r & 0x80) {
-          r <<= 1;
-          r += 0x1;
-          set_carry();
-        } else {
-          r <<= 1;
-          r += 0x1;
-          reset_carry();
-        }
-      } else {
-        if (r & 0x80) {
-          r <<= 1;
-          set_carry();
-        } else {
-          r <<= 1;
-          reset_carry();
-        }
-      }
-
-      if (r == 0) {
-        set_zero();
-      } else {
-        reset_zero();
-      }
-
-      reset_negative();
-      reset_half_carry();
-    }
-
-    inline void RL_HL() {
-      u8 r = read8(HL);
-      RL(r);
-      write8(HL, r);
-    }
-
-    inline void RR_HL() {
-      u8 r = read8(HL);
-      RR(r);
-      write8(HL, r);
-    }
-
-    inline void SWAP(u8& r) {
-      u8 hi = (r & 0xF0);
-      u8 lo = r & 0xF;
-
-      r = (lo << 4) + (hi >> 4);
-
-      if (r == 0) {
-        set_zero();
-      } else {
-        reset_zero();
-      }
-      reset_carry();
-      reset_half_carry();
-      reset_negative();
-    }
-    inline void SWAP_HL() {
-      u8 r = read8(HL);
-      SWAP(r);
-      write8(HL, r);
-    }
-
-    inline void SRL(u8& r) {
-      if (r & 0x1) {
-        set_carry();
-      } else {
-        reset_carry();
-      }
-      r >>= 1;
-
-      if (r == 0) {
-        set_zero();
-      } else {
-        reset_zero();
-      }
-      reset_negative();
-      reset_half_carry();
-    }
-    inline void SRL_HL() {
-      u8 r = read8(HL);
-      SRL(r);
-      write8(HL, r);
-    }
-
-    inline void SET(u8 p, u8& r) { r |= (1 << p); }
-    inline void RES(u8 p, u8& r) { r &= ~(1 << p); }
-    inline void BIT(const u8 p, const u8& r) {
-      if (r & (1 << p)) {
-        reset_zero();
-      } else {
-        set_zero();
-      }
-
-      reset_negative();
-      set_half_carry();
-    }
+    inline void SET(u8 p, u8& r);
+    inline void RES(u8 p, u8& r);
+    inline void BIT(const u8 p, const u8& r);
   };
 }  // namespace Umibozu

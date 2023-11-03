@@ -31,9 +31,8 @@ void GB::init_hw_regs() {
   cpu.HL = 0x014D;
 }
 
-void GB::start(u64 count) {
-  while (count != 0) {
-    cpu.run_instruction();
-    count--;
-  }
-}
+// void GB::start(u64 count) {
+//   // while (count != 0) {
+//   //   count--;
+//   // }
+// }
