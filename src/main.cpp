@@ -8,9 +8,9 @@ using namespace Umibozu;
 
 int main() {
   GB gb;
-  gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/gb-test-roms/instr_timing/instr_timing.gb"));
+  gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/dmg-acid2.gb"));
 
-  gb.start();
+  gb.start(0xFFFF);
 
   return 0;
 }

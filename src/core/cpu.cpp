@@ -9,7 +9,10 @@ using namespace Umibozu;
 
 // instructions
 
-inline void SharpSM83::STOP() { return; }
+inline void SharpSM83::STOP() {
+  fmt::println("[STOP] stop called");
+  return;
+}
 inline void SharpSM83::HALT() {
   fmt::println("[HALT] waiting for interrupt(s)...");
   bool halted = true;
@@ -587,9 +590,7 @@ SharpSM83::~SharpSM83() {}
 void SharpSM83::request_interrupt(InterruptType t) {
   bus->ram.data[IF] |= (1 << (u8)t);
 }
-void SharpSM83::m_cycle() { 
-  // printf(":)");
-  return; }
+void SharpSM83::m_cycle() { return; }
 
 u8 SharpSM83::read8(const u16 address) {
   m_cycle();
@@ -658,11 +659,9 @@ void SharpSM83::handle_interrupts() {
 void SharpSM83::run_instruction() {
   if (mapper == nullptr)
     throw std::runtime_error("mapper error");
-  // fmt::println(
-  //     "A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X}
-  //     " "L: {:02X} SP: {:04X} PC: {:02X}:{:04X} ({:02X} {:02X} {:02X}
-  //     {:02X})", A, F, B, C, D, E, H, L, SP, mapper->rom_bank, PC, peek(PC),
-  //     peek(PC + 1), peek(PC + 2), peek(PC + 3));
+  fmt::println(
+      "A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} L: {:02X} SP: {:04X} PC: {:02X}:{:04X} ({:02X} {:02X} {:02X} {:02X})", A, F, B, C, D, E, H, L, SP, mapper->rom_bank, PC, peek(PC),
+      peek(PC + 1), peek(PC + 2), peek(PC + 3));
   u8 opcode = read8(PC++);
   switch (opcode) {
     case 0x0: {
@@ -745,10 +744,10 @@ void SharpSM83::run_instruction() {
       break;
     }
 
-    case 0x10: {
-      STOP();
-      break;
-    }
+    // case 0x10: {
+    //   STOP();
+    //   break;
+    // }
     case 0x11: {
       LD_R16_U16(DE, read16(PC++));
       break;
@@ -1303,10 +1302,10 @@ void SharpSM83::run_instruction() {
       LD_M_R(HL, L);
       break;
     }
-    case 0x76: {
-      HALT();
-      break;
-    }
+    // case 0x76: {
+    //   HALT();
+    //   break;
+    // }
     case 0x77: {
       LD_M_R(HL, A);
       break;

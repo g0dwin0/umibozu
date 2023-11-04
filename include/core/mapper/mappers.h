@@ -1,4 +1,6 @@
 #pragma once
+#include <stdexcept>
+
 #include "bus.h"
 #include "cart/cart_constants.hpp"
 #include "common.h"
@@ -30,7 +32,7 @@ class MBC_1 : public Mapper {
       return bus->ram.read8(address);
     }
     if (address >= 0xE000 && address <= 0xFDFF) {
-      return bus->ram.read8((address & 0xDDFF));
+      return bus->ram.read8((address & 0xDFFF));
     }
     if (address >= 0xFE00 && address <= 0xFFFF) {
       return bus->ram.read8(address);
@@ -45,7 +47,7 @@ class MBC_1 : public Mapper {
       return bus->ram.write8(address, value);
     }
     if (address >= 0xE000 && address <= 0xFDFF) {
-      return bus->ram.write8((address & 0xDDFF), value);
+      return bus->ram.write8((address & 0xDFFF), value);
     }
     if (address == SC && value == 0x81 && bus->ram.data[SC] & 0x80) {
       bus->serial_port_buffer[bus->serial_port_index++] = bus->ram.data[SB];
@@ -68,10 +70,10 @@ class MBC_1_RAM : public Mapper {
     if (address >= 0x4000 && address <= 0x7FFF) {
       return bus->cart.read8((0x4000 * rom_bank) + address);
     }
-     if (address >= 0xA000 && address <= 0xBFFF) {
+    if (address >= 0xA000 && address <= 0xBFFF) {
       if (ram_enabled) {
-        return bus->cart.ext_ram.read8(
-            (0x2000 * ram_bank) + (address % 0xA000));
+        return bus->cart.ext_ram.read8((0x2000 * ram_bank) +
+                                       (address % 0xA000));
       }
       return 0xFF;
     }
@@ -79,7 +81,7 @@ class MBC_1_RAM : public Mapper {
       return bus->ram.read8(address);
     }
     if (address >= 0xE000 && address <= 0xFDFF) {
-      return bus->ram.read8((address & 0xDDFF));
+      return bus->ram.read8((address & 0xDFFF));
     }
     if (address >= 0xFE00 && address <= 0xFFFF) {
       return bus->ram.read8(address);
@@ -89,9 +91,9 @@ class MBC_1_RAM : public Mapper {
         fmt::format("[CPU] out of bounds CPU read: {:#04x}", address));
   }
   void write8(const u16 address, const u8 value) override {
-    if(address <= 0x1FFF) { 
-        ram_enabled = ((value & 0xF) == 0xA);
-        return;
+    if (address <= 0x1FFF) {
+      ram_enabled = ((value & 0xF) == 0xA);
+      return;
     }
     if (address <= 0x7FFF) {
       fmt::println("rom bank: {:d}", rom_bank);
@@ -106,11 +108,11 @@ class MBC_1_RAM : public Mapper {
       }
       return;
     }
-    if (address >= 0xC000 && address <= 0xDDFF) {
+    if (address >= 0xC000 && address <= 0xDFFF) {
       return bus->ram.write8(address, value);
     }
     if (address >= 0xE000 && address <= 0xFDFF) {
-      return bus->ram.write8((address & 0xDDFF), value);
+      return bus->ram.write8((address & 0xDFFF), value);
     }
     if (address == SC && value == 0x81 && bus->ram.data[SC] & 0x80) {
       bus->serial_port_buffer[bus->serial_port_index++] = bus->ram.data[SB];
@@ -122,22 +124,23 @@ class MBC_1_RAM : public Mapper {
   }
 };
 
-class NO_MBC : public Mapper {
+class ROM_ONLY : public Mapper {
   u8 read8(const u16 address) override {
-    if (address == 0xFF44) {
-      return 0x90;
-    }
-    if (address <= 0x3FFF) {
+    if (address <= 0x7FFF) {
       return bus->cart.read8(address);
     }
-    if (address >= 0x4000 && address <= 0x7FFF) {
-      return bus->cart.read8((0x4000 * rom_bank) + address);
+    if (address >= 0x8000 && address <= 0x9FFF) {
+      // read vram
+      throw std::runtime_error("mapper does not support vram reading");
     }
-    if (address >= 0x8000 && address <= 0xDFFF) {
+    if (address >= 0xA000 && address <= 0xBFFF) {
+      return bus->cart.ext_ram.read8(address % 0xA000);
+    }
+    if (address >= 0xC000 && address <= 0xDFFF) {
       return bus->ram.read8(address);
     }
     if (address >= 0xE000 && address <= 0xFDFF) {
-      return bus->ram.read8((address & 0xDDFF));
+      return bus->ram.read8((address & 0xDFFF));
     }
     if (address >= 0xFE00 && address <= 0xFFFF) {
       return bus->ram.read8(address);
@@ -147,12 +150,20 @@ class NO_MBC : public Mapper {
         fmt::format("[CPU] out of bounds CPU read: {:#04x}", address));
   }
   void write8(const u16 address, const u8 value) override {
-    if (address <= 0x7FFF) {
-      address >= 0x2000 ? (rom_bank = value & 0b00000111) : 0;
+    if (address >= 0xA000 && address <= 0xBFFF) {
+      return bus->cart.ext_ram.write8((address % 0xA000), value);
+    }
+    if (address >= 0xC000 && address <= 0xDFFF) {
       return bus->ram.write8(address, value);
     }
     if (address >= 0xE000 && address <= 0xFDFF) {
-      return bus->ram.write8((address & 0xDDFF), value);
+      return bus->ram.write8((address & 0xDFFF), value);
+    }
+    if (address >= 0xFE00 && address <= 0xFFFF) {
+      return bus->ram.write8(address, value);
+    }
+    if (address >= 0xE000 && address <= 0xFDFF) {
+      return bus->ram.write8((address & 0xDFFF), value);
     }
     if (address == SC && value == 0x81 && bus->ram.data[SC] & 0x80) {
       bus->serial_port_buffer[bus->serial_port_index++] = bus->ram.data[SB];
@@ -170,7 +181,7 @@ inline Mapper* get_mapper_by_id(u8 mapper_id) {
   Mapper* mapper = nullptr;
   switch (mapper_id) {
     case 0x0: {
-      mapper = dynamic_cast<Mapper*>(new NO_MBC());
+      mapper = dynamic_cast<Mapper*>(new ROM_ONLY());
       break;
     }
     case 0x1: {
