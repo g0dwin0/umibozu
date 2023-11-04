@@ -1,31 +1,33 @@
 #include "core/gb.h"
+#include "bus.h"
+
 #include <cassert>
 #include <cstddef>
 
 // using namespace Umibozu;
 
 void GB::init_hw_regs() {
-  bus.ram.ram[P1]   = 0xCF;
-  bus.ram.ram[SB]   = 0x00;
-  bus.ram.ram[SC]   = 0x7E;
-  bus.ram.ram[DIV]  = 0xAB;
-  bus.ram.ram[TIMA] = 0x00;
-  bus.ram.ram[TMA]  = 0x00;
-  bus.ram.ram[TAC]  = 0xF8;
-  bus.ram.ram[IF]   = 0xE1;
-  bus.ram.ram[LCDC] = 0x91;
-  bus.ram.ram[STAT] = 0x81;
-  bus.ram.ram[SCY]  = 0x00;
-  bus.ram.ram[SCX]  = 0x00;
-  bus.ram.ram[LY]   = 0x91;
-  bus.ram.ram[LYC]  = 0x00;
-  bus.ram.ram[DMA]  = 0xFF;
-  bus.ram.ram[BGP]  = 0xFC;
-  bus.ram.ram[OBP0] = 0x00;
-  bus.ram.ram[OBP1] = 0x00;
-  bus.ram.ram[WY]   = 0x00;
-  bus.ram.ram[WX]   = 0x00;
-  bus.ram.ram[IE]   = 0x00;
+  bus.ram.data[P1]   = 0xCF;
+  bus.ram.data[SB]   = 0x00;
+  bus.ram.data[SC]   = 0x7E;
+  bus.ram.data[DIV]  = 0xAB;
+  bus.ram.data[TIMA] = 0x00;
+  bus.ram.data[TMA]  = 0x00;
+  bus.ram.data[TAC]  = 0xF8;
+  bus.ram.data[IF]   = 0xE1;
+  bus.ram.data[LCDC] = 0x91;
+  bus.ram.data[STAT] = 0x81;
+  bus.ram.data[SCY]  = 0x00;
+  bus.ram.data[SCX]  = 0x00;
+  bus.ram.data[LY]   = 0x91;
+  bus.ram.data[LYC]  = 0x00;
+  bus.ram.data[DMA]  = 0xFF;
+  bus.ram.data[BGP]  = 0xFC;
+  bus.ram.data[OBP0] = 0x00;
+  bus.ram.data[OBP1] = 0x00;
+  bus.ram.data[WY]   = 0x00;
+  bus.ram.data[WX]   = 0x00;
+  bus.ram.data[IE]   = 0x00;
 
   cpu.AF = 0x01B0;
   cpu.BC = 0x0013;

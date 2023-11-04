@@ -1,6 +1,6 @@
 #pragma once
 #include <vector>
-
+#include "bus.h"
 #include "common.h"
 #include "core/cart/cart.h"
 #include "core/cpu/cpu.h"
@@ -13,7 +13,7 @@ struct GB {
 
  public:
   GB();
-  
+
   void load_cart(std::vector<u8>);
   void init_hw_regs();
   void start(u64 count = 0xFFFFFFF);

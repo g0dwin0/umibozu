@@ -45,10 +45,18 @@ enum HARDWARE_REG {
   WX   = 0xFF4B,
   IE   = 0xFFFF
 };
+
+// TODO: move these to where they actually belong
 enum struct InterruptType {
   VBLANK,
   LCD,
   TIMER,
   SERIAL,
   JOYPAD,
+};
+struct RAM {
+  std::vector<u8> data;
+  u8 read8(const u16 address);
+  void write8(const u16 address, u8 value);
+  RAM(size_t size) { data.resize(size, 0); }
 };

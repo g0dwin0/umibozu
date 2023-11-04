@@ -1,5 +1,7 @@
 #include "core/cpu/cpu.h"
+
 #include <stdexcept>
+
 #include "common.h"
 #include "core/cart/cart.h"
 
@@ -7,16 +9,21 @@ using namespace Umibozu;
 
 // instructions
 
+inline void SharpSM83::STOP() { return; }
 inline void SharpSM83::HALT() {
   fmt::println("[HALT] waiting for interrupt(s)...");
   bool halted = true;
+  fmt::println("[HALT] IE:   {:08b}", bus->ram.data[IE]);
+  fmt::println("[HALT] IF:   {:08b}", bus->ram.data[IF]);
   while (halted) {
     for (u8 i = 0; i < 8; i++) {
-      if ((IE & (1 << i)) && (IF & (1 << i))) {
+      if ((bus->ram.data[IE] & (1 << i)) && (bus->ram.data[IF] & (1 << i))) {
         halted = false;
       }
     }
+    m_cycle();
   };
+  fmt::println("[HALT] broke out of loop");
 }
 inline void SharpSM83::LD_HL_SP_E8() {
   u8 op  = read8(PC++);
@@ -578,9 +585,11 @@ SharpSM83::SharpSM83() {}
 SharpSM83::~SharpSM83() {}
 
 void SharpSM83::request_interrupt(InterruptType t) {
-  bus->ram.ram[IF] |= (1 << (u8)t);
+  bus->ram.data[IF] |= (1 << (u8)t);
 }
-void SharpSM83::m_cycle() { return; }
+void SharpSM83::m_cycle() { 
+  // printf(":)");
+  return; }
 
 u8 SharpSM83::read8(const u16 address) {
   m_cycle();
@@ -610,16 +619,16 @@ void SharpSM83::unset_flag(FLAG flag) { F &= ~(1 << (u8)flag); };
 u8 SharpSM83::get_flag(FLAG flag) { return F & (1 << (u8)flag) ? 1 : 0; }
 
 void SharpSM83::handle_interrupts() {
-  if (IME && bus->ram.ram[IE] && bus->ram.ram[IF]) {
+  if (IME && bus->ram.data[IE] && bus->ram.data[IF]) {
     fmt::println("[HANDLE INTERRUPTS] IME:  {:08b}", IME);
-    fmt::println("[HANDLE INTERRUPTS] IE:   {:08b}", bus->ram.ram[IE]);
-    fmt::println("[HANDLE INTERRUPTS] IF:   {:08b}", bus->ram.ram[IF]);
+    fmt::println("[HANDLE INTERRUPTS] IE:   {:08b}", bus->ram.data[IE]);
+    fmt::println("[HANDLE INTERRUPTS] IF:   {:08b}", bus->ram.data[IF]);
 
     // IE -> what specific interrupt handler is allowed to be called? (per bit)
     // IF -> requested interrupts (handle here!)
 
-    std::bitset<8> ie_set(bus->ram.ram[IE]);
-    std::bitset<8> if_set(bus->ram.ram[IF]);
+    std::bitset<8> ie_set(bus->ram.data[IE]);
+    std::bitset<8> if_set(bus->ram.data[IF]);
 
     for (size_t i = 0; i < if_set.size(); i++) {
       if (if_set[i] == true && ie_set[i] == true) {
@@ -640,8 +649,8 @@ void SharpSM83::handle_interrupts() {
       };
     }
 
-    bus->ram.ram[IE] = ie_set.to_ulong();
-    bus->ram.ram[IF] = if_set.to_ulong();
+    bus->ram.data[IE] = ie_set.to_ulong();
+    bus->ram.data[IF] = if_set.to_ulong();
     // Bit 0 (VBlank) has the highest priority, and Bit 4 (Joypad) has the
     // lowest priority.
   }
@@ -650,9 +659,9 @@ void SharpSM83::run_instruction() {
   if (mapper == nullptr)
     throw std::runtime_error("mapper error");
   // fmt::println(
-  //     "A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} "
-  //     "L: {:02X} SP: {:04X} PC: {:02X}:{:04X} ({:02X} {:02X} {:02X} {:02X})",
-  //     A, F, B, C, D, E, H, L, SP, bus->cart.rom_bank, PC, peek(PC),
+  //     "A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X}
+  //     " "L: {:02X} SP: {:04X} PC: {:02X}:{:04X} ({:02X} {:02X} {:02X}
+  //     {:02X})", A, F, B, C, D, E, H, L, SP, mapper->rom_bank, PC, peek(PC),
   //     peek(PC + 1), peek(PC + 2), peek(PC + 3));
   u8 opcode = read8(PC++);
   switch (opcode) {
@@ -736,6 +745,10 @@ void SharpSM83::run_instruction() {
       break;
     }
 
+    case 0x10: {
+      STOP();
+      break;
+    }
     case 0x11: {
       LD_R16_U16(DE, read16(PC++));
       break;

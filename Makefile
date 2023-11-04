@@ -12,7 +12,7 @@ final: $(OBJS)
 	$(CC) $(OBJS) $(OBJS_IMGUI) -o build/bin/umibozu $(CPPFLAGS)
 	chmod +x build/bin/umibozu
 
-$(OBJ_DIR)/main.o: src/main.cpp
+$(OBJ_DIR)/main.o: src/main.cpp include/core/mapper/mappers.h
 	$(CC) $(CPPFLAGS) -c src/main.cpp -o $(OBJ_DIR)/main.o
 
 $(OBJ_DIR)/cart.o: src/core/cart.cpp include/core/cart/cart.h

@@ -1,6 +1,5 @@
 #pragma once
 #include <bitset>
-#include <cstddef>
 #include <stdexcept>
 
 #include "bus.h"
@@ -28,13 +27,11 @@
 #define TIMER_INTERRUPT 0x50
 #define SERIAL_INTERRUPT 0x58
 #define JOYPAD_INTERRUPT 0x60
-#define OP_NOT_IMPL(r)                                 \
-  fmt::println("[CPU] not implemented: {}", __func__); \
-  exit(-1);
+
 namespace Umibozu {
 
-  enum class FLAG : u8 { CARRY = 4, HALF_CARRY = 5, NEGATIVE = 6, ZERO = 7 };
-  enum class FLAG_STATE_MODIFIER { NOT, IS };
+  enum class FLAG { CARRY = 4, HALF_CARRY = 5, NEGATIVE = 6, ZERO = 7 };
+  enum class CPU_STATUS { ACTIVE, HALT_MODE, STOP };
   class SharpSM83 {
    private:
     // std::vector<u8> wram;
@@ -100,17 +97,18 @@ namespace Umibozu {
       u16 get_value() { return ((high << 8) + low); }
     };
     u8 A, F, B, C, D, E, H, L;
-    REG_16 AF      = REG_16(A, F);
-    REG_16 BC      = REG_16(B, C);
-    REG_16 DE      = REG_16(D, E);
-    REG_16 HL      = REG_16(H, L);
-    u16 SP         = 0xFFFE;
-    u16 PC         = 0x100;
-    u64 cycles     = 0;
-    Mapper* mapper = nullptr;
-    // Interrupt master enable
-    u8 IME                                             = 0x0;
-    bool tima_to_tma                                   = false;
+    REG_16 AF         = REG_16(A, F);
+    REG_16 BC         = REG_16(B, C);
+    REG_16 DE         = REG_16(D, E);
+    REG_16 HL         = REG_16(H, L);
+    u16 SP            = 0xFFFE;
+    u16 PC            = 0x100;
+    u64 cycles        = 0;
+    CPU_STATUS status = CPU_STATUS::ACTIVE;
+    Mapper* mapper    = nullptr;
+    bool IME           = 0x0;
+    bool tima_to_tma = false;
+
     static constexpr std::array<u8, 5> interrupt_table = {
         VBLANK_INTERRUPT, STAT_INTERRUPT, TIMER_INTERRUPT, SERIAL_INTERRUPT,
         JOYPAD_INTERRUPT};
@@ -188,21 +186,18 @@ namespace Umibozu {
     inline void SLA_HL();
 
     inline void RR(u8& r);
-
     inline void RL(u8& r);
-
     inline void RL_HL();
-
     inline void RR_HL();
 
     inline void SWAP(u8& r);
     inline void SWAP_HL();
-
     inline void SRL(u8& r);
     inline void SRL_HL();
 
     inline void SET(u8 p, u8& r);
     inline void RES(u8 p, u8& r);
     inline void BIT(const u8 p, const u8& r);
+    inline void STOP();
   };
 }  // namespace Umibozu

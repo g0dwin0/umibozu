@@ -1,7 +1,6 @@
 #pragma once
 #include <string>
 #include <unordered_map>
-
 #include "cart_constants.hpp"
 #include "common.h"
 namespace Umibozu {
@@ -11,14 +10,13 @@ namespace Umibozu {
       std::string manufacturer;
       std::string mapper_string;
       u8 mapper_id;
-      u32 rom_size;
-      u32 ram_size;
+      u8 rom_size;
+      u8 ram_size;
       u8 destination_code;
       bool supports_cgb_enhancements;
     };
 
    private:
-    bool logo_is_valid(std::vector<u8>&);
     std::string get_manufacturer(u8, std::vector<u8>);
     std::string get_mapper_string(u8);
     void print_cart_info();
@@ -26,6 +24,7 @@ namespace Umibozu {
    public:
     void set_cart_info();
     std::vector<u8> memory;
+    RAM ext_ram = RAM(0x10000);
     Info info;
     Cartridge();
     ~Cartridge();
