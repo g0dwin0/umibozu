@@ -5,3 +5,4 @@ roms/
 compile_commands.json
 *.txt
 *.log
+*.ini

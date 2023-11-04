@@ -7,14 +7,10 @@
 using namespace Umibozu;
 
 int main() {
-  Frontend frontend;
+  GB gb;
+  gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/gb-test-roms/cpu_instrs/cpu_instrs.gb"));
 
+  gb.start();
 
-  while (frontend.state.running != false) {
-    frontend.handle_events();
-    frontend.render_frame();
-  }
-
-  SDL_Quit();
   return 0;
 }

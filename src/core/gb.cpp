@@ -1,6 +1,8 @@
 #include "core/gb.h"
+#include <cassert>
+#include <cstddef>
 
-using namespace Umibozu;
+// using namespace Umibozu;
 
 void GB::init_hw_regs() {
   bus.ram.ram[P1]   = 0xCF;
@@ -31,8 +33,20 @@ void GB::init_hw_regs() {
   cpu.HL = 0x014D;
 }
 
-// void GB::start(u64 count) {
-//   // while (count != 0) {
-//   //   count--;
-//   // }
-// }
+GB::GB() {
+  Mapper::bus = &bus;
+  cpu.bus     = &bus;
+  init_hw_regs();
+}
+void GB::load_cart(std::vector<u8> cart_data) {
+  this->bus.cart.memory = cart_data;
+  //TODO: verify cart integrity
+  bus.cart.set_cart_info();
+  cpu.mapper = get_mapper_by_id(bus.cart.info.mapper_id);
+}
+void GB::start(u64 count) {
+  while (count != 0) {
+    cpu.run_instruction();
+    count--;
+  }
+}

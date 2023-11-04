@@ -1,4 +1,4 @@
-CPPFLAGS = -Iimgui -Iimgui/backends  -Iinclude/core -Iinclude/frontend -Iinclude/ -std=c++20 -Wall -Wextra -Wpedantic -Werror -lpthread -lSDL2 -lGL
+CPPFLAGS = -Iimgui -Iimgui/backends -Iinclude/core -Iinclude/core/mapper -Iinclude/frontend -Iinclude/ -std=c++20 -Wall -Wextra -Wpedantic -Werror -lpthread -lSDL2 -lGL
 OBJ_DIR = build/obj
 OBJ_IMGUI = $(OBJ_DIR)/imgui
 OBJS_IMGUI = $(OBJ_IMGUI)/imgui_demo.o $(OBJ_IMGUI)/imgui_draw.o $(OBJ_IMGUI)/imgui_impl_opengl3.o $(OBJ_IMGUI)/imgui_impl_sdl2.o $(OBJ_IMGUI)/imgui_tables.o $(OBJ_IMGUI)/imgui_widgets.o $(OBJ_IMGUI)/imgui.o

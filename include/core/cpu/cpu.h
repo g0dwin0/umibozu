@@ -5,6 +5,7 @@
 
 #include "bus.h"
 #include "common.h"
+#include "mapper/mappers.h"
 
 #define set_zero() \
   { set_flag(FLAG::ZERO); };
@@ -99,13 +100,14 @@ namespace Umibozu {
       u16 get_value() { return ((high << 8) + low); }
     };
     u8 A, F, B, C, D, E, H, L;
-    REG_16 AF  = REG_16(A, F);
-    REG_16 BC  = REG_16(B, C);
-    REG_16 DE  = REG_16(D, E);
-    REG_16 HL  = REG_16(H, L);
-    u16 SP     = 0xFFFE;
-    u16 PC     = 0x101;
-    u64 cycles = 0;
+    REG_16 AF      = REG_16(A, F);
+    REG_16 BC      = REG_16(B, C);
+    REG_16 DE      = REG_16(D, E);
+    REG_16 HL      = REG_16(H, L);
+    u16 SP         = 0xFFFE;
+    u16 PC         = 0x100;
+    u64 cycles     = 0;
+    Mapper* mapper = nullptr;
     // Interrupt master enable
     u8 IME                                             = 0x0;
     bool tima_to_tma                                   = false;
@@ -136,8 +138,7 @@ namespace Umibozu {
     void run_instruction();
     void m_cycle();
 
-
-
+   private:
     // ops
     inline void HALT();
     inline void LD_HL_SP_E8();

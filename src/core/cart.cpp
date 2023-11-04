@@ -1,10 +1,7 @@
 #include "cart/cart.h"
-
-#include <stdexcept>
-#include <string>
-
-#include "fmt/core.h"
 #include "io.hpp"
+#include "common.h"
+#include "mapper/mappers.h"
 #define LOGO_START 0x104
 using namespace Umibozu;
 
@@ -13,7 +10,6 @@ Cartridge::~Cartridge(){};
 
 std::string Cartridge::get_manufacturer(u8 index,
                                         std::vector<u8> new_vendor_bytes) {
-
   std::stringstream ss;
   ss << new_vendor_bytes[0] << new_vendor_bytes[1];
 
@@ -31,22 +27,17 @@ void Cartridge::print_cart_info() {
   fmt::println("cgb support: {}", info.supports_cgb_enhancements);
 }
 std::string Cartridge::get_mapper_string(u8 cartridge_type) {
-  
-
   return cart_types.at(cartridge_type);
 };
-void Cartridge::load_cart(std::vector<u8> data) {
-  this->memory = data;
+// void Cartridge::load_cart(std::vector<u8> data) {
+//   this->memory = data;
+//   (void)(data);
 
-  info = get_cart_info();
-  // print_cart_info();
-};
-Cartridge::Cartridge::Info Cartridge::get_cart_info() {
-  Info info;
-
+// };
+void Cartridge::set_cart_info() {
   bool cgb_enhancements = memory[0x143] == 0x80;
 
-  u8 cartridge_type        = this->memory[0x147];
+  u8 mapper_id        = this->memory[0x147];
   u32 rom_size             = 32 * (1 << memory[0x148]);
   u32 ram_size             = 32 * (1 << memory[0x149]);
   u8 destination_code      = memory[0x14A];
@@ -54,21 +45,23 @@ Cartridge::Cartridge::Info Cartridge::get_cart_info() {
 
   info.manufacturer = get_manufacturer(
       old_manufacturer_code, get_bytes_in_range(memory, 0x144, 0x145));
-  info.mapper_string    = get_mapper_string(cartridge_type);
-  info.rom_size         = rom_size;
-  info.ram_size         = ram_size;
-  info.destination_code = destination_code;
+  info.mapper_string             = get_mapper_string(mapper_id);
+  info.mapper_id                 = mapper_id;
+  info.rom_size                  = rom_size;
+  info.ram_size                  = ram_size;
+  info.destination_code          = destination_code;
   info.supports_cgb_enhancements = cgb_enhancements;
-
-  return info;
 };
 
 u8 Cartridge::read8(const u16 address) {
+  // fmt::println("address: {:#04x}", address);
+  // fmt::println("size of data: {:#04x}", memory.size());
+  // fmt::println("size of data: {:#04x}", memory.size());
+  
   if (address >= 0xA000 && address <= 0xBFFF) {
     fmt::println("ram bank!");
     exit(-1);
   }
-  // fmt::println("cart read: {:#04x}", address);
   return memory.at(address);
 }
 void Cartridge::write8(const u16 address, const u8 value) {

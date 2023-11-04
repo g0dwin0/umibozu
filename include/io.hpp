@@ -1,3 +1,4 @@
+#pragma once
 #include <fstream>
 #include "common.h"
 
@@ -25,7 +26,7 @@ namespace Umibozu {
   }
 
 
-  inline std::vector<u8> get_bytes_in_range(std::vector<u8>& vector, u16 start,
+  inline std::vector<u8> get_bytes_in_range(const std::vector<u8>& vector, u16 start,
                                             u16 end) {
     if (start > end) {
       throw std::runtime_error(
