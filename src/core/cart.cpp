@@ -1,7 +1,7 @@
-#include "cart/cart.h"
+#include "cart.h"
 #include "io.hpp"
 #include "common.h"
-#include "mapper/mappers.h"
+#include "mappers.h"
 #define LOGO_START 0x104
 using namespace Umibozu;
 

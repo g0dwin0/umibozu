@@ -4,7 +4,7 @@
 
 #include "bus.h"
 #include "common.h"
-#include "mapper/mappers.h"
+#include "mappers.h"
 
 #define set_zero() \
   { set_flag(FLAG::ZERO); };
@@ -106,8 +106,8 @@ namespace Umibozu {
     u64 cycles        = 0;
     CPU_STATUS status = CPU_STATUS::ACTIVE;
     Mapper* mapper    = nullptr;
-    bool IME           = 0x0;
-    bool tima_to_tma = false;
+    bool IME          = 0x0;
+    bool tima_to_tma  = false;
 
     static constexpr std::array<u8, 5> interrupt_table = {
         VBLANK_INTERRUPT, STAT_INTERRUPT, TIMER_INTERRUPT, SERIAL_INTERRUPT,
@@ -140,14 +140,16 @@ namespace Umibozu {
     // ops
     inline void HALT();
     inline void LD_HL_SP_E8();
+
     inline void LD_R_R(u8& r_1, u8 r_2);
+    inline void LD_R16_U16(REG_16& r_1, u16 val);
+
     inline void ADD_SP_E8();
 
     // load value into memory address
     inline void LD_M_R(const u16 address, u8 val);
 
     inline void LD_SP_U16(u16& r_1, u16 val);
-    inline void LD_R16_U16(REG_16& r_1, u16 val);
     inline void LD_U16_SP(u16 address, u16 sp_val);
     inline void LD_R_AMV(u8& r_1, REG_16& r_16);
     inline void DEC(u8& r);

@@ -1,14 +1,15 @@
 #pragma once
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
-#include "imgui_impl_opengl3.h"
-#include <SDL2/SDL_opengl.h>
+#include "imgui_impl_sdlrenderer2.h"
 #include <SDL2/SDL.h>
 #include "common.h"
 
 struct State {
   bool demo_window_open = true;
   bool running = true;
+  SDL_Texture* ppu_texture = nullptr;
+  bool texture_window_open = true;
   ImGuiIO* io;
 };
 struct Frontend {
@@ -18,6 +19,7 @@ struct Frontend {
 
   void handle_events();
   void render_frame();
+  void show_viewport();
   
   Frontend();
 };

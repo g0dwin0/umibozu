@@ -2,9 +2,9 @@
 #include <vector>
 #include "bus.h"
 #include "common.h"
-#include "core/cart/cart.h"
-#include "core/cpu/cpu.h"
-#include "mapper/mappers.h"
+#include "cart.h"
+#include "cpu.h"
+#include "mappers.h"
 
 struct GB {
  private:

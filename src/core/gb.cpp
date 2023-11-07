@@ -7,27 +7,27 @@
 // using namespace Umibozu;
 
 void GB::init_hw_regs() {
-  bus.ram.data[P1]   = 0xCF;
-  bus.ram.data[SB]   = 0x00;
-  bus.ram.data[SC]   = 0x7E;
-  bus.ram.data[DIV]  = 0xAB;
-  bus.ram.data[TIMA] = 0x00;
-  bus.ram.data[TMA]  = 0x00;
-  bus.ram.data[TAC]  = 0xF8;
-  bus.ram.data[IF]   = 0xE1;
-  bus.ram.data[LCDC] = 0x91;
-  bus.ram.data[STAT] = 0x81;
-  bus.ram.data[SCY]  = 0x00;
-  bus.ram.data[SCX]  = 0x00;
-  bus.ram.data[LY]   = 0x91;
-  bus.ram.data[LYC]  = 0x00;
-  bus.ram.data[DMA]  = 0xFF;
-  bus.ram.data[BGP]  = 0xFC;
-  bus.ram.data[OBP0] = 0x00;
-  bus.ram.data[OBP1] = 0x00;
-  bus.ram.data[WY]   = 0x00;
-  bus.ram.data[WX]   = 0x00;
-  bus.ram.data[IE]   = 0x00;
+  bus.wram.data[P1]   = 0xCF;
+  bus.wram.data[SB]   = 0x00;
+  bus.wram.data[SC]   = 0x7E;
+  bus.wram.data[DIV]  = 0xAB;
+  bus.wram.data[TIMA] = 0x00;
+  bus.wram.data[TMA]  = 0x00;
+  bus.wram.data[TAC]  = 0xF8;
+  bus.wram.data[IF]   = 0xE1;
+  bus.wram.data[LCDC] = 0x91;
+  bus.wram.data[STAT] = 0x81;
+  bus.wram.data[SCY]  = 0x00;
+  bus.wram.data[SCX]  = 0x00;
+  bus.wram.data[LY]   = 0x91;
+  bus.wram.data[LYC]  = 0x00;
+  bus.wram.data[DMA]  = 0xFF;
+  bus.wram.data[BGP]  = 0xFC;
+  bus.wram.data[OBP0] = 0x00;
+  bus.wram.data[OBP1] = 0x00;
+  bus.wram.data[WY]   = 0x00;
+  bus.wram.data[WX]   = 0x00;
+  bus.wram.data[IE]   = 0x00;
 
   cpu.AF = 0x01B0;
   cpu.BC = 0x0013;

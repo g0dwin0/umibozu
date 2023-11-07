@@ -1,7 +1,7 @@
-CPPFLAGS = -Iimgui -Iimgui/backends -Iinclude/core -Iinclude/core/mapper -Iinclude/frontend -Iinclude/ -std=c++20 -Wall -Wextra -Wpedantic -Werror -lpthread -lSDL2 -lGL
+CPPFLAGS = -Iimgui -Iimgui/backends -Iinclude/core -Iinclude/frontend -Iinclude/ -std=c++20 -Wall -Wextra -Wpedantic -Werror -lpthread -lSDL2 -lGL
 OBJ_DIR = build/obj
 OBJ_IMGUI = $(OBJ_DIR)/imgui
-OBJS_IMGUI = $(OBJ_IMGUI)/imgui_demo.o $(OBJ_IMGUI)/imgui_draw.o $(OBJ_IMGUI)/imgui_impl_opengl3.o $(OBJ_IMGUI)/imgui_impl_sdl2.o $(OBJ_IMGUI)/imgui_tables.o $(OBJ_IMGUI)/imgui_widgets.o $(OBJ_IMGUI)/imgui.o
+OBJS_IMGUI = $(OBJ_IMGUI)/imgui_demo.o $(OBJ_IMGUI)/imgui_draw.o $(OBJ_IMGUI)/imgui_impl_sdlrenderer2.o $(OBJ_IMGUI)/imgui_impl_sdl2.o $(OBJ_IMGUI)/imgui_tables.o $(OBJ_IMGUI)/imgui_widgets.o $(OBJ_IMGUI)/imgui.o
 OBJS = $(OBJ_DIR)/main.o $(OBJ_DIR)/cart.o $(OBJ_DIR)/cpu.o $(OBJ_DIR)/bus.o $(OBJ_DIR)/gb.o $(OBJ_DIR)/frontend.o 
 CC=g++
 
@@ -12,13 +12,13 @@ final: $(OBJS)
 	$(CC) $(OBJS) $(OBJS_IMGUI) -o build/bin/umibozu $(CPPFLAGS)
 	chmod +x build/bin/umibozu
 
-$(OBJ_DIR)/main.o: src/main.cpp include/core/mapper/mappers.h
+$(OBJ_DIR)/main.o: src/main.cpp include/core/mappers.h
 	$(CC) $(CPPFLAGS) -c src/main.cpp -o $(OBJ_DIR)/main.o
 
-$(OBJ_DIR)/cart.o: src/core/cart.cpp include/core/cart/cart.h
+$(OBJ_DIR)/cart.o: src/core/cart.cpp include/core/cart.h
 	$(CC) $(CPPFLAGS) -c src/core/cart.cpp -o $(OBJ_DIR)/cart.o
 
-$(OBJ_DIR)/cpu.o: src/core/cpu.cpp include/core/cpu/cpu.h
+$(OBJ_DIR)/cpu.o: src/core/cpu.cpp include/core/cpu.h
 	$(CC) $(CPPFLAGS) -c src/core/cpu.cpp -o $(OBJ_DIR)/cpu.o
 
 $(OBJ_DIR)/bus.o: src/core/bus.cpp include/core/bus.h

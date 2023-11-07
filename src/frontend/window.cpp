@@ -1,8 +1,11 @@
 #include "frontend/window.h"
 
 #include <SDL2/SDL_log.h>
+#include <SDL2/SDL_render.h>
 
-#include "fmt/core.h"
+#include <cstddef>
+
+#include "imgui.h"
 
 void Frontend::handle_events() {
   SDL_Event event;
@@ -16,22 +19,37 @@ void Frontend::handle_events() {
 }
 
 void Frontend::render_frame() {
-  ImGui_ImplOpenGL3_NewFrame();
+  ImGui_ImplSDLRenderer2_NewFrame();
   ImGui_ImplSDL2_NewFrame();
   ImGui::NewFrame();
-  ImVec4 clear_color       = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-  if (state.demo_window_open)
-    ImGui::ShowDemoWindow(&state.demo_window_open);
+  show_viewport();
 
+  // Rendering
   ImGui::Render();
-  glViewport(0, 0, (int)state.io->DisplaySize.x,
-             (int)state.io->DisplaySize.y);
-  glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w,
-               clear_color.z * clear_color.w, clear_color.w);
-  glClear(GL_COLOR_BUFFER_BIT);
-  ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-  SDL_GL_SwapWindow(window);
+  SDL_RenderSetScale(renderer, state.io->DisplayFramebufferScale.x,
+                     state.io->DisplayFramebufferScale.y);
+  ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
+  SDL_SetRenderTarget(renderer, this->state.ppu_texture);
+  SDL_RenderDrawLine(renderer, 10, 10, 500, 500);
+
+  SDL_SetRenderTarget(renderer, NULL);
+  
+  SDL_SetRenderDrawColor(
+      renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255),
+      (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
+  SDL_RenderClear(renderer);
+  ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
+  SDL_RenderPresent(renderer);
+}
+void Frontend::show_viewport() {
+  ImGui::Begin("viewport", &state.texture_window_open, 0);
+  ImGui::Text("pointer = %p", (void*)&state.ppu_texture);
+  ImGui::Image((void*)state.ppu_texture, ImVec2(160, 144));
+
+  ImGui::End();
+  ImGui::Render();
 }
 
 Frontend::Frontend() {
@@ -40,18 +58,17 @@ Frontend::Frontend() {
     exit(-1);
   };
 
-  // Create window with graphics context
-  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-  SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-  SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
   SDL_WindowFlags window_flags =
       (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE |
                         SDL_WINDOW_ALLOW_HIGHDPI);
   SDL_Window* window =
       SDL_CreateWindow("umibozu", SDL_WINDOWPOS_CENTERED,
                        SDL_WINDOWPOS_CENTERED, 1280, 720, window_flags);
-  SDL_GLContext gl_context = SDL_GL_CreateContext(window);
-  SDL_GL_MakeCurrent(window, gl_context);
+  SDL_Renderer* renderer = SDL_CreateRenderer(
+      window, -1, SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED);
+
+  this->window   = window;
+  this->renderer = renderer;
 
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION();
@@ -67,6 +84,10 @@ Frontend::Frontend() {
 
   ImGui::StyleColorsDark();
 
-  ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
-  ImGui_ImplOpenGL3_Init();
+  // setup output graphical output texture
+  this->state.ppu_texture = SDL_CreateTexture(
+      renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 160, 144);
+
+  ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
+  ImGui_ImplSDLRenderer2_Init(renderer);
 }

@@ -1,9 +1,9 @@
-#include "core/cpu/cpu.h"
+#include "cpu.h"
 
 #include <stdexcept>
 
 #include "common.h"
-#include "core/cart/cart.h"
+#include "cart.h"
 
 using namespace Umibozu;
 
@@ -16,11 +16,11 @@ inline void SharpSM83::STOP() {
 inline void SharpSM83::HALT() {
   fmt::println("[HALT] waiting for interrupt(s)...");
   bool halted = true;
-  fmt::println("[HALT] IE:   {:08b}", bus->ram.data[IE]);
-  fmt::println("[HALT] IF:   {:08b}", bus->ram.data[IF]);
+  fmt::println("[HALT] IE:   {:08b}", bus->wram.data[IE]);
+  fmt::println("[HALT] IF:   {:08b}", bus->wram.data[IF]);
   while (halted) {
     for (u8 i = 0; i < 8; i++) {
-      if ((bus->ram.data[IE] & (1 << i)) && (bus->ram.data[IF] & (1 << i))) {
+      if ((bus->wram.data[IE] & (1 << i)) && (bus->wram.data[IF] & (1 << i))) {
         halted = false;
       }
     }
@@ -588,7 +588,7 @@ SharpSM83::SharpSM83() {}
 SharpSM83::~SharpSM83() {}
 
 void SharpSM83::request_interrupt(InterruptType t) {
-  bus->ram.data[IF] |= (1 << (u8)t);
+  bus->wram.data[IF] |= (1 << (u8)t);
 }
 void SharpSM83::m_cycle() { return; }
 
@@ -620,16 +620,16 @@ void SharpSM83::unset_flag(FLAG flag) { F &= ~(1 << (u8)flag); };
 u8 SharpSM83::get_flag(FLAG flag) { return F & (1 << (u8)flag) ? 1 : 0; }
 
 void SharpSM83::handle_interrupts() {
-  if (IME && bus->ram.data[IE] && bus->ram.data[IF]) {
+  if (IME && bus->wram.data[IE] && bus->wram.data[IF]) {
     fmt::println("[HANDLE INTERRUPTS] IME:  {:08b}", IME);
-    fmt::println("[HANDLE INTERRUPTS] IE:   {:08b}", bus->ram.data[IE]);
-    fmt::println("[HANDLE INTERRUPTS] IF:   {:08b}", bus->ram.data[IF]);
+    fmt::println("[HANDLE INTERRUPTS] IE:   {:08b}", bus->wram.data[IE]);
+    fmt::println("[HANDLE INTERRUPTS] IF:   {:08b}", bus->wram.data[IF]);
 
     // IE -> what specific interrupt handler is allowed to be called? (per bit)
     // IF -> requested interrupts (handle here!)
 
-    std::bitset<8> ie_set(bus->ram.data[IE]);
-    std::bitset<8> if_set(bus->ram.data[IF]);
+    std::bitset<8> ie_set(bus->wram.data[IE]);
+    std::bitset<8> if_set(bus->wram.data[IF]);
 
     for (size_t i = 0; i < if_set.size(); i++) {
       if (if_set[i] == true && ie_set[i] == true) {
@@ -650,8 +650,8 @@ void SharpSM83::handle_interrupts() {
       };
     }
 
-    bus->ram.data[IE] = ie_set.to_ulong();
-    bus->ram.data[IF] = if_set.to_ulong();
+    bus->wram.data[IE] = ie_set.to_ulong();
+    bus->wram.data[IF] = if_set.to_ulong();
     // Bit 0 (VBlank) has the highest priority, and Bit 4 (Joypad) has the
     // lowest priority.
   }

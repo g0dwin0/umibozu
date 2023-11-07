@@ -1,12 +1,12 @@
 #pragma once
-#include "cart/cart.h"
+#include "cart.h"
 #include "common.h"
 
 using namespace Umibozu;
 
 struct Bus {
   Cartridge cart;
-  RAM ram = RAM(0x10000);
+  RAM wram = RAM(0x10000);
 
   // Game Link Port
   u16 serial_port_index = 0;
