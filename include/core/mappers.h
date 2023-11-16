@@ -6,7 +6,7 @@
 #include "common.h"
 #pragma GCC diagnostic ignored "-Wtype-limits"
 // TODO: implement MBC1M (>1mb carts)
-#define SERIAL_PORT_BUFFER_SIZE 1
+#define SERIAL_PORT_BUFFER_SIZE 1024
 
 class Mapper {
  public:
@@ -47,7 +47,9 @@ class Mapper {
     if (address <= 0x7FFF) {
       throw std::runtime_error("cannot write to ROM area");
     }
-
+    if (address >= 0x8000 && address <= 0x9FFF) {
+      return bus->vram.write8(address - 0x8000, value);
+    }
     if (address >= 0xC000 && address <= 0xDFFF) {
       return bus->wram.write8(address - 0xC000, value);
     }
@@ -70,7 +72,6 @@ class Mapper {
     throw std::runtime_error(
         fmt::format("[CPU] out of bounds CPU write: {:#04x}", address));
   }
-  
 };
 
 class MBC_1 : public Mapper {
@@ -87,7 +88,6 @@ class MBC_1 : public Mapper {
       return bus->wram.write8(address, value);
     }
     return handle_system_memory_write(address, value);
-    
   }
 };
 class MBC_1_RAM : public Mapper {
@@ -145,11 +145,6 @@ class ROM_ONLY : public Mapper {
     return handle_system_memory_read(address);
   }
   void write8(const u16 address, const u8 value) override {
-    if (address == SC && value == 0x81 && bus->wram.data[SC] & 0x80) {
-      bus->serial_port_buffer[bus->serial_port_index++] = bus->wram.data[SB];
-      std::string str_data(bus->serial_port_buffer, SERIAL_PORT_BUFFER_SIZE);
-      fmt::println("serial data: {}", str_data);
-    }
     return handle_system_memory_write(address, value);
   }
 };

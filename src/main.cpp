@@ -9,7 +9,7 @@ using namespace Umibozu;
 
 int main() {
   GB gb;
-  gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/gb-test-roms/interrupt_time/interrupt_time.gb"));
+  gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/gb-test-roms/cpu_instrs/individual/01-special.gb"));
   gb.start();
   // OPTIMIZE: abstract this away
   // Frontend fe;

@@ -625,13 +625,13 @@ u16 SharpSM83::read16(const u16 address) {
 u8 SharpSM83::peek(const u16 address) { return mapper->read8(address); }
 void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
   // io regs
-  fmt::println("reg: {:#04x}, value: {:#04x}", address, value);
+  // fmt::println("reg: {:#04x}, value: {:#04x}", address, value);
   switch (address) {
     case SB: {
       break;
     }
     case SC: {
-      fmt::println("hi from SC");
+      // fmt::println("hi from SC");
       if (value == 0x81 && bus->wram.data[SC] & 0x80) {
         bus->serial_port_buffer[bus->serial_port_index++] = bus->wram.data[SB];
         std::string str_data(bus->serial_port_buffer, SERIAL_PORT_BUFFER_SIZE);

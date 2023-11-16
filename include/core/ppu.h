@@ -14,6 +14,7 @@ struct LCDC {
   u8 lcd_ppu_enable : 1;
 
   void print_status() {
+    return;
     fmt::println("\n===============LCDC=============");
     fmt::println("BG Window Enable / Priority = {:d}",
                  +bg_window_enable_priority);
