@@ -1,17 +1,18 @@
 #pragma once
 #include <vector>
+
 #include "bus.h"
-#include "common.h"
 #include "cart.h"
+#include "common.h"
 #include "cpu.h"
 #include "mappers.h"
 
 struct GB {
  private:
   SharpSM83 cpu;
-  Bus bus;
 
  public:
+  Bus bus;
   GB();
 
   void load_cart(std::vector<u8>);

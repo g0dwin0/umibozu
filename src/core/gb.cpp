@@ -47,6 +47,7 @@ void GB::load_cart(std::vector<u8> cart_data) {
   cpu.mapper = get_mapper_by_id(bus.cart.info.mapper_id);
 }
 void GB::start(u64 count) {
+  assert(!bus.cart.memory.empty());
   while (count != 0) {
     cpu.run_instruction();
     count--;

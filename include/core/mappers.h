@@ -7,66 +7,91 @@
 #pragma GCC diagnostic ignored "-Wtype-limits"
 // TODO: implement MBC1M (>1mb carts)
 #define SERIAL_PORT_BUFFER_SIZE 1
+
 class Mapper {
  public:
   static inline Bus* bus;
-  u8 rom_bank;
+  u16 rom_bank;
   u8 ram_bank;
   bool ram_enabled                                       = false;
   virtual u8 read8(const u16 address)                    = 0;
   virtual void write8(const u16 address, const u8 value) = 0;
-};
 
-class MBC_1 : public Mapper {
-  u8 read8(const u16 address) override {
-    if (address == 0xFF44) {
-      return 0x90;
-    }
+  u8 handle_system_memory_read(const u16 address) {
     if (address <= 0x3FFF) {
       return bus->cart.read8(address);
     }
-    if (address >= 0x4000 && address <= 0x7FFF) {
-      return bus->cart.read8((0x4000 * rom_bank) + address);
+    if (address >= 0x8000 && address <= 0x9FFF) {
+      return bus->vram.read8(address);
     }
-    if (address >= 0x8000 && address <= 0xDFFF) {
-      return bus->wram.read8(address);
+    if (address >= 0xC000 && address <= 0xDFFF) {
+      return bus->wram.read8(address - 0xC000);
     }
     if (address >= 0xE000 && address <= 0xFDFF) {
       return bus->wram.read8((address & 0xDFFF));
     }
-    if (address >= 0xFE00 && address <= 0xFFFF) {
+    if (address >= 0xFE00 && address <= 0xFE9F) {
       return bus->wram.read8(address);
     }
+    if (address >= 0xFEA0 && address <= 0xFEFF) {
+      return 0x0;
+    }
+    if (address >= 0xFF00 && address <= 0xFFFF) {
+      return bus->wram.read8(address);
+    }
+
     throw std::runtime_error(
         fmt::format("[CPU] out of bounds CPU read: {:#04x}", address));
-  }
-  void write8(const u16 address, const u8 value) override {
+  };
+  void handle_system_memory_write(const u16 address, const u8 value) {
     if (address <= 0x7FFF) {
-      fmt::println("rom bank: {:d}", rom_bank);
-      address >= 0x2000 ? (rom_bank = value & 0b00000111) : 0;
-      return bus->wram.write8(address, value);
+      throw std::runtime_error("cannot write to ROM area");
+    }
+
+    if (address >= 0xC000 && address <= 0xDFFF) {
+      return bus->wram.write8(address - 0xC000, value);
     }
     if (address >= 0xE000 && address <= 0xFDFF) {
       return bus->wram.write8((address & 0xDFFF), value);
     }
-    if (address == SC && value == 0x81 && bus->wram.data[SC] & 0x80) {
-      bus->serial_port_buffer[bus->serial_port_index++] = bus->wram.data[SB];
-      std::string str_data(bus->serial_port_buffer, SERIAL_PORT_BUFFER_SIZE);
-      fmt::println("serial data: {}", str_data);
+    if (address >= 0xFE00 && address <= 0xFE9F) {  // oam
+      return bus->wram.write8(address, value);
     }
-    return bus->wram.write8(address, value);
+    if (address >= 0xFEA0 && address <= 0xFEFF) {
+      throw std::runtime_error("cannot write to prohibited area");
+    }
+    // if (address >= 0xFF00 && address <= 0xFF7F) {
+    //   return handle_system_io_write(address, value);
+    // }
+    if (address >= 0xFF80 && address <= 0xFFFF) {  // oam
+      return bus->wram.write8(address, value);
+    }
+
     throw std::runtime_error(
         fmt::format("[CPU] out of bounds CPU write: {:#04x}", address));
+  }
+  
+};
+
+class MBC_1 : public Mapper {
+  u8 read8(const u16 address) override {
+    if (address >= 0x4000 && address <= 0x7FFF) {
+      return bus->cart.read8((0x4000 * rom_bank) + address);
+    }
+    return handle_system_memory_read(address);
+  }
+  void write8(const u16 address, const u8 value) override {
+    if (address >= 0x4000 && address <= 0x7FFF) {
+      fmt::println("rom bank: {:d}", rom_bank);
+      address >= 0x2000 ? (rom_bank = value & 0b00000111) : 0;
+      return bus->wram.write8(address, value);
+    }
+    return handle_system_memory_write(address, value);
+    
   }
 };
 class MBC_1_RAM : public Mapper {
   u8 read8(const u16 address) override {
-    if (address == 0xFF44) {
-      return 0x90;
-    }
-    if (address <= 0x3FFF) {
-      return bus->cart.read8(address);
-    }
     if (address >= 0x4000 && address <= 0x7FFF) {
       return bus->cart.read8((0x4000 * rom_bank) + address);
     }
@@ -77,18 +102,8 @@ class MBC_1_RAM : public Mapper {
       }
       return 0xFF;
     }
-    if (address >= 0x8000 && address <= 0xDFFF) {
-      return bus->wram.read8(address);
-    }
-    if (address >= 0xE000 && address <= 0xFDFF) {
-      return bus->wram.read8((address & 0xDFFF));
-    }
-    if (address >= 0xFE00 && address <= 0xFFFF) {
-      return bus->wram.read8(address);
-    }
 
-    throw std::runtime_error(
-        fmt::format("[CPU] out of bounds CPU read: {:#04x}", address));
+    return handle_system_memory_read(address);
   }
   void write8(const u16 address, const u8 value) override {
     if (address <= 0x1FFF) {
@@ -101,26 +116,23 @@ class MBC_1_RAM : public Mapper {
 
       return bus->wram.write8(address, value);
     }
+    if (address >= 0x8000 && address <= 0x9FFF) {
+      return bus->vram.write8(address - 0x8000, value);
+    }
     if (address >= 0xA000 && address <= 0xBFFF) {
       if (ram_enabled) {
-        return bus->cart.ext_ram.write8(
-            (0x2000 * ram_bank) + (address % 0xA000), value);
+        bus->cart.ext_ram.write8((0x2000 * ram_bank) + (address % 0xA000),
+                                 value);
       }
       return;
-    }
-    if (address >= 0xC000 && address <= 0xDFFF) {
-      return bus->wram.write8(address, value);
-    }
-    if (address >= 0xE000 && address <= 0xFDFF) {
-      return bus->wram.write8((address & 0xDFFF), value);
     }
     if (address == SC && value == 0x81 && bus->wram.data[SC] & 0x80) {
       bus->serial_port_buffer[bus->serial_port_index++] = bus->wram.data[SB];
       std::string str_data(bus->serial_port_buffer, SERIAL_PORT_BUFFER_SIZE);
       fmt::println("serial data: {}", str_data);
     }
-    throw std::runtime_error(
-        fmt::format("[CPU] out of bounds CPU write: {:#04x}", address));
+
+    return handle_system_memory_write(address, value);
   }
 };
 
@@ -129,50 +141,16 @@ class ROM_ONLY : public Mapper {
     if (address <= 0x7FFF) {
       return bus->cart.read8(address);
     }
-    if (address >= 0x8000 && address <= 0x9FFF) {
-      // read vram
-      throw std::runtime_error("mapper does not support vram reading");
-    }
-    if (address >= 0xA000 && address <= 0xBFFF) {
-      return bus->cart.ext_ram.read8(address % 0xA000);
-    }
-    if (address >= 0xC000 && address <= 0xDFFF) {
-      return bus->wram.read8(address);
-    }
-    if (address >= 0xE000 && address <= 0xFDFF) {
-      return bus->wram.read8((address & 0xDFFF));
-    }
-    if (address >= 0xFE00 && address <= 0xFFFF) {
-      return bus->wram.read8(address);
-    }
 
-    throw std::runtime_error(
-        fmt::format("[CPU] out of bounds CPU read: {:#04x}", address));
+    return handle_system_memory_read(address);
   }
   void write8(const u16 address, const u8 value) override {
-    if (address >= 0xA000 && address <= 0xBFFF) {
-      return bus->cart.ext_ram.write8((address % 0xA000), value);
-    }
-    if (address >= 0xC000 && address <= 0xDFFF) {
-      return bus->wram.write8(address, value);
-    }
-    if (address >= 0xE000 && address <= 0xFDFF) {
-      return bus->wram.write8((address & 0xDFFF), value);
-    }
-    if (address >= 0xFE00 && address <= 0xFFFF) {
-      return bus->wram.write8(address, value);
-    }
-    if (address >= 0xE000 && address <= 0xFDFF) {
-      return bus->wram.write8((address & 0xDFFF), value);
-    }
     if (address == SC && value == 0x81 && bus->wram.data[SC] & 0x80) {
       bus->serial_port_buffer[bus->serial_port_index++] = bus->wram.data[SB];
       std::string str_data(bus->serial_port_buffer, SERIAL_PORT_BUFFER_SIZE);
       fmt::println("serial data: {}", str_data);
     }
-    return bus->wram.write8(address, value);
-    throw std::runtime_error(
-        fmt::format("[CPU] out of bounds CPU write: {:#04x}", address));
+    return handle_system_memory_write(address, value);
   }
 };
 

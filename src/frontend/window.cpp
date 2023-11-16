@@ -2,9 +2,9 @@
 
 #include <SDL2/SDL_log.h>
 #include <SDL2/SDL_render.h>
+#include <SDL2/SDL_video.h>
 
-#include <cstddef>
-
+#include "common.h"
 #include "imgui.h"
 
 void Frontend::handle_events() {
@@ -16,12 +16,12 @@ void Frontend::handle_events() {
       state.running = false;
     }
   }
-}
-
-void Frontend::render_frame() {
   ImGui_ImplSDLRenderer2_NewFrame();
   ImGui_ImplSDL2_NewFrame();
   ImGui::NewFrame();
+}
+
+void Frontend::render_frame() {
 
   show_viewport();
 
@@ -31,11 +31,11 @@ void Frontend::render_frame() {
                      state.io->DisplayFramebufferScale.y);
   ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-  SDL_SetRenderTarget(renderer, this->state.ppu_texture);
-  SDL_RenderDrawLine(renderer, 10, 10, 500, 500);
+  // SDL_SetRenderTarget(renderer, this->state.ppu_texture);
+  // SDL_RenderDrawLine(renderer, 10, 10, 500, 500);
 
   SDL_SetRenderTarget(renderer, NULL);
-  
+
   SDL_SetRenderDrawColor(
       renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255),
       (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
@@ -45,13 +45,16 @@ void Frontend::render_frame() {
 }
 void Frontend::show_viewport() {
   ImGui::Begin("viewport", &state.texture_window_open, 0);
-  ImGui::Text("pointer = %p", (void*)&state.ppu_texture);
+  ImGui::Text("pointer to texture = %p", (void*)&state.ppu_texture);
+  ImGui::Text("pointer to gb instance = %p", (void*)&gb);
+  ImGui::Text("fps = %f", state.io->Framerate);
+  
+  
   ImGui::Image((void*)state.ppu_texture, ImVec2(160, 144));
 
   ImGui::End();
   ImGui::Render();
 }
-
 Frontend::Frontend() {
   if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
     fmt::println("ERROR: failed initialize SDL");
@@ -65,7 +68,7 @@ Frontend::Frontend() {
       SDL_CreateWindow("umibozu", SDL_WINDOWPOS_CENTERED,
                        SDL_WINDOWPOS_CENTERED, 1280, 720, window_flags);
   SDL_Renderer* renderer = SDL_CreateRenderer(
-      window, -1, SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED);
+      window, -1, SDL_RENDERER_ACCELERATED);
 
   this->window   = window;
   this->renderer = renderer;
@@ -91,3 +94,8 @@ Frontend::Frontend() {
   ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
   ImGui_ImplSDLRenderer2_Init(renderer);
 }
+
+// Frontend::Frontend(GB* gb) {
+//   Frontend();
+//   this->gb = gb;
+// }

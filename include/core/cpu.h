@@ -29,14 +29,30 @@
 #define JOYPAD_INTERRUPT 0x60
 
 namespace Umibozu {
-
+static constexpr std::array<u32, 4> clock_select_table = {4096, 262144,
+                                                              65536, 16384};
   enum class FLAG { CARRY = 4, HALF_CARRY = 5, NEGATIVE = 6, ZERO = 7 };
   enum class CPU_STATUS { ACTIVE, HALT_MODE, STOP };
-  class SharpSM83 {
-   private:
-    // std::vector<u8> wram;
+  struct Timer {
+    // DIV
+    u8 div = 0;
 
-   public:
+    // TAC
+    bool ticking_enabled = false;
+    u32 increment_frequency = 4096;
+    
+    // TIMA
+    u8 timer_counter = 0x0;
+
+    // TMA
+    u8 timer_modulo = 0x0;
+
+    void set_tac(u8 value) {
+      ticking_enabled = value & 0x4;
+      increment_frequency = clock_select_table[value & 0x3];
+    }
+  };
+  struct SharpSM83 {
     SharpSM83();
     ~SharpSM83();
     Bus* bus;
@@ -105,31 +121,26 @@ namespace Umibozu {
     u16 PC            = 0x100;
     u64 cycles        = 0;
     CPU_STATUS status = CPU_STATUS::ACTIVE;
+    Timer timer;
     Mapper* mapper    = nullptr;
-    bool IME          = 0x0;
-    bool tima_to_tma  = false;
+    bool IME          = false;
+
 
     static constexpr std::array<u8, 5> interrupt_table = {
         VBLANK_INTERRUPT, STAT_INTERRUPT, TIMER_INTERRUPT, SERIAL_INTERRUPT,
         JOYPAD_INTERRUPT};
 
-    static constexpr std::array<u32, 4> clock_select_table = {4096, 262144,
-                                                              65536, 16384};
-
     u8 read8(const u16 address);
     u16 read16(const u16 address);
-
     u8 peek(const u16 address);
-
     void write8(const u16 address, const u8 value);
-
     void push_to_stack(const u8 value);
     u8 pull_from_stack();
-
     void set_flag(FLAG);
     u8 get_flag(FLAG);
     void unset_flag(FLAG);
 
+    void handle_system_io_write(const u16 address, const u8 value);
     void handle_interrupts();
     void request_interrupt(InterruptType);
 
@@ -137,7 +148,7 @@ namespace Umibozu {
     void m_cycle();
 
    private:
-    // ops
+    // TODO: replace u8 refs with REG8 register type
     inline void HALT();
     inline void LD_HL_SP_E8();
 
@@ -145,10 +156,8 @@ namespace Umibozu {
     inline void LD_R16_U16(REG_16& r_1, u16 val);
 
     inline void ADD_SP_E8();
-
     // load value into memory address
     inline void LD_M_R(const u16 address, u8 val);
-
     inline void LD_SP_U16(u16& r_1, u16 val);
     inline void LD_U16_SP(u16 address, u16 sp_val);
     inline void LD_R_AMV(u8& r_1, REG_16& r_16);
@@ -162,7 +171,6 @@ namespace Umibozu {
     inline void INC_16(REG_16& r);
     inline void ADD(u8& r, u8 r_2);
     inline void CP(const u8& r, const u8& r_2);
-
     inline void OR(u8& r, u8 r_2);
     inline void POP(REG_16& r);
     inline void PUSH(REG_16& r);
@@ -174,29 +182,23 @@ namespace Umibozu {
     inline void SBC(u8& r, u8 r_2);
     inline void SUB(u8& r, u8 r_2);
     inline void AND(u8& r, u8 r_2);
-
     inline void XOR(u8& r, u8 r_2);
-
     inline void RLC(u8& r);
     inline void RLC_HL();
-
     inline void RRC(u8& r);
     inline void RRC_HL();
     inline void SLA(u8& r);
     inline void SRA(u8& r);
     inline void SRA_HL();
     inline void SLA_HL();
-
     inline void RR(u8& r);
     inline void RL(u8& r);
     inline void RL_HL();
     inline void RR_HL();
-
     inline void SWAP(u8& r);
     inline void SWAP_HL();
     inline void SRL(u8& r);
     inline void SRL_HL();
-
     inline void SET(u8 p, u8& r);
     inline void RES(u8 p, u8& r);
     inline void BIT(const u8 p, const u8& r);

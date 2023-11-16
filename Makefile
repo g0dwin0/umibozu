@@ -1,8 +1,9 @@
+# TODO: switch to CMake
 CPPFLAGS = -Iimgui -Iimgui/backends -Iinclude/core -Iinclude/frontend -Iinclude/ -std=c++20 -Wall -Wextra -Wpedantic -Werror -lpthread -lSDL2 -lGL
 OBJ_DIR = build/obj
 OBJ_IMGUI = $(OBJ_DIR)/imgui
 OBJS_IMGUI = $(OBJ_IMGUI)/imgui_demo.o $(OBJ_IMGUI)/imgui_draw.o $(OBJ_IMGUI)/imgui_impl_sdlrenderer2.o $(OBJ_IMGUI)/imgui_impl_sdl2.o $(OBJ_IMGUI)/imgui_tables.o $(OBJ_IMGUI)/imgui_widgets.o $(OBJ_IMGUI)/imgui.o
-OBJS = $(OBJ_DIR)/main.o $(OBJ_DIR)/cart.o $(OBJ_DIR)/cpu.o $(OBJ_DIR)/bus.o $(OBJ_DIR)/gb.o $(OBJ_DIR)/frontend.o 
+OBJS = $(OBJ_DIR)/main.o $(OBJ_DIR)/cart.o $(OBJ_DIR)/cpu.o $(OBJ_DIR)/ppu.o  $(OBJ_DIR)/bus.o $(OBJ_DIR)/gb.o $(OBJ_DIR)/frontend.o 
 CC=g++
 
 all: final
@@ -26,6 +27,9 @@ $(OBJ_DIR)/bus.o: src/core/bus.cpp include/core/bus.h
 
 $(OBJ_DIR)/gb.o: src/core/gb.cpp include/core/gb.h
 	$(CC) $(CPPFLAGS) -c src/core/gb.cpp -o $(OBJ_DIR)/gb.o
+
+$(OBJ_DIR)/ppu.o: src/core/ppu.cpp include/core/ppu.h
+	$(CC) $(CPPFLAGS) -c src/core/ppu.cpp -o $(OBJ_DIR)/ppu.o
 
 $(OBJ_DIR)/frontend.o: src/frontend/window.cpp include/frontend/window.h
 	$(CC) $(CPPFLAGS) -c src/frontend/window.cpp -o $(OBJ_DIR)/frontend.o

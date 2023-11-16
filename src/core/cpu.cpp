@@ -2,8 +2,8 @@
 
 #include <stdexcept>
 
-#include "common.h"
 #include "cart.h"
+#include "common.h"
 
 using namespace Umibozu;
 
@@ -590,10 +590,29 @@ SharpSM83::~SharpSM83() {}
 void SharpSM83::request_interrupt(InterruptType t) {
   bus->wram.data[IF] |= (1 << (u8)t);
 }
-void SharpSM83::m_cycle() { return; }
+void SharpSM83::m_cycle() {
+  timer.div += 4;
+  return;
+}
 
 u8 SharpSM83::read8(const u16 address) {
   m_cycle();
+  if (address >= 0xFF04 && address <= 0xFF07) {
+    switch (address) {
+      case DIV: {
+        return timer.div;
+      }
+      case TIMA: {
+        return timer.timer_counter;
+      }
+      case TMA: {
+        return timer.timer_modulo;
+      }
+      default: {
+        throw std::runtime_error("unhandled timer read");
+      }
+    }
+  };
   return mapper->read8(address);
 }
 u16 SharpSM83::read16(const u16 address) {
@@ -604,9 +623,73 @@ u16 SharpSM83::read16(const u16 address) {
 }
 // debug only!
 u8 SharpSM83::peek(const u16 address) { return mapper->read8(address); }
+void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
+  // io regs
+  fmt::println("reg: {:#04x}, value: {:#04x}", address, value);
+  switch (address) {
+    case SB: {
+      break;
+    }
+    case SC: {
+      fmt::println("hi from SC");
+      if (value == 0x81 && bus->wram.data[SC] & 0x80) {
+        bus->serial_port_buffer[bus->serial_port_index++] = bus->wram.data[SB];
+        std::string str_data(bus->serial_port_buffer, SERIAL_PORT_BUFFER_SIZE);
+        fmt::println("serial data: {}", str_data);
+      }
+      break;
+    }
+    case DIV: {
+      timer.div = 0x0;
+      break;
+    }
+    case TIMA: {
+      timer.timer_counter = value;
+      break;
+    }
+    case TMA: {
+      timer.timer_modulo = value;
+      break;
+    }
+    case TAC: {
+      timer.set_tac(value);
+      break;
+    }
+    case IF: {
+      break;
+    }
+    case LCDC: {
+      Mapper::bus->ppu.lcdc = value;
+      Mapper::bus->ppu.lcdc.print_status();
+      break;
+    }
+    case STAT: {
+      break;
+    }
+    case SCY: {
+      break;
+    }
+    case SCX: {
+      break;
+    }
+    case LY: {
+      break;
+    }
+    case LYC: {
+      break;
+    }
+  }
 
+  bus->wram.write8(address, value);
+  // throw std::runtime_error(fmt::format(
+  //     "[CPU] out of bounds CPU write: {:#04x}, v: {:#04x}", address,
+  //     value));
+};
 void SharpSM83::write8(const u16 address, const u8 value) {
   m_cycle();
+  if (address >= 0xFF00 && address <= 0xFF7F) {
+    return handle_system_io_write(address, value);
+  };
   mapper->write8(address, value);
 }
 void SharpSM83::push_to_stack(const u8 value) { write8(--SP, value); }
@@ -657,11 +740,14 @@ void SharpSM83::handle_interrupts() {
   }
 };
 void SharpSM83::run_instruction() {
-  if (mapper == nullptr)
+  if (mapper == nullptr) {
     throw std::runtime_error("mapper error");
-  fmt::println(
-      "A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} L: {:02X} SP: {:04X} PC: {:02X}:{:04X} ({:02X} {:02X} {:02X} {:02X})", A, F, B, C, D, E, H, L, SP, mapper->rom_bank, PC, peek(PC),
-      peek(PC + 1), peek(PC + 2), peek(PC + 3));
+  }
+  // fmt::println(
+  //     "A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X}
+  //     " "L: {:02X} SP: {:04X} PC: {:02X}:{:04X} ({:02X} {:02X} {:02X}
+  //     {:02X})", A, F, B, C, D, E, H, L, SP, mapper->rom_bank, PC, peek(PC),
+  //     peek(PC + 1), peek(PC + 2), peek(PC + 3));
   u8 opcode = read8(PC++);
   switch (opcode) {
     case 0x0: {

@@ -54,6 +54,7 @@ enum struct InterruptType {
   SERIAL,
   JOYPAD,
 };
+
 struct RAM {
   std::vector<u8> data;
   u8 read8(const u16 address);
