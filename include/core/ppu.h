@@ -40,15 +40,21 @@ struct LCDC {
   };
 };
 class PPU {
+  enum class RENDERING_MODE {
+    HORIZONTAL_BLANK = 0,
+    WAIT_NEXT_FRAME,
+    OAM_SCAN,
+    PIXEL_DRAW
+  };
   SDL_Texture* frame_texture = nullptr;
   SDL_Renderer* renderer     = nullptr;
-  u8 iterator                = 0;
 
   bool frame_ready = false;
 
  public:
   PPU();
-  struct LCDC lcdc = {0, 0, 0, 0, 0, 0, 0, 0};
+  RAM* vram = nullptr;
+  struct LCDC lcdc;
   void set_renderer(SDL_Renderer* renderer) { this->renderer = renderer; }
   void set_frame_texture(SDL_Texture* texture) {
     this->frame_texture = texture;

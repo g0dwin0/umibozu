@@ -1,27 +1,32 @@
 #include "cpu.h"
 
+#include <unistd.h>
+
 #include <stdexcept>
 
 #include "cart.h"
 #include "common.h"
+#include "fmt/core.h"
 
 using namespace Umibozu;
 
 // instructions
 
 inline void SharpSM83::STOP() {
+  // TODO: implement STOP
   fmt::println("[STOP] stop called");
+  status = CPU_STATUS::STOP;
   return;
 }
 inline void SharpSM83::HALT() {
   fmt::println("[HALT] waiting for interrupt(s)...");
-  bool halted = true;
+  status = CPU_STATUS::HALT_MODE;
   fmt::println("[HALT] IE:   {:08b}", bus->wram.data[IE]);
   fmt::println("[HALT] IF:   {:08b}", bus->wram.data[IF]);
-  while (halted) {
+  while (status == CPU_STATUS::HALT_MODE) {
     for (u8 i = 0; i < 8; i++) {
       if ((bus->wram.data[IE] & (1 << i)) && (bus->wram.data[IF] & (1 << i))) {
-        halted = false;
+        status = CPU_STATUS::ACTIVE;
       }
     }
     m_cycle();
@@ -592,21 +597,63 @@ void SharpSM83::request_interrupt(InterruptType t) {
 }
 void SharpSM83::m_cycle() {
   timer.div += 4;
-  return;
+
+  // u8 bit_pos = offset_table[bus->wram.data[TAC] & 0x3];
+  // u8 m       = (timer.div & (1 << bit_pos)) >> bit_pos;
+  // u8 n_r     = m & timer.ticking_enabled;
+
+  // if (timer.prev_and == 0 && n_r == 1) {
+  //   timer.counter++;
+  // }
+
+  // timer.prev_and = n_r;
+
+  // if (timer.ticking_enabled) {
+  //   fmt::println("tima: {:#04x}", timer.counter);
+  //   fmt::println("div: {:#04x}", timer.div);
+  //   fmt::println("cycles: {:#04x}", timer.cycles);
+  //   fmt::println("increment frequency: {:#04x}", timer.increment_frequency);
+  // }
+
+  if (timer.ticking_enabled && timer.cycles == timer.increment_frequency) {
+    timer.cycles = 0;
+    if (timer.counter == 0xFF) {
+      timer.counter                = 0;
+      timer.overflow_update_queued = true;
+      return;
+    }
+    if (timer.overflow_update_queued) {
+      // fmt::println("real overflow: o: {:#04x} n: {:#04x}", timer.counter,
+      // timer.modulo);
+      timer.overflow_update_queued = false;
+      // timer.prev_behaviour = false;
+      timer.counter        = timer.modulo;
+      request_interrupt(InterruptType::TIMER);
+      return;
+    }
+    timer.counter++;
+  }
 }
 
 u8 SharpSM83::read8(const u16 address) {
   m_cycle();
+  if (address == LY) {
+    return 0x90;
+  }
   if (address >= 0xFF04 && address <= 0xFF07) {
+    // fmt::println("timer read");
     switch (address) {
       case DIV: {
-        return timer.div;
+        return timer.get_div();
       }
       case TIMA: {
-        return timer.timer_counter;
+        return timer.counter;
       }
       case TMA: {
-        return timer.timer_modulo;
+        return timer.modulo;
+      }
+      case TAC: {
+        return bus->wram.data[TAC];
       }
       default: {
         throw std::runtime_error("unhandled timer read");
@@ -626,13 +673,15 @@ u8 SharpSM83::peek(const u16 address) { return mapper->read8(address); }
 void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
   // io regs
   // fmt::println("reg: {:#04x}, value: {:#04x}", address, value);
+  if (address != SB && address != SC) {
+    // fmt::println("address: {:#04x}, value: {:#04x}", address, value);
+  }
   switch (address) {
     case SB: {
       break;
     }
     case SC: {
-      // fmt::println("hi from SC");
-      if (value == 0x81 && bus->wram.data[SC] & 0x80) {
+      if (value == 0x81) {
         bus->serial_port_buffer[bus->serial_port_index++] = bus->wram.data[SB];
         std::string str_data(bus->serial_port_buffer, SERIAL_PORT_BUFFER_SIZE);
         fmt::println("serial data: {}", str_data);
@@ -644,11 +693,11 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
       break;
     }
     case TIMA: {
-      timer.timer_counter = value;
+      timer.counter = value;
       break;
     }
     case TMA: {
-      timer.timer_modulo = value;
+      timer.modulo = value;
       break;
     }
     case TAC: {
@@ -679,11 +728,8 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
       break;
     }
   }
-
-  bus->wram.write8(address, value);
-  // throw std::runtime_error(fmt::format(
-  //     "[CPU] out of bounds CPU write: {:#04x}, v: {:#04x}", address,
-  //     value));
+  // fmt::println("wrote {:#04x} to system register {:#04x}", value, address);
+  return bus->wram.write8(address, value);
 };
 void SharpSM83::write8(const u16 address, const u8 value) {
   m_cycle();
@@ -703,10 +749,10 @@ void SharpSM83::unset_flag(FLAG flag) { F &= ~(1 << (u8)flag); };
 u8 SharpSM83::get_flag(FLAG flag) { return F & (1 << (u8)flag) ? 1 : 0; }
 
 void SharpSM83::handle_interrupts() {
+  // fmt::println("[HANDLE INTERRUPTS] IF:   {:08b}", bus->wram.data[IF]);
+  // fmt::println("[HANDLE INTERRUPTS] IE:   {:08b}", bus->wram.data[IE]);
   if (IME && bus->wram.data[IE] && bus->wram.data[IF]) {
-    fmt::println("[HANDLE INTERRUPTS] IME:  {:08b}", IME);
-    fmt::println("[HANDLE INTERRUPTS] IE:   {:08b}", bus->wram.data[IE]);
-    fmt::println("[HANDLE INTERRUPTS] IF:   {:08b}", bus->wram.data[IF]);
+    // fmt::println("[HANDLE INTERRUPTS] IME:  {:08b}", IME);
 
     // IE -> what specific interrupt handler is allowed to be called? (per bit)
     // IF -> requested interrupts (handle here!)
@@ -718,18 +764,16 @@ void SharpSM83::handle_interrupts() {
       if (if_set[i] == true && ie_set[i] == true) {
         IME = false;
 
-        fmt::println("handling interrupt: {:#04x}", i);
-        fmt::println("[INTERRUPT HANDLER] PC: {:#04x}", PC);
-        fmt::println("{}", if_set.to_string());
+        // fmt::println("handling interrupt: {:#04x}", i);
+        // fmt::println("[INTERRUPT HANDLER] PC: {:#04x}", PC);
         if_set[i].flip();
-        fmt::println("{}", if_set.to_string());
         m_cycle();
         m_cycle();
         push_to_stack(((PC & 0xFF00) >> 8));
         push_to_stack((PC & 0xFF));
         PC = interrupt_table[i];
         m_cycle();
-        fmt::println("[INTERRUPT HANDLER] AFTER PC: {:#04x}", PC);
+        // fmt::println("[INTERRUPT HANDLER] AFTER PC: {:#04x}", PC);
       };
     }
 
@@ -743,11 +787,15 @@ void SharpSM83::run_instruction() {
   if (mapper == nullptr) {
     throw std::runtime_error("mapper error");
   }
-  // fmt::println(
-  //     "A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X}
-  //     " "L: {:02X} SP: {:04X} PC: {:02X}:{:04X} ({:02X} {:02X} {:02X}
-  //     {:02X})", A, F, B, C, D, E, H, L, SP, mapper->rom_bank, PC, peek(PC),
-  //     peek(PC + 1), peek(PC + 2), peek(PC + 3));
+
+  handle_interrupts();
+  /*
+  fmt::println(
+      "A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} "
+      "L: {:02X} SP: {:04X} PC: {:02X}:{:04X} ({:02X} {:02X} {:02X} {:02X})",
+      A, F, B, C, D, E, H, L, SP, mapper->rom_bank, PC, peek(PC), peek(PC + 1),
+      peek(PC + 2), peek(PC + 3));
+      */
   u8 opcode = read8(PC++);
   switch (opcode) {
     case 0x0: {
@@ -3169,5 +3217,4 @@ void SharpSM83::run_instruction() {
           fmt::format("[CPU] unimplemented opcode: {:#04x}", opcode));
     }
   }
-  handle_interrupts();
 }

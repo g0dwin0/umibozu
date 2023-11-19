@@ -6,7 +6,7 @@
 #include "common.h"
 #pragma GCC diagnostic ignored "-Wtype-limits"
 // TODO: implement MBC1M (>1mb carts)
-#define SERIAL_PORT_BUFFER_SIZE 1024
+#define SERIAL_PORT_BUFFER_SIZE 2048
 
 class Mapper {
  public:
@@ -125,11 +125,6 @@ class MBC_1_RAM : public Mapper {
                                  value);
       }
       return;
-    }
-    if (address == SC && value == 0x81 && bus->wram.data[SC] & 0x80) {
-      bus->serial_port_buffer[bus->serial_port_index++] = bus->wram.data[SB];
-      std::string str_data(bus->serial_port_buffer, SERIAL_PORT_BUFFER_SIZE);
-      fmt::println("serial data: {}", str_data);
     }
 
     return handle_system_memory_write(address, value);

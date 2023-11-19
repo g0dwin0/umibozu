@@ -5,7 +5,7 @@
 #include "bus.h"
 #include "common.h"
 #include "mappers.h"
-
+#include "timer.h"
 #define set_zero() \
   { set_flag(FLAG::ZERO); };
 #define set_negative() \
@@ -29,27 +29,44 @@
 #define JOYPAD_INTERRUPT 0x60
 
 namespace Umibozu {
-static constexpr std::array<u32, 4> clock_select_table = {4096, 262144,
-                                                              65536, 16384};
+  static constexpr std::array<u32, 4> CLOCK_SELECT_TABLE = {1024, 16, 64, 256};
   enum class FLAG { CARRY = 4, HALF_CARRY = 5, NEGATIVE = 6, ZERO = 7 };
   enum class CPU_STATUS { ACTIVE, HALT_MODE, STOP };
   struct Timer {
+    bool overflow_update_queued = false;
+    u32 cycles;
+
     // DIV
-    u8 div = 0;
+    u16 div = 0xAB << 8;
 
     // TAC
-    bool ticking_enabled = false;
-    u32 increment_frequency = 4096;
-    
+    bool ticking_enabled    = false;
+    u32 increment_frequency = 0;
+
+    bool prev_behaviour = false;
     // TIMA
-    u8 timer_counter = 0x0;
+    u8 counter = 0x0;
 
     // TMA
-    u8 timer_modulo = 0x0;
+    u8 modulo = 0x0;
 
+    u8 get_div() { return div >> 8; }
     void set_tac(u8 value) {
-      ticking_enabled = value & 0x4;
-      increment_frequency = clock_select_table[value & 0x3];
+      fmt::println("{:#04x}", value);
+      fmt::println("ticking enabled? = {}", (value & 0x4) ? true : false);
+      fmt::println("frequency interval? = {:d}",
+                   CLOCK_SELECT_TABLE[value & 0x3]);
+
+      cycles = 0;
+      if (ticking_enabled && (value & 0x4) == 0) {
+        fmt::println("ticking disabled");
+      }
+      bool old_ticking_enabled = ticking_enabled;
+      ticking_enabled          = (bool)(value & 0x4);
+      if (old_ticking_enabled == false && ticking_enabled) {
+        fmt::println("ticking enabled");
+      }
+      increment_frequency = CLOCK_SELECT_TABLE[value & 0x3];
     }
   };
   struct SharpSM83 {
@@ -119,13 +136,11 @@ static constexpr std::array<u32, 4> clock_select_table = {4096, 262144,
     REG_16 HL         = REG_16(H, L);
     u16 SP            = 0xFFFE;
     u16 PC            = 0x100;
-    u64 cycles        = 0;
     CPU_STATUS status = CPU_STATUS::ACTIVE;
     Timer timer;
-    Mapper* mapper    = nullptr;
-    bool IME          = false;
-
-
+    Mapper* mapper                                     = nullptr;
+    bool IME                                           = false;
+    static constexpr std::array<u8, 4> offset_table    = {9, 3, 5, 7};
     static constexpr std::array<u8, 5> interrupt_table = {
         VBLANK_INTERRUPT, STAT_INTERRUPT, TIMER_INTERRUPT, SERIAL_INTERRUPT,
         JOYPAD_INTERRUPT};
