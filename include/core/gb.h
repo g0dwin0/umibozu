@@ -9,9 +9,8 @@
 #include "mappers.h"
 
 struct GB {
- private:
   SharpSM83 cpu;
- public:
+  PPU ppu;
   Bus bus;
   GB();
 
