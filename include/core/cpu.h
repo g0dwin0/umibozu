@@ -5,6 +5,7 @@
 #include "bus.h"
 #include "common.h"
 #include "mappers.h"
+#include "ppu.h"
 #include "timer.h"
 #define set_zero() \
   { set_flag(FLAG::ZERO); };
@@ -29,12 +30,14 @@
 #define JOYPAD_INTERRUPT 0x60
 
 namespace Umibozu {
-  static constexpr std::array<u32, 4> CLOCK_SELECT_TABLE = {1024, 16, 64, 256};
   enum class FLAG { CARRY = 4, HALF_CARRY = 5, NEGATIVE = 6, ZERO = 7 };
-  enum class CPU_STATUS { ACTIVE, HALT_MODE, STOP };
+  enum class CPU_STATUS { ACTIVE, HALT_MODE, STOP, PAUSED };
+  static constexpr std::array<u32, 4> CLOCK_SELECT_TABLE = {1024, 16, 64, 256};
   struct Timer {
     bool overflow_update_queued = false;
     u32 cycles;
+
+    u8 prev_and;
 
     // DIV
     u16 div = 0xAB << 8;
@@ -138,6 +141,7 @@ namespace Umibozu {
     u16 PC            = 0x100;
     CPU_STATUS status = CPU_STATUS::ACTIVE;
     Timer timer;
+    PPU* ppu                                           = nullptr;
     Mapper* mapper                                     = nullptr;
     bool IME                                           = false;
     static constexpr std::array<u8, 4> offset_table    = {9, 3, 5, 7};
@@ -154,14 +158,11 @@ namespace Umibozu {
     void set_flag(FLAG);
     u8 get_flag(FLAG);
     void unset_flag(FLAG);
-
     void handle_system_io_write(const u16 address, const u8 value);
     void handle_interrupts();
-    void request_interrupt(InterruptType);
-
     void run_instruction();
     void m_cycle();
-
+    std::string get_cpu_mode();
    private:
     // TODO: replace u8 refs with REG8 register type
     inline void HALT();
@@ -171,7 +172,6 @@ namespace Umibozu {
     inline void LD_R16_U16(REG_16& r_1, u16 val);
 
     inline void ADD_SP_E8();
-    // load value into memory address
     inline void LD_M_R(const u16 address, u8 val);
     inline void LD_SP_U16(u16& r_1, u16 val);
     inline void LD_U16_SP(u16 address, u16 sp_val);
