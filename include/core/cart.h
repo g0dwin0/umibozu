@@ -19,9 +19,10 @@ namespace Umibozu {
    private:
     std::string get_manufacturer(u8, std::vector<u8>);
     std::string get_mapper_string(u8);
-    void print_cart_info();
 
    public:
+    void print_cart_info();
+    void load_cart(std::vector<u8> data);
     void set_cart_info();
     std::vector<u8> memory;
     RAM ext_ram = RAM(0x10000);

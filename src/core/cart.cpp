@@ -1,6 +1,7 @@
 #include "cart.h"
-#include "io.hpp"
+
 #include "common.h"
+#include "io.hpp"
 #include "mappers.h"
 #define LOGO_START 0x104
 using namespace Umibozu;
@@ -37,7 +38,7 @@ std::string Cartridge::get_mapper_string(u8 cartridge_type) {
 void Cartridge::set_cart_info() {
   bool cgb_enhancements = memory[0x143] == 0x80;
 
-  u8 mapper_id        = this->memory[0x147];
+  u8 mapper_id             = this->memory[0x147];
   u32 rom_size             = 32 * (1 << memory[0x148]);
   u32 ram_size             = 32 * (1 << memory[0x149]);
   u8 destination_code      = memory[0x14A];
@@ -54,20 +55,8 @@ void Cartridge::set_cart_info() {
 };
 
 u8 Cartridge::read8(const u16 address) {
-  // fmt::println("address: {:#04x}", address);
-  // fmt::println("size of data: {:#04x}", memory.size());
-  // fmt::println("size of data: {:#04x}", memory.size());
-  
-  if (address >= 0xA000 && address <= 0xBFFF) {
-    fmt::println("ram bank!");
-    exit(-1);
-  }
   return memory.at(address);
 }
 void Cartridge::write8(const u16 address, const u8 value) {
-  if (address >= 0xA000 && address <= 0xBFFF) {
-    fmt::println("ram bank!");
-    exit(-1);
-  }
   memory.at(address) = value;
 }
