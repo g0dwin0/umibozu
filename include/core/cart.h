@@ -29,8 +29,7 @@ namespace Umibozu {
     Info info;
     Cartridge();
     ~Cartridge();
-
+    
     u8 read8(const u16);
-    void write8(const u16, const u8);
   };
 }  // namespace Umibozu

@@ -30,11 +30,7 @@ void Cartridge::print_cart_info() {
 std::string Cartridge::get_mapper_string(u8 cartridge_type) {
   return cart_types.at(cartridge_type);
 };
-// void Cartridge::load_cart(std::vector<u8> data) {
-//   this->memory = data;
-//   (void)(data);
 
-// };
 void Cartridge::set_cart_info() {
   bool cgb_enhancements = memory[0x143] == 0x80;
 
@@ -57,6 +53,6 @@ void Cartridge::set_cart_info() {
 u8 Cartridge::read8(const u16 address) {
   return memory.at(address);
 }
-void Cartridge::write8(const u16 address, const u8 value) {
-  memory.at(address) = value;
-}
+// void Cartridge::write8(const u16 address, const u8 value) {
+//   memory.at(address) = value;
+// }
