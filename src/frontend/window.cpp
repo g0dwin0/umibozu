@@ -1,10 +1,4 @@
 #include "frontend/window.h"
-
-#include <SDL2/SDL_log.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_stdinc.h>
-#include <SDL2/SDL_video.h>
-
 #include "common.h"
 #include "cpu.h"
 #include "imgui.h"
@@ -54,8 +48,8 @@ void Frontend::show_ppu_info() {
   ImGui::Text("LYC = %d", gb->bus.wram.data[LYC]);
   ImGui::Text("scanline sprite count = %d", gb->ppu.sprite_count);
   ImGui::Text("oam index = %d", gb->ppu.oam_index);
-  
-  
+  ImGui::Separator();
+  ImGui::Text("x pos offset = %d", gb->ppu.x_pos_offset);
   ImGui::Separator();
   ImGui::Text("SCX = %d", gb->bus.wram.data[SCX]);
   ImGui::Text("SCY = %d", gb->bus.wram.data[SCY]);
@@ -66,28 +60,32 @@ void Frontend::show_ppu_info() {
               fmt::format("STAT = {:08b}", gb->bus.wram.data[STAT]).c_str());
 
   ImGui::Separator();
-  ImGui::Text("LCDC.0 (BG & window enable) = %d",
-              gb->ppu.lcdc.bg_window_enable_priority);
-  ImGui::Text("LCDC.1 (OBJ enable) = %d", gb->ppu.lcdc.obj_enable);
-  ImGui::Text("LCDC.2 (OBJ size) = %s", gb->ppu.lcdc.obj_size ? "8x16" : "8x8");
+  ImGui::Text("%s", fmt::format("LCDC =  {:08b}", gb->bus.wram.data[LCDC]).c_str());
+  ImGui::Text(
+      "LCDC.0 (BG & window enable) = %s",
+      gb->ppu.lcdc.bg_and_window_enable_priority == 1 ? "True" : "False");
+  ImGui::Text("LCDC.1 (OBJ enable) = %s",
+              gb->ppu.lcdc.sprite_enable == 1 ? "On" : "Off");
+  ImGui::Text("LCDC.2 (OBJ size) = %s",
+              gb->ppu.lcdc.sprite_size == 1 ? "8x16" : "8x8");
   ImGui::Text("LCDC.3 (BG tile map area) = %s",
-              gb->ppu.lcdc.bg_tile_map ? "0x9C00 - 0x9FFF" : "0x9800 - 0x9BFF");
-  ImGui::Text("LCDC.4 (BG & Window tiles) = %s", gb->ppu.lcdc.bg_window_tiles
-                                                     ? "0x8000 - 0x8FFF"
-                                                     : "0x8800 - 0x97FF");
-  ImGui::Text("LCDC.5 (Window enable) = %s",
-              gb->ppu.lcdc.window_enable ? "On" : "Off");
-  ImGui::Text("LCDC.6 (Window tile map) = %s", gb->ppu.lcdc.window_tile_map
-                                                   ? "0x9C00 - 0x9FFF"
+              gb->ppu.lcdc.bg_tile_map_select == 1 ? "0x9C00 - 0x9FFF"
                                                    : "0x9800 - 0x9BFF");
+  ImGui::Text("LCDC.4 (BG & Window tiles) = %s",
+              gb->ppu.lcdc.tiles_select_method == 1 ? "0x8000" : "0x8800");
+  ImGui::Text("LCDC.5 (Window enable) = %s",
+              gb->ppu.lcdc.window_disp_enable == 1 ? "On" : "Off");
+  ImGui::Text("LCDC.6 (Window tile map) = %s",
+              gb->ppu.lcdc.window_tile_map_select == 1 ? "0x9C00 - 0x9FFF"
+                                                       : "0x9800 - 0x9BFF");
   ImGui::Text("LCDC.7 (LCD & PPU enable) = %s",
-              gb->ppu.lcdc.lcd_ppu_enable ? "On" : "Off");
+              gb->ppu.lcdc.lcd_ppu_enable == 1 ? "On" : "Off");
 
-  if (ImGui::Button("Print PPU info")) {
-    gb->ppu.lcdc.print_status();
-  }
+  // if (ImGui::Button("Print PPU info")) {
+  //   gb->ppu.lcdc.print_status();
+  // }
 
-  gb->ppu.lcdc.print_status();
+  // gb->ppu.lcdc.print_status();
   if (ImGui::Button("Trigger VBLANK interrupt")) {
     gb->bus.request_interrupt(InterruptType::VBLANK);
   }
@@ -107,6 +105,10 @@ void Frontend::show_ppu_info() {
 void Frontend::show_cpu_info() {
   ImGui::Begin("CPU INFO", &state.cpu_info_open, 0);
 
+  ImGui::Text("ROM BANK: %d", gb->cpu.mapper->rom_bank);
+  ImGui::Text("RAM BANK: %d", gb->cpu.mapper->ram_bank);
+  ImGui::Text("STATUS: %s", gb->cpu.get_cpu_mode().c_str());
+  ImGui::Separator();
   ImGui::Text("Z: %x", gb->cpu.get_flag(Umibozu::FLAG::ZERO));
   ImGui::Text("N: %x", gb->cpu.get_flag(Umibozu::FLAG::NEGATIVE));
   ImGui::Text("H: %x", gb->cpu.get_flag(Umibozu::FLAG::HALF_CARRY));
@@ -116,16 +118,12 @@ void Frontend::show_cpu_info() {
   ImGui::Text("PC = 0x%x", gb->cpu.PC);
   ImGui::Text("OPCODE: 0x%x", gb->cpu.peek(gb->cpu.PC));
   ImGui::Text("STATUS: %s", gb->cpu.get_cpu_mode().c_str());
-  
   ImGui::Separator();
   ImGui::Text("DIV = 0x%x", gb->cpu.timer.get_div());
-  // fmt::println("ticking enabled: {:d}", gb->cpu.timer.ticking_enabled);
   ImGui::Text("timer enabled = %d", gb->cpu.timer.ticking_enabled);
   ImGui::Text("TIMA = 0x%x", gb->cpu.timer.counter);
-  // ImGui::Text("TIMA = 0x%x", gb->cpu.bus->wram.data[TIMA]);
 
   ImGui::Text("TMA = 0x%x", gb->cpu.timer.modulo);
-  // ImGui::Text("TMA = 0x%x", gb->cpu.bus->wram.data[TMA]);
 
   ImGui::Text("%s",
               fmt::format("TAC:  {:08b}", gb->bus.wram.data[TAC]).c_str());
@@ -168,6 +166,7 @@ void Frontend::render_frame() {
   show_ppu_info();
   show_viewport();
   show_tile_maps();
+
   // ImGui::ShowDebugLogWindow(&state.debug_log_window_open);
 
   // Rendering
@@ -191,12 +190,12 @@ void Frontend::show_viewport() {
   ImGui::Text("pointer to gb instance = %p", (void*)&gb);
   ImGui::Text("fps = %f", state.io->Framerate);
 
-  ImGui::Image((void*)state.ppu_texture, ImVec2(160, 144));
+  ImGui::Image((void*)state.ppu_texture, ImVec2(160 * 2, 144 * 2));
 
   ImGui::End();
 }
 Frontend::Frontend() {
-  if (SDL_Init( SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) {
+  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) {
     fmt::println("ERROR: failed initialize SDL");
     exit(-1);
   };
@@ -207,8 +206,8 @@ Frontend::Frontend() {
   SDL_Window* window =
       SDL_CreateWindow("umibozu", SDL_WINDOWPOS_CENTERED,
                        SDL_WINDOWPOS_CENTERED, 1280, 720, window_flags);
-  SDL_Renderer* renderer = SDL_CreateRenderer(
-      window, -1, SDL_RENDERER_ACCELERATED);
+  SDL_Renderer* renderer =
+      SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
   this->window   = window;
   this->renderer = renderer;
@@ -229,7 +228,7 @@ Frontend::Frontend() {
 
   // setup output graphical output texture
   this->state.ppu_texture = SDL_CreateTexture(
-      renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 160, 144);
+      renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 256, 256);
 
   this->state.tile_map_texture_0 = SDL_CreateTexture(
       renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 256, 256);
