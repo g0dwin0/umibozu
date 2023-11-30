@@ -32,7 +32,7 @@ void Mapper::handle_system_memory_write(const u16 address, const u8 value) {
     throw std::runtime_error("cannot write to ROM area");
   }
   if (address >= 0x8000 && address <= 0x9FFF) {
-    // fmt::println("wrote to vram");
+    fmt::println("wrote to vram");
     return bus->vram.write8(address - 0x8000, value);
   }
   if (address >= 0xC000 && address <= 0xDFFF) {
@@ -47,6 +47,7 @@ void Mapper::handle_system_memory_write(const u16 address, const u8 value) {
     return bus->wram.write8(address, value);
   }
   if (address >= 0xFEA0 && address <= 0xFEFF) {  // unused/illegal
+    return;
     throw std::runtime_error("cannot write to prohibited area");
   }
   if (address >= 0xFF00 && address <= 0xFFFF) {
@@ -92,8 +93,8 @@ class MBC_1 : public Mapper {
     if (address <= 0x7FFF) {
       fmt::println("rom bank: {:d}", rom_bank);
       address >= 0x2000 ? (rom_bank = value & 0b00000111) : 0;
-
-      return bus->wram.write8(address, value);
+      return;
+      // return bus->wram.write8(address, value); 
     }
     if (address >= 0xA000 && address <= 0xBFFF) {
       if (ram_enabled) {
