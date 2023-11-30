@@ -133,10 +133,10 @@ namespace Umibozu {
       u16 get_value() { return ((high << 8) + low); }
     };
     u8 A, F, B, C, D, E, H, L;
-    REG_16 AF         = REG_16(A, F);
-    REG_16 BC         = REG_16(B, C);
-    REG_16 DE         = REG_16(D, E);
-    REG_16 HL         = REG_16(H, L);
+    REG_16 AF{A, F};
+    REG_16 BC{B, C};
+    REG_16 DE{D, E};
+    REG_16 HL{H, L};
     u16 SP            = 0xFFFE;
     u16 PC            = 0x100;
     CPU_STATUS status = CPU_STATUS::ACTIVE;
@@ -163,6 +163,7 @@ namespace Umibozu {
     void run_instruction();
     void m_cycle();
     std::string get_cpu_mode();
+
    private:
     // TODO: replace u8 refs with REG8 register type
     inline void HALT();

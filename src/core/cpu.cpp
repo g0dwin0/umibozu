@@ -12,17 +12,16 @@ using namespace Umibozu;
 SharpSM83::SharpSM83() {}
 SharpSM83::~SharpSM83() {}
 
-
 inline void SharpSM83::STOP() {
+  throw std::runtime_error("cpu: stop not implemented");
   // TODO: implement STOP
   fmt::println("[STOP] stop called");
   status = CPU_STATUS::STOP;
   return;
 }
-std::string SharpSM83::get_cpu_mode()  {
+std::string SharpSM83::get_cpu_mode() {
   #pragma GCC diagnostic ignored "-Wreturn-type"
-
-  switch(status) {
+  switch (status) {
     case CPU_STATUS::ACTIVE: {
       return "ACTIVE";
     }
@@ -38,10 +37,10 @@ std::string SharpSM83::get_cpu_mode()  {
   }
 }
 inline void SharpSM83::HALT() {
-  fmt::println("[HALT] waiting for interrupt(s)...");
+  // fmt::println("[HALT] waiting for interrupt(s)...");
   status = CPU_STATUS::HALT_MODE;
-  fmt::println("[HALT] IE:   {:08b}", bus->wram.data[IE]);
-  fmt::println("[HALT] IF:   {:08b}", bus->wram.data[IF]);
+  // fmt::println("[HALT] IE:   {:08b}", bus->wram.data[IE]);
+  // fmt::println("[HALT] IF:   {:08b}", bus->wram.data[IF]);
   while (status == CPU_STATUS::HALT_MODE) {
     for (u8 i = 0; i < 8; i++) {
       if ((bus->wram.data[IE] & (1 << i)) && (bus->wram.data[IF] & (1 << i))) {
@@ -50,7 +49,7 @@ inline void SharpSM83::HALT() {
     }
     m_cycle();
   };
-  fmt::println("[HALT] broke out of loop");
+  // fmt::println("[HALT] broke out of loop");
 }
 inline void SharpSM83::LD_HL_SP_E8() {
   u8 op  = read8(PC++);
@@ -649,12 +648,13 @@ void SharpSM83::m_cycle() {
 
 u8 SharpSM83::read8(const u16 address) {
   m_cycle();
-  // fmt::println("read requested {:#04x}", address);
-  // if (address >= 0xFF00 && address <= 0xFF10) {
-  // }
-  // if (address >= 0xFF30 && address <= 0xFF4B) {
-  //   fmt::println("read requested {:#04x}", address);
-  // }
+  if (address >= 0xFF00 && address <= 0xFF10) {
+    // fmt::println("read requested {:#04x}", address);
+  }
+  if (address >= 0xFF30 && address <= 0xFF4B) {
+    // fmt::println("read requested {:#04x}", address);
+  }
+  // fmt::println("LCDC requested {:#04x}", bus->wram.data[LCDC]);
   switch (address) {
     case DIV: {
       return timer.get_div();
@@ -668,9 +668,6 @@ u8 SharpSM83::read8(const u16 address) {
     case TAC: {
       return bus->wram.data[TAC];
     }
-    case STAT: {
-      // return ppu->stat.get_value();
-    }
   }
   return mapper->read8(address);
 };
@@ -683,9 +680,10 @@ u16 SharpSM83::read16(const u16 address) {
 // debug only!
 u8 SharpSM83::peek(const u16 address) { return mapper->read8(address); }
 void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
-  if (address != SB && address != SC) {
-    fmt::println("register address: {:#04x}, value: {:#04x}", address, value);
-  }
+  // if (address != SB && address != SC) {
+    // fmt::println("register address: {:#04x}, value: {:#04x}", address,
+    // value);
+  // }
   switch (address) {
     case SB: {
       break;
@@ -723,7 +721,6 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
     }
     case LCDC: {
       ppu->lcdc = value;
-      ppu->lcdc.print_status();
       break;
     }
     case STAT: {
@@ -753,19 +750,16 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
       break;
     }
     case DMA: {      
-      for(u8 i = 0; i != 160; i++) {
-        i++;
+      for (u8 i = 0; i < 160; i++) {
         m_cycle();
       }
       u16 address = (value << 4);
-      for(u8 i = 0; i < 0xA0; i++)  {
+      for (u8 i = 0; i < 0xA0; i++) {
         bus->oam.data[i] = peek(address + i);
       }
-      // throw std::runtime_error("cpu: oam dma not implemented");
-      break;
+      return;
     }
   }
-  // fmt::println("wrote {:#04x} to system register {:#04x}", value, address);
   return bus->wram.write8(address, value);
 };
 void SharpSM83::write8(const u16 address, const u8 value) {
@@ -822,15 +816,13 @@ void SharpSM83::handle_interrupts() {
   }
 };
 void SharpSM83::run_instruction() {
-  /*
   if (mapper == nullptr) {
     throw std::runtime_error("mapper error");
   }
-*/
+
   if (status == CPU_STATUS::PAUSED) {
     return;
   }
-
   handle_interrupts();
   /*
   fmt::println(
@@ -838,6 +830,7 @@ void SharpSM83::run_instruction() {
       "L: {:02X} SP: {:04X} PC: {:02X}:{:04X} ({:02X} {:02X} {:02X} {:02X})",
       A, F, B, C, D, E, H, L, SP, mapper->rom_bank, PC, peek(PC), peek(PC + 1),
       peek(PC + 2), peek(PC + 3));
+
   */
   u8 opcode = read8(PC++);
   switch (opcode) {
@@ -3242,8 +3235,9 @@ void SharpSM83::run_instruction() {
     }
 
     case 0xFB: {
+      // set_ime();
       IME = true;
-      fmt::println("EI");
+      // fmt::println("EI");
       break;
     }
     case 0xFE: {
