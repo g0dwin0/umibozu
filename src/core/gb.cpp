@@ -35,10 +35,10 @@ void GB::init_hw_regs() {
 }
 
 GB::GB() {
-  Mapper::bus = &bus;
-  cpu.ppu     = &ppu;
-  cpu.bus     = &bus;
-  ppu.bus     = &bus;
+  Mapper::bus     = &bus;
+  cpu.ppu         = &ppu;
+  cpu.bus         = &bus;
+  ppu.bus         = &bus;
   init_hw_regs();
 }
 void GB::load_cart(std::vector<u8> cart_data) {
