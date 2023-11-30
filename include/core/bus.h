@@ -5,7 +5,7 @@ using namespace Umibozu;
 
 struct Bus {
   Cartridge cart;
-  
+
   RAM wram = RAM(0x10000);
   RAM vram = RAM(0x2000);
   RAM oam = RAM(0xA0);
