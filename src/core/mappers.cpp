@@ -27,6 +27,7 @@ u8 Mapper::handle_system_memory_read(const u16 address) {
       fmt::format("[CPU] out of bounds CPU read: {:#04x}", address));
 }
 
+
 void Mapper::handle_system_memory_write(const u16 address, const u8 value) {
   if (address <= 0x7FFF) {
     throw std::runtime_error("cannot write to ROM area");
@@ -75,7 +76,7 @@ class ROM_ONLY : public Mapper {
 class MBC_1 : public Mapper {
   u8 read8(const u16 address) {
     if (address >= 0x4000 && address <= 0x7FFF) {
-      return bus->cart.read8((0x4000 * rom_bank) + address);
+      return bus->cart.read8((0x4000 * (rom_bank == 0 ? 1 : rom_bank)) + address);
     }
     if (address >= 0xA000 && address <= 0xBFFF) {
       if (ram_enabled) {
@@ -88,17 +89,30 @@ class MBC_1 : public Mapper {
   }
   void write8(const u16 address, const u8 value) {
     if (address <= 0x1FFF) {
-      ram_enabled = ((value & 0xF) == 0xA);
+      if((value & 0xF) == 0xA) {
+        ram_enabled = true;
+      } else {
+        ram_enabled = false;
+      }
       return;
     }
-    if (address <= 0x7FFF) {
-      fmt::println("rom bank: {:d}", rom_bank);
-      address >= 0x2000 ? (rom_bank = value & 0b00000111) : 0;
+
+    if(address >= 0x2000 && address <= 0x3FFF) {
+      rom_bank = (value & 0x1f);
       return;
-      // return bus->wram.write8(address, value); 
     }
+    if(address >= 0x4000 && address <= 0x5FFF) {
+      ram_bank = value & 0x3;
+      return;
+    }
+    if(address >= 0x6000 && address <= 0x7FFF) {
+      banking_mode = value & 0x1;
+      return;
+    }
+
     if (address >= 0xA000 && address <= 0xBFFF) {
       if (ram_enabled) {
+        assert(ram_bank <= 3);
         bus->cart.ext_ram.write8((0x2000 * ram_bank) + (address % 0xA000),
                                  value);
       }
@@ -106,6 +120,7 @@ class MBC_1 : public Mapper {
     }
     return handle_system_memory_write(address, value);
   }
+
 };
 
 Mapper* get_mapper_by_id(u8 mapper_id) {
@@ -117,7 +132,8 @@ Mapper* get_mapper_by_id(u8 mapper_id) {
       break;
     }
     case 0x1:
-    case 0x2: {
+    case 0x2:
+    case 0x3: {
       mapper = dynamic_cast<Mapper*>(new MBC_1());
       break;
     }

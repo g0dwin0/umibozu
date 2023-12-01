@@ -20,7 +20,7 @@ inline void SharpSM83::STOP() {
   return;
 }
 std::string SharpSM83::get_cpu_mode() {
-  #pragma GCC diagnostic ignored "-Wreturn-type"
+#pragma GCC diagnostic ignored "-Wreturn-type"
   switch (status) {
     case CPU_STATUS::ACTIVE: {
       return "ACTIVE";
@@ -618,12 +618,12 @@ void SharpSM83::m_cycle() {
 
   timer.prev_and = n_r;
 
-  if (timer.ticking_enabled) {
-    fmt::println("tima: {:#04x}", timer.counter);
-    fmt::println("div: {:#04x}", timer.div);
-    fmt::println("cycles: {:#04x}", timer.cycles);
-    fmt::println("increment frequency: {:#04x}", timer.increment_frequency);
-  }
+  // if (timer.ticking_enabled) {
+  //   fmt::println("tima: {:#04x}", timer.counter);
+  //   fmt::println("div: {:#04x}", timer.div);
+  //   fmt::println("cycles: {:#04x}", timer.cycles);
+  //   fmt::println("increment frequency: {:#04x}", timer.increment_frequency);
+  // }
 
   if (timer.ticking_enabled && timer.cycles == timer.increment_frequency) {
     timer.cycles = 0;
@@ -648,13 +648,12 @@ void SharpSM83::m_cycle() {
 
 u8 SharpSM83::read8(const u16 address) {
   m_cycle();
-  if (address >= 0xFF00 && address <= 0xFF10) {
-    // fmt::println("read requested {:#04x}", address);
-  }
-  if (address >= 0xFF30 && address <= 0xFF4B) {
-    // fmt::println("read requested {:#04x}", address);
-  }
+
   // fmt::println("LCDC requested {:#04x}", bus->wram.data[LCDC]);
+  if (address >= 0xFE00 && address <= 0xFE9F && ppu->get_mode() >= 2) {
+    return 0xFF;
+  };
+
   switch (address) {
     case DIV: {
       return timer.get_div();
@@ -681,8 +680,8 @@ u16 SharpSM83::read16(const u16 address) {
 u8 SharpSM83::peek(const u16 address) { return mapper->read8(address); }
 void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
   // if (address != SB && address != SC) {
-    // fmt::println("register address: {:#04x}, value: {:#04x}", address,
-    // value);
+  // fmt::println("register address: {:#04x}, value: {:#04x}", address,
+  // value);
   // }
   switch (address) {
     case SB: {
@@ -735,7 +734,7 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
     case SCX: {
       break;
     }
-    case LY: { // read only
+    case LY: {  // read only
       return;
     }
     case LYC: {
@@ -748,15 +747,15 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
       }
       break;
     }
-    case DMA: {      
+    case DMA: {
       fmt::println("called, value: {:#04x}", value);
-      for (u8 i = 0; i < 160; i++) {
-        m_cycle();
-      }
       u16 address = (value << 8);
-      
+
       for (u8 i = 0; i < 0xA0; i++) {
         bus->oam.data[i] = peek(address + i);
+      }
+      for (u8 i = 0; i < 40; i++) {
+        m_cycle();
       }
     }
   }
@@ -765,6 +764,9 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
 void SharpSM83::write8(const u16 address, const u8 value) {
   m_cycle();
   // fmt::println("write requested {:#04x}", address);
+  if (address >= 0xFE00 && address <= 0xFE9F && ppu->get_mode() >= 2) {
+    return;
+  };
   if (address >= 0xFF00 && address <= 0xFF7F) {
     return handle_system_io_write(address, value);
   };
@@ -3107,7 +3109,7 @@ void SharpSM83::run_instruction() {
       }
       break;
     }
-    case 0xD9: {
+    case 0xD9: {  // RETI
       u8 low  = pull_from_stack();
       u8 high = pull_from_stack();
       m_cycle();

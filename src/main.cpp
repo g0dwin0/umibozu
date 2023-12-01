@@ -11,8 +11,8 @@ int main() {
   GB gb;
   Frontend fe;
 
-  // gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/dmg-acid2.gb"));
-  gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/mooneye/acceptance/oam_dma/reg_read.gb"));
+  gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/dmg-acid2.gb"));
+  // gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/mooneye/acceptance/boot_hwio-dmgABCmgb.gb"));
 
   // OPTIMIZE: abstract this away
   fe.gb = &gb;

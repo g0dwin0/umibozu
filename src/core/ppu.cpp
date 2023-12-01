@@ -66,21 +66,20 @@ void PPU::tick() {
     }
     case PIXEL_DRAW: {
       // draw code
-      u8 y = bus->wram.data[LY];
+      u8 y = bus->wram.data[LY] + bus->wram.data[SCY];
       if (y % 8 == 0) {
         y_index = (y / 8);
         // fmt::println("y index: {:d}", y_index);
       }
 
       u16 address =
-          (get_tile_map_address_base() + ((y_index * 32) + x_pos_offset)) -
+          (get_tile_map_address_base() + (y_index * 32) + ((x_pos_offset + bus->wram.data[SCX] / 8) % 32)) -
           VRAM_ADDRESS_OFFSET;
 
       u8 index    = bus->vram.read8(address);
       active_tile = get_tile_data(index);
 
       SDL_SetRenderTarget(renderer, tile_map_0);
-
       // HACK: tile data is being loaded in backwards; fix that!
       for (u8 x = 0; x < 8; x++) {
         switch (active_tile.pixel_data[y % 8][7 - x].color) {
@@ -185,7 +184,6 @@ std::array<Pixel, 8> PPU::decode_pixel_row(u8 high_byte, u8 low_byte) {
 }
 Tile PPU::get_tile_data(u8 index) {
   Tile tile;
-
   if (lcdc.tiles_select_method == 0) {
     for (u8 row = 0; row < 8; row++) {
       u8 low_byte  = bus->vram.read8((0x9000 + (row * 2) + ((i8)index * 16)) -

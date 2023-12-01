@@ -83,13 +83,13 @@ class PPU {
   std::array<Sprite, 0x20> sprite_buf;
   bool had_window_pixels = false;
 
-  RENDERING_MODE get_mode() { return ppu_mode; }
   u8 get_ppu_mode();
   void set_ppu_mode(RENDERING_MODE mode);
   void add_sprite_to_buffer(u8 sprite_index);
 
  public:
   // Frame frame;
+  RENDERING_MODE get_mode() { return ppu_mode; }
   struct LCDC_R lcdc {
     0x91
   };
