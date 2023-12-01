@@ -94,7 +94,7 @@ class PPU {
     0x91
   };
   u8 sprite_count         = 0;
-  u8 oam_index            = 0;
+  u8 sprite_index         = 0;
   u16 dots                = 0;
   SDL_Texture* tile_map_0 = nullptr;
   SDL_Texture* tile_map_1 = nullptr;
@@ -108,7 +108,6 @@ class PPU {
   std::string get_mode_string();
   void set_renderer(SDL_Renderer* renderer);
   void set_frame_texture(SDL_Texture* texture);
-  void render_tile_maps_to_texture();
   void get_dots();
   void render_frame();
   void increment_scanline();

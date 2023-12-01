@@ -23,7 +23,7 @@ void PPU::add_sprite_to_buffer(u8 sprite_index) {
   u8 tile_number  = bus->oam.data[sprite_index + 2];
   u8 sprite_flags = bus->oam.data[sprite_index + 3];
 
-  oam_index += 4;
+  this->sprite_index += 4;
   if (!(sprite_x > 0)) {
     return;
   }
@@ -47,17 +47,18 @@ void PPU::add_sprite_to_buffer(u8 sprite_index) {
 }
 void PPU::tick() {
   assert(bus != NULL);
+  assert(bus->wram.data[LY] <= 153);
 
   if (lcdc.lcd_ppu_enable == 0) {
     return;
   }
 
-  dots += 4;
-
   switch (ppu_mode) {
     case OAM_SCAN: {
-      fmt::println("dots in oam scan {:d}", dots);
-
+      // fmt::println("dots in oam scan {:d}", dots);
+      if (dots % 2 == 0) {
+        add_sprite_to_buffer(sprite_index);
+      }
       if (dots == 80) {
         set_ppu_mode(PIXEL_DRAW);
       }
@@ -68,19 +69,19 @@ void PPU::tick() {
       u8 y = bus->wram.data[LY];
       if (y % 8 == 0) {
         y_index = (y / 8);
-        fmt::println("y index: {:d}", y_index);
+        // fmt::println("y index: {:d}", y_index);
       }
 
-      u16 address = (get_tile_map_address_base() +
-                     ((y_index * 32) + x_pos_offset)) -
-                    VRAM_ADDRESS_OFFSET;
+      u16 address =
+          (get_tile_map_address_base() + ((y_index * 32) + x_pos_offset)) -
+          VRAM_ADDRESS_OFFSET;
 
       u8 index    = bus->vram.read8(address);
       active_tile = get_tile_data(index);
 
       SDL_SetRenderTarget(renderer, tile_map_0);
-      
-      //HACK: tile data is being loaded in backwards; fix that!
+
+      // HACK: tile data is being loaded in backwards; fix that!
       for (u8 x = 0; x < 8; x++) {
         switch (active_tile.pixel_data[y % 8][7 - x].color) {
           case 0: {
@@ -107,14 +108,14 @@ void PPU::tick() {
                 "invalid color: {:#04x}", active_tile.pixel_data[y][x].color));
           }
         };
-        if (lcdc.bg_and_window_enable_priority == 0) {
-          SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF);
-        }
+        // if (lcdc.bg_and_window_enable_priority == 0) {
+        //   SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF);
+        // }
         SDL_RenderDrawPoint(renderer, x + (x_pos_offset * 8), y);
       }
       SDL_SetRenderTarget(renderer, NULL);
       x_pos_offset++;
-      fmt::println("dots in drawing {:d}", dots);
+      // fmt::println("dots in drawing {:d}", dots);
       if (x_pos_offset == 32) {
         return set_ppu_mode(HBLANK);
       }
@@ -122,11 +123,12 @@ void PPU::tick() {
       break;
     }
     case HBLANK: {
-      fmt::println("dots in hblank {:d}", dots);
+      // fmt::println("dots in hblank {:d}", dots);
 
       if (dots == 456) {
         x_pos_offset = 0;
-        dots               = 0;
+        dots         = 0;
+        sprite_index = 0;
         increment_scanline();
         if (bus->wram.data[LY] == 143) {
           set_ppu_mode(VBLANK);
@@ -137,7 +139,7 @@ void PPU::tick() {
       break;
     }
     case VBLANK: {
-      fmt::println("dots in vblank {:d}", dots);
+      // fmt::println("dots in vblank {:d}", dots);
 
       if (dots == 456) {
         dots = 0;
@@ -151,11 +153,16 @@ void PPU::tick() {
       break;
     }
   }
+
+  dots += 4;
 }
 void PPU::increment_scanline() {
   bus->wram.data[LY]++;
-  bus->wram.data[STAT] |=
-      (bus->wram.data[LY] == bus->wram.data[LYC]) ? 1 << 2 : 0;
+  if (bus->wram.data[LY] == bus->wram.data[LYC]) {
+    bus->wram.data[STAT] |= (1 << 2);
+  } else {
+    bus->wram.data[STAT] &= 0b11111011;
+  }
 
   if ((bus->wram.data[LY] == bus->wram.data[LYC]) &&
       bus->wram.data[STAT] & 1 << 6) {

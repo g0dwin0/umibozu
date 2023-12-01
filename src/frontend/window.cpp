@@ -47,7 +47,7 @@ void Frontend::show_ppu_info() {
   ImGui::Text("LY (scanline) = %d", gb->bus.wram.data[LY]);
   ImGui::Text("LYC = %d", gb->bus.wram.data[LYC]);
   ImGui::Text("scanline sprite count = %d", gb->ppu.sprite_count);
-  ImGui::Text("oam index = %d", gb->ppu.oam_index);
+  ImGui::Text("oam index = %d", gb->ppu.sprite_index);
   ImGui::Separator();
   ImGui::Text("x pos offset = %d", gb->ppu.x_pos_offset);
   ImGui::Separator();
@@ -151,9 +151,6 @@ void Frontend::show_tile_maps() {
   ImGui::Image((void*)state.tile_map_texture_0, ImVec2(256, 256));
   ImGui::Separator();
   ImGui::Image((void*)state.tile_map_texture_1, ImVec2(256, 256));
-  if (ImGui::Button("render tile maps")) {
-    gb->ppu.render_tile_maps_to_texture();
-  }
   ImGui::End();
 }
 void Frontend::render_frame() {

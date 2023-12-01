@@ -735,9 +735,8 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
     case SCX: {
       break;
     }
-    case LY: {
-      fmt::println("LY: {:#04x}", value);
-      break;
+    case LY: { // read only
+      return;
     }
     case LYC: {
       bus->wram.data[LYC] = value;
@@ -750,14 +749,15 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
       break;
     }
     case DMA: {      
+      fmt::println("called, value: {:#04x}", value);
       for (u8 i = 0; i < 160; i++) {
         m_cycle();
       }
-      u16 address = (value << 4);
+      u16 address = (value << 8);
+      
       for (u8 i = 0; i < 0xA0; i++) {
         bus->oam.data[i] = peek(address + i);
       }
-      return;
     }
   }
   return bus->wram.write8(address, value);
