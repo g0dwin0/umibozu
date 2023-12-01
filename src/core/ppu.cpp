@@ -55,7 +55,10 @@ void PPU::tick() {
 
   switch (ppu_mode) {
     case OAM_SCAN: {
-      // fmt::println("dots in oam scan {:d}", dots);
+      if (bus->wram.data[WY] == bus->wram.data[LY] &&
+          lcdc.window_disp_enable == 1) {
+        window_enabled = true;
+      }
       if (dots % 2 == 0) {
         add_sprite_to_buffer(sprite_index);
       }
@@ -67,20 +70,30 @@ void PPU::tick() {
     case PIXEL_DRAW: {
       // draw code
       u8 y = bus->wram.data[LY] + bus->wram.data[SCY];
+
       if (y % 8 == 0) {
         y_index = (y / 8);
-        // fmt::println("y index: {:d}", y_index);
       }
 
-      u16 address =
-          (get_tile_map_address_base() + (y_index * 32) + ((x_pos_offset + bus->wram.data[SCX] / 8) % 32)) -
-          VRAM_ADDRESS_OFFSET;
+      u16 address = (get_tile_bg_map_address_base() + (y_index * 32) +
+                     ((x_pos_offset + bus->wram.data[SCX] / 8) % 32)) -
+                    VRAM_ADDRESS_OFFSET;
 
+      if (window_enabled && lcdc.window_disp_enable == 1 &&
+          bus->wram.data[WX] <= 167 &&
+          (x_pos_offset * 8) >= bus->wram.data[WX] - 7) {
+        address = (get_tile_window_map_address_base() + (w_line_count * 32) +
+                   (w_x_pos_offset)) -
+                  VRAM_ADDRESS_OFFSET;
+        w_x_pos_offset++;
+      }
+      
       u8 index    = bus->vram.read8(address);
       active_tile = get_tile_data(index);
 
       SDL_SetRenderTarget(renderer, tile_map_0);
       // HACK: tile data is being loaded in backwards; fix that!
+      // TODO: decouple frontend-reliant drawing code, use frame struct
       for (u8 x = 0; x < 8; x++) {
         switch (active_tile.pixel_data[y % 8][7 - x].color) {
           case 0: {
@@ -107,14 +120,16 @@ void PPU::tick() {
                 "invalid color: {:#04x}", active_tile.pixel_data[y][x].color));
           }
         };
-        // if (lcdc.bg_and_window_enable_priority == 0) {
-        //   SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF);
-        // }
+        if (lcdc.bg_and_window_enable_priority == 0) {
+          SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF);
+        }
         SDL_RenderDrawPoint(renderer, x + (x_pos_offset * 8), y);
       }
+
       SDL_SetRenderTarget(renderer, NULL);
+
       x_pos_offset++;
-      // fmt::println("dots in drawing {:d}", dots);
+
       if (x_pos_offset == 32) {
         return set_ppu_mode(HBLANK);
       }
@@ -122,12 +137,17 @@ void PPU::tick() {
       break;
     }
     case HBLANK: {
-      // fmt::println("dots in hblank {:d}", dots);
-
       if (dots == 456) {
-        x_pos_offset = 0;
-        dots         = 0;
-        sprite_index = 0;
+        x_pos_offset   = 0;
+        dots           = 0;
+        sprite_index   = 0;
+        w_x_pos_offset = 0;
+        if (window_enabled && lcdc.window_disp_enable == 1 && bus->wram.data[WX] <= 167) {
+          w_y++;
+          if (w_y % 8 == 0 && w_y != 0) {
+            w_line_count++;
+          }
+        }
         increment_scanline();
         if (bus->wram.data[LY] == 143) {
           set_ppu_mode(VBLANK);
@@ -138,8 +158,9 @@ void PPU::tick() {
       break;
     }
     case VBLANK: {
-      // fmt::println("dots in vblank {:d}", dots);
-
+      window_enabled = false;
+      w_line_count   = 0;
+      w_y            = 0;
       if (dots == 456) {
         dots = 0;
         return increment_scanline();
@@ -215,9 +236,13 @@ Tile PPU::get_tile_data(u8 index) {
   return tile;
 }
 
-u16 PPU::get_tile_map_address_base() {
-  return lcdc.bg_tile_map_select ? 0x9C00 : 0x9800;
+u16 PPU::get_tile_bg_map_address_base() {
+  return lcdc.bg_tile_map_select == 1 ? 0x9C00 : 0x9800;
 }
+u16 PPU::get_tile_window_map_address_base() {
+  return lcdc.window_tile_map_select == 1 ? 0x9C00 : 0x9800;
+}
+
 u8 PPU::get_ppu_mode() { return bus->wram.data[STAT] & 0x3; };
 std::string PPU::get_mode_string() {
   switch (get_mode()) {

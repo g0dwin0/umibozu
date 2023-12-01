@@ -21,14 +21,14 @@ struct LCDC_R {
 
   LCDC_R(u8 o) {
     // fmt::println("setting values with o: {:#04x}", o);
-    bg_and_window_enable_priority = o & 0x1 ? 1 : 0;
-    sprite_enable                 = o & 0x2 ? 1 : 0;
-    sprite_size                   = o & 0x4 ? 1 : 0;
-    bg_tile_map_select            = o & 0x8 ? 1 : 0;
-    tiles_select_method           = o & 0x10 ? 1 : 0;
-    window_disp_enable            = o & 0x20 ? 1 : 0;
-    window_tile_map_select        = o & 0x40 ? 1 : 0;
-    lcd_ppu_enable                = o & 0x80 ? 1 : 0;
+    bg_and_window_enable_priority = o & 0x1 ? 1 : 0;   // 0
+    sprite_enable                 = o & 0x2 ? 1 : 0;   // 1
+    sprite_size                   = o & 0x4 ? 1 : 0;   // 2
+    bg_tile_map_select            = o & 0x8 ? 1 : 0;   // 3
+    tiles_select_method           = o & 0x10 ? 1 : 0;  // 4
+    window_disp_enable            = o & 0x20 ? 1 : 0;  // 5
+    window_tile_map_select        = o & 0x40 ? 1 : 0;  // 6
+    lcd_ppu_enable                = o & 0x80 ? 1 : 0;  // 7
   }
   void print_status() {
     return;
@@ -72,9 +72,9 @@ struct Sprite {
   u8 tile_no;
   u8 sprite_flags;
 };
-// struct Frame {
-//   u8 data[160][144];
-// };
+struct Frame {
+  u8 data[160][144];
+};
 
 class PPU {
   RENDERING_MODE ppu_mode    = OAM_SCAN;
@@ -88,7 +88,7 @@ class PPU {
   void add_sprite_to_buffer(u8 sprite_index);
 
  public:
-  // Frame frame;
+  Frame frame;
   RENDERING_MODE get_mode() { return ppu_mode; }
   struct LCDC_R lcdc {
     0x91
@@ -112,8 +112,14 @@ class PPU {
   void render_frame();
   void increment_scanline();
   Tile get_tile_data(u8 index);
-  u16 get_tile_map_address_base();
+  u16 get_tile_bg_map_address_base();
+  u16 get_tile_window_map_address_base();
+
+  bool window_enabled = false;
   u8 x_pos_offset = 0;
+  u8 w_y = 0;
+  u8 w_line_count = 0;
+  u8 w_x_pos_offset = 0;
   Tile active_tile;
 
   std::array<Pixel, 8> decode_pixel_row(u8 high_byte, u8 low_byte);

@@ -734,6 +734,12 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
     case SCX: {
       break;
     }
+    case WX: {
+      break;
+    }
+    case WY: {
+      break;
+    }
     case LY: {  // read only
       return;
     }

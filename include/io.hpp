@@ -2,8 +2,13 @@
 #include <fstream>
 #include "common.h"
 
+struct File {
+  std::vector<u8> data;
+  u64 file_size;
+};
+
 namespace Umibozu {
-  inline std::vector<u8> read_file(std::string filename) {
+  inline File read_file(std::string filename) {
     std::ifstream file(filename, std::ios::binary);
 
     if (!file.good()) {
@@ -22,7 +27,8 @@ namespace Umibozu {
     vec.insert(vec.begin(), std::istream_iterator<u8>(file),
                std::istream_iterator<u8>());
 
-    return vec;
+
+    return File{vec, static_cast<u64>(fileSize)};
   }
 
 

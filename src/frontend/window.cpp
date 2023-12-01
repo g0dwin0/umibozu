@@ -1,4 +1,5 @@
 #include "frontend/window.h"
+
 #include "common.h"
 #include "cpu.h"
 #include "imgui.h"
@@ -60,7 +61,8 @@ void Frontend::show_ppu_info() {
               fmt::format("STAT = {:08b}", gb->bus.wram.data[STAT]).c_str());
 
   ImGui::Separator();
-  ImGui::Text("%s", fmt::format("LCDC =  {:08b}", gb->bus.wram.data[LCDC]).c_str());
+  ImGui::Text("%s",
+              fmt::format("LCDC =  {:08b}", gb->bus.wram.data[LCDC]).c_str());
   ImGui::Text(
       "LCDC.0 (BG & window enable) = %s",
       gb->ppu.lcdc.bg_and_window_enable_priority == 1 ? "True" : "False");
