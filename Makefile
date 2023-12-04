@@ -35,7 +35,7 @@ $(OBJ_DIR)/ppu.o: src/core/ppu.cpp include/core/ppu.h
 $(OBJ_DIR)/file_dialog.o: lib/tinyfiledialogs/tinyfiledialogs.c lib/tinyfiledialogs/tinyfiledialogs.h
 	$(CC) $(CPPFLAGS) -c lib/tinyfiledialogs/tinyfiledialogs.c -o $(OBJ_DIR)/file_dialog.o -Wno-unused-variable
 
-$(OBJ_DIR)/mappers.o: src/core/mappers.cpp include/core/mappers.h
+$(OBJ_DIR)/mappers.o: src/core/mappers.cpp include/core/mapper.h
 	$(CC) $(CPPFLAGS) -c src/core/mappers.cpp -o $(OBJ_DIR)/mappers.o
 
 $(OBJ_DIR)/frontend.o: src/frontend/window.cpp include/frontend/window.h
