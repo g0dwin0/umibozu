@@ -10,8 +10,8 @@ namespace Umibozu {
       std::string manufacturer;
       std::string mapper_string;
       u8 mapper_id;
-      u8 rom_size;
-      u8 ram_size;
+      u64 rom_banks;
+      u64 ram_banks;
       u8 destination_code;
       bool supports_cgb_enhancements;
     };
