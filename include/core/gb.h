@@ -6,7 +6,7 @@
 #include "cart.h"
 #include "common.h"
 #include "cpu.h"
-#include "mappers.h"
+#include "mapper.h"
 #include "io.hpp"
 
 struct GB {

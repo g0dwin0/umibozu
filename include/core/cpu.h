@@ -4,7 +4,7 @@
 
 #include "bus.h"
 #include "common.h"
-#include "mappers.h"
+#include "mapper.h"
 #include "ppu.h"
 #include "timer.h"
 #define set_zero() \
