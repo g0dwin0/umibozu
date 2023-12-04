@@ -1,6 +1,9 @@
 #include "core/ppu.h"
 
+#include <SDL2/SDL_blendmode.h>
+#include <SDL2/SDL_error.h>
 #include <SDL2/SDL_log.h>
+#include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_video.h>
 #include <sys/types.h>
@@ -10,6 +13,7 @@
 #include <stdexcept>
 
 #include "common.h"
+#include "fmt/core.h"
 
 PPU::PPU(){};
 
@@ -17,6 +21,10 @@ void PPU::set_renderer(SDL_Renderer* renderer) { this->renderer = renderer; }
 void PPU::set_frame_texture(SDL_Texture* texture) {
   this->frame_texture = texture;
 }
+void PPU::set_sprite_overlay_texture(SDL_Texture* texture) {
+  this->sprite_overlay_texture = texture;
+}
+
 void PPU::add_sprite_to_buffer(u8 sprite_index) {
   u8 sprite_y     = bus->oam.data[sprite_index];
   u8 sprite_x     = bus->oam.data[sprite_index + 1];
@@ -40,10 +48,30 @@ void PPU::add_sprite_to_buffer(u8 sprite_index) {
   if (!(sprite_count < 10)) {
     return;
   }
+  // fmt::println("LY: {:d}", bus->wram.data[LY]);
+  Sprite s = Sprite(sprite_y, sprite_x, tile_number, sprite_flags);
 
-  Sprite s{sprite_y, sprite_x, tile_number, sprite_flags};
   sprite_buf.at(sprite_count++) = s;
-  fmt::println("sprite count: {:d}", sprite_count);
+  // fmt::println("sprite count: {:d}", sprite_count);
+}
+Tile PPU::flip_sprite(Tile t, FLIP_AXIS a) {
+  Tile n;
+
+  if (a == FLIP_AXIS::X) {
+    for (int x = 0; x < 8; x++) {
+      for (int y = 0; y < 8; y++) {
+        n.pixel_data[y][x] = t.pixel_data[y][7 - x];
+      }
+    }
+  } else {
+    for (int x = 0; x < 8; x++) {
+      for (int y = 0; y < 8; y++) {
+        n.pixel_data[y][x] = t.pixel_data[7 - y][x];
+      }
+    }
+  }
+
+  return n;
 }
 void PPU::tick() {
   assert(bus != NULL);
@@ -87,46 +115,66 @@ void PPU::tick() {
                   VRAM_ADDRESS_OFFSET;
         w_x_pos_offset++;
       }
-      
+
       u8 index    = bus->vram.read8(address);
       active_tile = get_tile_data(index);
 
-      SDL_SetRenderTarget(renderer, tile_map_0);
       // HACK: tile data is being loaded in backwards; fix that!
       // TODO: decouple frontend-reliant drawing code, use frame struct
+
       for (u8 x = 0; x < 8; x++) {
-        switch (active_tile.pixel_data[y % 8][7 - x].color) {
-          case 0: {
-            SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF);
-            break;
-          }
-          case 1: {
-            // fmt::println("grey...");
-            SDL_SetRenderDrawColor(renderer, 0x55, 0x55, 0x55, 0xFF);
-            break;
-          }
-          case 2: {
-            // fmt::println("grey2...");
-            SDL_SetRenderDrawColor(renderer, 0xAA, 0xAA, 0xAA, 0xFF);
-            break;
-          }
-          case 3: {
-            // fmt::println("blax...");
-            SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-            break;
-          }
-          default: {
-            throw std::runtime_error(fmt::format(
-                "invalid color: {:#04x}", active_tile.pixel_data[y][x].color));
-          }
-        };
+        u32 c = BGP[active_tile.pixel_data[y % 8][7 - x].color];
+
         if (lcdc.bg_and_window_enable_priority == 0) {
-          SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF);
+          frame.data[x + (x_pos_offset * 8) + (y * 256)] = 0xFFFFFF00;
+          frame.color_id[x + (x_pos_offset * 8) + (y * 256)] =
+              active_tile.pixel_data[y % 8][7 - x].color;
+        } else {
+          frame.data[x + (x_pos_offset * 8) + (y * 256)] = c;
+          frame.color_id[x + (x_pos_offset * 8) + (y * 256)] =
+              active_tile.pixel_data[y % 8][7 - x].color;
         }
-        SDL_RenderDrawPoint(renderer, x + (x_pos_offset * 8), y);
       }
 
-      SDL_SetRenderTarget(renderer, NULL);
+      for (u8 i = 0; i < sprite_count; i++) {
+        Sprite sprite = sprite_buf[i];
+        for (u8 x = 0; x < 8; x++) {
+          if (sprite.x_pos >= (x_pos_offset * 8) + x &&
+              sprite.x_pos <= (x_pos_offset * 8) + 8) {
+            Tile t = get_tile_data(sprite.tile_no, true);
+
+            if (sprite.x_flip == 1)
+              t = flip_sprite(t, FLIP_AXIS::X);
+            if (sprite.y_flip == 1)
+              t = flip_sprite(t, FLIP_AXIS::Y);
+
+            if (sprite.palette_number == 0) {
+              if (sprite.obj_to_bg_priority == 0) {
+                sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
+                    OBP_0[t.pixel_data[y % 8][7 - x].color];
+              }
+
+              if (sprite.obj_to_bg_priority == 1 &&
+                  frame.color_id[x + (x_pos_offset * 8) + (y * 256)] == 0) {
+                sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
+                    OBP_0[t.pixel_data[y % 8][7 - x].color];
+              }
+
+            } else {
+              if (sprite.obj_to_bg_priority == 0) {
+                sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
+                    OBP_1[t.pixel_data[y % 8][7 - x].color];
+              }
+
+              if (sprite.obj_to_bg_priority == 1 &&
+                  frame.color_id[x + (x_pos_offset * 8) + (y * 256)] == 0) {
+                sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
+                    OBP_1[t.pixel_data[y % 8][7 - x].color];
+              }
+            }
+          }
+        }
+      }
 
       x_pos_offset++;
 
@@ -142,7 +190,10 @@ void PPU::tick() {
         dots           = 0;
         sprite_index   = 0;
         w_x_pos_offset = 0;
-        if (window_enabled && lcdc.window_disp_enable == 1 && bus->wram.data[WX] <= 167) {
+        sprite_count   = 0;
+
+        if (window_enabled && lcdc.window_disp_enable == 1 &&
+            bus->wram.data[WX] <= 167) {
           w_y++;
           if (w_y % 8 == 0 && w_y != 0) {
             w_line_count++;
@@ -162,7 +213,8 @@ void PPU::tick() {
       w_line_count   = 0;
       w_y            = 0;
       if (dots == 456) {
-        dots = 0;
+        dots         = 0;
+        sprite_count = 0;
         return increment_scanline();
       }
 
@@ -196,21 +248,21 @@ std::array<Pixel, 8> PPU::decode_pixel_row(u8 high_byte, u8 low_byte) {
     u8 h_c = (high_byte & (1 << i)) != 0 ? 2 : 0;
     u8 l_c = (low_byte & (1 << i)) != 0 ? 1 : 0;
 
-    u8 f_c = h_c + l_c;
-    // fmt
+    u8 f_c         = h_c + l_c;
     pixel_array[i] = Pixel{f_c};
   }
 
   return pixel_array;
 }
-Tile PPU::get_tile_data(u8 index) {
+
+Tile PPU::get_tile_data(u8 index, bool sprite) {
   Tile tile;
   if (lcdc.tiles_select_method == 0) {
     for (u8 row = 0; row < 8; row++) {
-      u8 low_byte  = bus->vram.read8((0x9000 + (row * 2) + ((i8)index * 16)) -
-                                     VRAM_ADDRESS_OFFSET);
-      u8 high_byte = bus->vram.read8(
-          ((0x9000 + (row * 2) + ((i8)index * 16)) - VRAM_ADDRESS_OFFSET) + 1);
+      u16 address =
+          (0x9000 + (row * 2) + ((i8)index * 16)) - VRAM_ADDRESS_OFFSET;
+      u8 low_byte  = bus->vram.read8(address);
+      u8 high_byte = bus->vram.read8(address + 1);
 
       const auto& pixel_array = decode_pixel_row(high_byte, low_byte);
 
@@ -219,7 +271,7 @@ Tile PPU::get_tile_data(u8 index) {
       }
     }
   }
-  if (lcdc.tiles_select_method == 1) {
+  if (lcdc.tiles_select_method == 1 || sprite) {
     for (u8 row = 0; row < 8; row++) {
       u8 low_byte  = bus->vram.read8((0x8000 + (row * 2) + (index * 16)) -
                                      VRAM_ADDRESS_OFFSET);
@@ -274,7 +326,20 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
         break;
       }
       case VBLANK: {
+        SDL_UpdateTexture(sprite_overlay_texture, NULL, &sprite_overlay.data,
+                          4 * 256);
+        SDL_UpdateTexture(frame_texture, NULL, &frame.data, 4 * 256);
+
+        SDL_SetRenderTarget(renderer, frame_texture);
+        SDL_SetTextureBlendMode(sprite_overlay_texture, SDL_BLENDMODE_BLEND);
+        SDL_RenderCopy(renderer, sprite_overlay_texture, NULL, NULL);
+
+        SDL_SetRenderTarget(renderer, NULL);
         bus->request_interrupt(InterruptType::VBLANK);
+
+        sprite_overlay = Frame();
+        frame          = Frame();
+
         frame_queued = true;
         break;
       }

@@ -41,6 +41,7 @@ inline void SharpSM83::HALT() {
   status = CPU_STATUS::HALT_MODE;
   // fmt::println("[HALT] IE:   {:08b}", bus->wram.data[IE]);
   // fmt::println("[HALT] IF:   {:08b}", bus->wram.data[IF]);
+  // assert(3==4);
   while (status == CPU_STATUS::HALT_MODE) {
     for (u8 i = 0; i < 8; i++) {
       if ((bus->wram.data[IE] & (1 << i)) && (bus->wram.data[IF] & (1 << i))) {
@@ -91,7 +92,7 @@ inline void SharpSM83::ADD_SP_E8() {
   } else {
     reset_half_carry();
   }
-
+  m_cycle();
   SP += val;
 
   reset_zero();
@@ -608,15 +609,15 @@ inline void SharpSM83::BIT(const u8 p, const u8& r) {
 void SharpSM83::m_cycle() {
   timer.div += 4;
   ppu->tick();
-  u8 bit_pos = offset_table[bus->wram.data[TAC] & 0x3];
-  u8 m       = (timer.div & (1 << bit_pos)) >> bit_pos;
-  u8 n_r     = m & timer.ticking_enabled;
+  // u8 bit_pos = offset_table[bus->wram.data[TAC] & 0x3];
+  // u8 m       = (timer.div & (1 << bit_pos)) >> bit_pos;
+  // u8 n_r     = m & timer.ticking_enabled;
 
-  if (timer.prev_and == 0 && n_r == 1) {
-    timer.counter++;
-  }
+  // if (timer.prev_and == 0 && n_r == 1) {
+  //   timer.counter++;
+  // }
 
-  timer.prev_and = n_r;
+  // timer.prev_and = n_r;
 
   // if (timer.ticking_enabled) {
   //   fmt::println("tima: {:#04x}", timer.counter);
@@ -625,36 +626,34 @@ void SharpSM83::m_cycle() {
   //   fmt::println("increment frequency: {:#04x}", timer.increment_frequency);
   // }
 
-  if (timer.ticking_enabled && timer.cycles == timer.increment_frequency) {
-    timer.cycles = 0;
+  if (timer.ticking_enabled && timer.get_div() == timer.increment_frequency) {
+    // timer.cycles = 0;
     if (timer.counter == 0xFF) {
       timer.counter                = 0;
       timer.overflow_update_queued = true;
       return;
     }
     if (timer.overflow_update_queued) {
-      // fmt::println("real overflow: o: {:#04x} n: {:#04x}", timer.counter,
-      // timer.modulo);
       timer.overflow_update_queued = false;
-      // timer.prev_behaviour = false;
       timer.counter = timer.modulo;
       bus->request_interrupt(InterruptType::TIMER);
       return;
     }
     timer.counter++;
   }
-  // bus->ppu->tick();
 }
 
 u8 SharpSM83::read8(const u16 address) {
   m_cycle();
 
-  // fmt::println("LCDC requested {:#04x}", bus->wram.data[LCDC]);
   if (address >= 0xFE00 && address <= 0xFE9F && ppu->get_mode() >= 2) {
     return 0xFF;
   };
 
   switch (address) {
+    case P1: {
+      return 0xFF;
+    }
     case DIV: {
       return timer.get_div();
     }
@@ -723,7 +722,7 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
       break;
     }
     case STAT: {
-      fmt::println("STAT: {:08b}", value);
+      // fmt::println("STAT: {:08b}", value);
       u8 read_only_bits    = bus->wram.data[STAT] & 0x7;
       bus->wram.data[STAT] = (value & 0xf8) + read_only_bits;
       return;
@@ -754,7 +753,6 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
       break;
     }
     case DMA: {
-      fmt::println("called, value: {:#04x}", value);
       u16 address = (value << 8);
 
       for (u8 i = 0; i < 0xA0; i++) {
@@ -763,6 +761,44 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
       for (u8 i = 0; i < 40; i++) {
         m_cycle();
       }
+      break;
+    }
+    case OBP0: {
+      // fmt::println("OBP0 write: {:08b}", value);
+      u8 id_0 = (value & 0b00000000);
+      u8 id_1 = (value & 0b00001100) >> 2;
+      u8 id_2 = (value & 0b00110000) >> 4;
+      u8 id_3 = (value & 0b11000000) >> 6;
+
+      ppu->OBP_0[0] = ppu->shade_table[id_0] + MIN_ALPHA;
+      ppu->OBP_0[1] = ppu->shade_table[id_1] + MAX_ALPHA;
+      ppu->OBP_0[2] = ppu->shade_table[id_2] + MAX_ALPHA;
+      ppu->OBP_0[3] = ppu->shade_table[id_3] + MAX_ALPHA;
+
+      // fmt::println("OBP_0[0] = {:#16x}", ppu->OBP_0[0]);
+      // fmt::println("OBP_0[1] = {:#16x}", ppu->OBP_0[1]);
+      // fmt::println("OBP_0[2] = {:#16x}", ppu->OBP_0[2]);
+      // fmt::println("OBP_0[3] = {:#16x}", ppu->OBP_0[3]);
+      break;
+    }
+    case OBP1: {
+      // fmt::println("OBP1 write: {:08b}", value);
+      u8 id_0 = (value & 0b00000000);
+      u8 id_1 = (value & 0b00001100) >> 2;
+      u8 id_2 = (value & 0b00110000) >> 4;
+      u8 id_3 = (value & 0b11000000) >> 6;
+
+      ppu->OBP_1[0] = ppu->shade_table[id_0] + MIN_ALPHA;
+      ppu->OBP_1[1] = ppu->shade_table[id_1] + MAX_ALPHA;
+      ppu->OBP_1[2] = ppu->shade_table[id_2] + MAX_ALPHA;
+      ppu->OBP_1[3] = ppu->shade_table[id_3] + MAX_ALPHA;
+      
+
+      // fmt::println("OBP_1[0] = {:#16x}", ppu->OBP_1[0]);
+      // fmt::println("OBP_1[1] = {:#16x}", ppu->OBP_1[1]);
+      // fmt::println("OBP_1[2] = {:#16x}", ppu->OBP_1[2]);
+      // fmt::println("OBP_1[3] = {:#16x}", ppu->OBP_1[3]);
+      break;
     }
   }
   return bus->wram.write8(address, value);
@@ -838,8 +874,7 @@ void SharpSM83::run_instruction() {
       "L: {:02X} SP: {:04X} PC: {:02X}:{:04X} ({:02X} {:02X} {:02X} {:02X})",
       A, F, B, C, D, E, H, L, SP, mapper->rom_bank, PC, peek(PC), peek(PC + 1),
       peek(PC + 2), peek(PC + 3));
-
-  */
+      */
   u8 opcode = read8(PC++);
   switch (opcode) {
     case 0x0: {
