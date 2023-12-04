@@ -8,15 +8,18 @@
 #include "imgui_impl_sdlrenderer2.h"
 #include "tinyfiledialogs.h"
 struct State {
-  SDL_Texture* ppu_texture        = nullptr;
-  SDL_Texture* tile_map_texture_0 = nullptr;
-  SDL_Texture* tile_map_texture_1 = nullptr;
-  bool demo_window_open           = true;
-  bool running                    = true;
-  bool texture_window_open        = true;
-  bool cpu_info_open              = true;
-  bool ppu_info_open              = true;
-  bool debug_log_window_open      = true;
+  SDL_Texture* ppu_texture            = nullptr;
+  SDL_Texture* sprite_overlay_texture = nullptr;
+
+  SDL_Texture* bg_viewport     = nullptr;
+  SDL_Texture* sprite_viewport = nullptr;
+  SDL_Surface* surface         = nullptr;
+  bool demo_window_open        = true;
+  bool running                 = true;
+  bool texture_window_open     = true;
+  bool cpu_info_open           = true;
+  bool ppu_info_open           = true;
+  bool debug_log_window_open   = true;
 
   ImGuiIO* io;
 };

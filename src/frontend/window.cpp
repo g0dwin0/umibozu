@@ -1,10 +1,11 @@
 #include "frontend/window.h"
 
+#include <SDL2/SDL_render.h>
+
 #include "common.h"
 #include "cpu.h"
 #include "imgui.h"
 #include "io.hpp"
-#include "tinyfiledialogs.h"
 void Frontend::handle_events() {
   SDL_Event event;
 
@@ -47,8 +48,8 @@ void Frontend::show_ppu_info() {
   ImGui::Text("dots = %d", gb->ppu.dots);
   ImGui::Text("LY (scanline) = %d", gb->bus.wram.data[LY]);
   ImGui::Text("LYC = %d", gb->bus.wram.data[LYC]);
-  ImGui::Text("scanline sprite count = %d", gb->ppu.sprite_count);
-  ImGui::Text("oam index = %d", gb->ppu.sprite_index);
+  // ImGui::Text("scanline sprite count = %d", gb->ppu.sprite_count);
+  // ImGui::Text("oam index = %d", gb->ppu.sprite_index);
   ImGui::Separator();
   ImGui::Text("x pos offset = %d", gb->ppu.x_pos_offset);
   ImGui::Separator();
@@ -89,6 +90,7 @@ void Frontend::show_ppu_info() {
 
   // gb->ppu.lcdc.print_status();
   if (ImGui::Button("Trigger VBLANK interrupt")) {
+    fmt::println("VBLANK triggered");
     gb->bus.request_interrupt(InterruptType::VBLANK);
   }
   if (ImGui::Button("Trigger LCD interrupt")) {
@@ -150,36 +152,30 @@ void Frontend::show_cpu_info() {
 }
 void Frontend::show_tile_maps() {
   ImGui::Begin("Tile Maps", &state.texture_window_open, 0);
-  ImGui::Image((void*)state.tile_map_texture_0, ImVec2(256, 256));
+  ImGui::Image((void*)state.bg_viewport, ImVec2(256, 256));
   ImGui::Separator();
-  ImGui::Image((void*)state.tile_map_texture_1, ImVec2(256, 256));
+  ImGui::Image((void*)state.sprite_viewport, ImVec2(256, 256));
   ImGui::End();
 }
 void Frontend::render_frame() {
   ImGui_ImplSDLRenderer2_NewFrame();
   ImGui_ImplSDL2_NewFrame();
   ImGui::NewFrame();
-  // ImGui::ShowDemoWindow(&state.demo_window_open);
   show_menubar();
   show_cpu_info();
   show_ppu_info();
   show_viewport();
   show_tile_maps();
 
-  // ImGui::ShowDebugLogWindow(&state.debug_log_window_open);
-
   // Rendering
   ImGui::Render();
   SDL_RenderSetScale(renderer, state.io->DisplayFramebufferScale.x,
                      state.io->DisplayFramebufferScale.y);
-  ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
   SDL_SetRenderTarget(renderer, NULL);
-
-  SDL_SetRenderDrawColor(renderer, (u8)(clear_color.x * 255),
-                         (u8)(clear_color.y * 255), (u8)(clear_color.z * 255),
-                         (u8)(clear_color.w * 255));
+  
   SDL_RenderClear(renderer);
+  
   ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
   SDL_RenderPresent(renderer);
 }
@@ -189,7 +185,7 @@ void Frontend::show_viewport() {
   ImGui::Text("pointer to gb instance = %p", (void*)&gb);
   ImGui::Text("fps = %f", state.io->Framerate);
 
-  ImGui::Image((void*)state.ppu_texture, ImVec2(160 * 2, 144 * 2));
+  ImGui::Image((void*)state.ppu_texture, ImVec2(256, 256));
 
   ImGui::End();
 }
@@ -221,7 +217,6 @@ Frontend::Frontend() {
   io.ConfigFlags |=
       ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Controls
   this->state.io = &io;
-  this->window   = window;
 
   ImGui::StyleColorsDark();
 
@@ -229,10 +224,14 @@ Frontend::Frontend() {
   this->state.ppu_texture = SDL_CreateTexture(
       renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 256, 256);
 
-  this->state.tile_map_texture_0 = SDL_CreateTexture(
+  this->state.sprite_overlay_texture = SDL_CreateTexture(
       renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 256, 256);
 
-  this->state.tile_map_texture_1 = SDL_CreateTexture(
+  
+  this->state.bg_viewport = SDL_CreateTexture(
+      renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 256, 256);
+
+  this->state.sprite_viewport = SDL_CreateTexture(
       renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 256, 256);
 
   ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);

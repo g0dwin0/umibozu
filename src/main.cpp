@@ -1,5 +1,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_render.h>
+#include <SDL2/SDL_video.h>
+#include <cstddef>
 
 #include "common.h"
 #include "frontend/window.h"
@@ -11,16 +13,18 @@ int main() {
   GB gb;
   Frontend fe;
 
-  gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/dmg-acid2.gb"));
-  // gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/mooneye/acceptance/boot_hwio-dmgABCmgb.gb"));
+  gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/smbl.gb"));
+
 
   // OPTIMIZE: abstract this away
   fe.gb = &gb;
 
   gb.ppu.set_renderer(fe.renderer);
   gb.ppu.set_frame_texture(fe.state.ppu_texture);
-  gb.ppu.tile_map_0 = fe.state.tile_map_texture_0;
-  gb.ppu.tile_map_1 = fe.state.tile_map_texture_1;
+  gb.ppu.set_sprite_overlay_texture(fe.state.sprite_overlay_texture);
+  
+  gb.ppu.bg_viewport = fe.state.bg_viewport;
+  gb.ppu.sprite_viewport = fe.state.sprite_viewport;
   
   while (fe.state.running) {
     gb.cpu.run_instruction();
