@@ -9,10 +9,10 @@
 
 #include "bus.h"
 #include "common.h"
-#define WHITE     0xFFFFFF00
+#define WHITE 0xFFFFFF00
 #define LIGHTGREY 0xAAAAAA00
-#define DARKGREY  0x55555500
-#define BLACK     0x00000000
+#define DARKGREY 0x55555500
+#define BLACK 0x00000000
 
 #define MAX_ALPHA 0xFF
 #define MIN_ALPHA 0x00
@@ -114,12 +114,38 @@ struct Sprite {
 struct Frame {
   std::array<u32, 256 * 256> data;
   std::array<u8, 256 * 256> color_id;
-  
 };
 
 enum class FLIP_AXIS { X, Y, X_Y };
 enum class LAYER { BG, WINDOW, SPRITE };
+typedef std::array<u32, 4> Palette;
+struct SystemPalettes {
+  Palette BGP = {WHITE + MAX_ALPHA, LIGHTGREY + MAX_ALPHA, DARKGREY + MAX_ALPHA,
+                 BLACK + MAX_ALPHA};
+  Palette OBP_0 = {WHITE + MIN_ALPHA, LIGHTGREY + MAX_ALPHA,
+                   DARKGREY + MAX_ALPHA, BLACK + MAX_ALPHA};
+  Palette OBP_1 = {WHITE + MIN_ALPHA, LIGHTGREY + MAX_ALPHA,
+                   DARKGREY + MAX_ALPHA, BLACK + MAX_ALPHA};
 
+  Palette get_palette_by_id(u8 index) {
+    assert(index < 3);
+    Palette pal;
+    switch (index) {
+      case 0: {
+        pal = OBP_0;
+        break;
+      }
+      case 1: {
+        pal = OBP_1;
+        break;
+      }
+      default: {
+        throw std::runtime_error("bad palette index");
+      }
+    }
+    return pal;
+  }
+};
 class PPU {
   RENDERING_MODE ppu_mode             = OAM_SCAN;
   SDL_Texture* frame_texture          = nullptr;
@@ -138,6 +164,7 @@ class PPU {
  public:
   Frame frame;
   Frame sprite_overlay;
+  SystemPalettes sys_palettes;
   RENDERING_MODE get_mode() { return ppu_mode; }
   struct LCDC_R lcdc {
     0x91
@@ -165,15 +192,8 @@ class PPU {
   void get_color_from_palette(const Sprite&);
   Tile flip_sprite(Tile, FLIP_AXIS);
   LAYER currentLayer;
-  const std::array<u32, 4> shade_table = {WHITE, LIGHTGREY, DARKGREY,BLACK};
+  const std::array<u32, 4> shade_table = {WHITE, LIGHTGREY, DARKGREY, BLACK};
 
-
-  std::array<u32, 4> BGP   = {WHITE + MAX_ALPHA, LIGHTGREY + MAX_ALPHA,
-                              DARKGREY + MAX_ALPHA, BLACK + MAX_ALPHA};
-  std::array<u32, 4> OBP_0 = {WHITE + MIN_ALPHA, LIGHTGREY + MAX_ALPHA,
-                              DARKGREY + MAX_ALPHA, BLACK + MAX_ALPHA};
-  std::array<u32, 4> OBP_1 = {WHITE + MIN_ALPHA, LIGHTGREY + MAX_ALPHA,
-                              DARKGREY + MAX_ALPHA, BLACK + MAX_ALPHA};
   bool window_enabled = false;
   u8 x_pos_offset     = 0;
   u8 w_y              = 0;

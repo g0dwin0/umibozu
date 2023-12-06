@@ -770,10 +770,10 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
       u8 id_2 = (value & 0b00110000) >> 4;
       u8 id_3 = (value & 0b11000000) >> 6;
 
-      ppu->OBP_0[0] = ppu->shade_table[id_0] + MIN_ALPHA;
-      ppu->OBP_0[1] = ppu->shade_table[id_1] + MAX_ALPHA;
-      ppu->OBP_0[2] = ppu->shade_table[id_2] + MAX_ALPHA;
-      ppu->OBP_0[3] = ppu->shade_table[id_3] + MAX_ALPHA;
+      ppu->sys_palettes.OBP_0[0] = ppu->shade_table[id_0] + MIN_ALPHA;
+      ppu->sys_palettes.OBP_0[1] = ppu->shade_table[id_1] + MAX_ALPHA;
+      ppu->sys_palettes.OBP_0[2] = ppu->shade_table[id_2] + MAX_ALPHA;
+      ppu->sys_palettes.OBP_0[3] = ppu->shade_table[id_3] + MAX_ALPHA;
 
       // fmt::println("OBP_0[0] = {:#16x}", ppu->OBP_0[0]);
       // fmt::println("OBP_0[1] = {:#16x}", ppu->OBP_0[1]);
@@ -787,11 +787,10 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
       u8 id_1 = (value & 0b00001100) >> 2;
       u8 id_2 = (value & 0b00110000) >> 4;
       u8 id_3 = (value & 0b11000000) >> 6;
-
-      ppu->OBP_1[0] = ppu->shade_table[id_0] + MIN_ALPHA;
-      ppu->OBP_1[1] = ppu->shade_table[id_1] + MAX_ALPHA;
-      ppu->OBP_1[2] = ppu->shade_table[id_2] + MAX_ALPHA;
-      ppu->OBP_1[3] = ppu->shade_table[id_3] + MAX_ALPHA;
+      ppu->sys_palettes.OBP_1[0] = ppu->shade_table[id_0] + MIN_ALPHA;
+      ppu->sys_palettes.OBP_1[1] = ppu->shade_table[id_1] + MAX_ALPHA;
+      ppu->sys_palettes.OBP_1[2] = ppu->shade_table[id_2] + MAX_ALPHA;
+      ppu->sys_palettes.OBP_1[3] = ppu->shade_table[id_3] + MAX_ALPHA;
       
 
       // fmt::println("OBP_1[0] = {:#16x}", ppu->OBP_1[0]);

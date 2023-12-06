@@ -89,6 +89,7 @@ void PPU::tick() {
       }
       if (dots % 2 == 0) {
         add_sprite_to_buffer(sprite_index);
+        add_sprite_to_buffer(sprite_index);
       }
       if (dots == 80) {
         set_ppu_mode(PIXEL_DRAW);
@@ -123,7 +124,7 @@ void PPU::tick() {
       // TODO: decouple frontend-reliant drawing code, use frame struct
 
       for (u8 x = 0; x < 8; x++) {
-        u32 c = BGP[active_tile.pixel_data[y % 8][7 - x].color];
+        u32 c = sys_palettes.BGP[active_tile.pixel_data[y % 8][7 - x].color];
 
         if (lcdc.bg_and_window_enable_priority == 0) {
           frame.data[x + (x_pos_offset * 8) + (y * 256)] = 0xFFFFFF00;
@@ -135,41 +136,30 @@ void PPU::tick() {
               active_tile.pixel_data[y % 8][7 - x].color;
         }
       }
+      if (lcdc.sprite_enable == 1) {
+        for (u8 i = 0; i < sprite_count; i++) {
+          Sprite sprite = sprite_buf[i];
+          for (u8 x = 0; x < 8; x++) {
+            if (sprite.x_pos >= (x_pos_offset * 8) + x &&
+                sprite.x_pos <= (x_pos_offset * 8) + 8) {
+              Tile t = get_tile_data(sprite.tile_no, true);
+              Palette pal =
+                  sys_palettes.get_palette_by_id(sprite.palette_number);
 
-      for (u8 i = 0; i < sprite_count; i++) {
-        Sprite sprite = sprite_buf[i];
-        for (u8 x = 0; x < 8; x++) {
-          if (sprite.x_pos >= (x_pos_offset * 8) + x &&
-              sprite.x_pos <= (x_pos_offset * 8) + 8) {
-            Tile t = get_tile_data(sprite.tile_no, true);
+              if (sprite.x_flip == 1)
+                t = flip_sprite(t, FLIP_AXIS::X);
+              if (sprite.y_flip == 1)
+                t = flip_sprite(t, FLIP_AXIS::Y);
 
-            if (sprite.x_flip == 1)
-              t = flip_sprite(t, FLIP_AXIS::X);
-            if (sprite.y_flip == 1)
-              t = flip_sprite(t, FLIP_AXIS::Y);
-
-            if (sprite.palette_number == 0) {
               if (sprite.obj_to_bg_priority == 0) {
                 sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
-                    OBP_0[t.pixel_data[y % 8][7 - x].color];
+                    pal[t.pixel_data[y % 8][7 - x].color];
               }
 
               if (sprite.obj_to_bg_priority == 1 &&
                   frame.color_id[x + (x_pos_offset * 8) + (y * 256)] == 0) {
                 sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
-                    OBP_0[t.pixel_data[y % 8][7 - x].color];
-              }
-
-            } else {
-              if (sprite.obj_to_bg_priority == 0) {
-                sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
-                    OBP_1[t.pixel_data[y % 8][7 - x].color];
-              }
-
-              if (sprite.obj_to_bg_priority == 1 &&
-                  frame.color_id[x + (x_pos_offset * 8) + (y * 256)] == 0) {
-                sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
-                    OBP_1[t.pixel_data[y % 8][7 - x].color];
+                    pal[t.pixel_data[y % 8][7 - x].color];
               }
             }
           }

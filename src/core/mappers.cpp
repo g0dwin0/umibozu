@@ -1,4 +1,4 @@
-#include "core/mappers.h"
+#include "core/mapper.h"
 
 u8 Mapper::handle_system_memory_read(const u16 address) {
   if (address <= 0x3FFF) {

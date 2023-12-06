@@ -13,7 +13,7 @@ int main() {
   GB gb;
   Frontend fe;
 
-  gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/smbl.gb"));
+  gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/dmg-acid2.gb"));
 
 
   // OPTIMIZE: abstract this away
