@@ -12,6 +12,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <vector>
+#include <algorithm>
 
 typedef uint8_t u8;
 typedef uint16_t u16;

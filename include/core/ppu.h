@@ -72,7 +72,7 @@ struct Pixel {
   u8 color;
 };
 struct Tile {
-  Pixel pixel_data[8][8];
+  std::array<std::array<Pixel, 8>, 8> pixel_data;
 };
 enum PIXEL_TYPE { BG_PIXEL, WINDOW_PIXEL };
 enum RENDERING_MODE : u8 { HBLANK = 0, VBLANK, OAM_SCAN, PIXEL_DRAW };
@@ -116,8 +116,10 @@ struct Frame {
   std::array<u8, 256 * 256> color_id;
 };
 
-enum class FLIP_AXIS { X, Y, X_Y };
+enum class FLIP_AXIS { X, Y };
 enum class LAYER { BG, WINDOW, SPRITE };
+enum SPRITE_SIZE { SINGLE, DOUBLE };
+
 typedef std::array<u32, 4> Palette;
 struct SystemPalettes {
   Palette BGP = {WHITE + MAX_ALPHA, LIGHTGREY + MAX_ALPHA, DARKGREY + MAX_ALPHA,
@@ -160,6 +162,16 @@ class PPU {
   u8 get_ppu_mode();
   void set_ppu_mode(RENDERING_MODE mode);
   void add_sprite_to_buffer(u8 sprite_index);
+  u8 get_sprite_size();
+  void render_frame();
+  Tile flip_sprite(Tile, FLIP_AXIS);
+  LAYER currentLayer;
+  Tile active_tile;
+  u8 w_y              = 0;
+  u8 w_line_count     = 0;
+  u8 w_x_pos_offset   = 0;
+  u16 get_tile_bg_map_address_base();
+  u16 get_tile_window_map_address_base();
 
  public:
   Frame frame;
@@ -178,28 +190,16 @@ class PPU {
   u8 x_index                   = 0;
 
   PPU();
+  u8 x_pos_offset     = 0;
   void tick();
   std::string get_mode_string();
   void set_renderer(SDL_Renderer* renderer);
   void set_frame_texture(SDL_Texture* texture);
   void set_sprite_overlay_texture(SDL_Texture* texture);
   void get_dots();
-  void render_frame();
   void increment_scanline();
   Tile get_tile_data(u8 index, bool sprite = false);
-  u16 get_tile_bg_map_address_base();
-  u16 get_tile_window_map_address_base();
-  void get_color_from_palette(const Sprite&);
-  Tile flip_sprite(Tile, FLIP_AXIS);
-  LAYER currentLayer;
   const std::array<u32, 4> shade_table = {WHITE, LIGHTGREY, DARKGREY, BLACK};
-
   bool window_enabled = false;
-  u8 x_pos_offset     = 0;
-  u8 w_y              = 0;
-  u8 w_line_count     = 0;
-  u8 w_x_pos_offset   = 0;
-  Tile active_tile;
-  bool done = false;
   std::array<Pixel, 8> decode_pixel_row(u8 high_byte, u8 low_byte);
 };
