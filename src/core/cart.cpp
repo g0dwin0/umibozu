@@ -34,7 +34,7 @@ std::string Cartridge::get_mapper_string(u8 cartridge_type) {
 void Cartridge::set_cart_info() {
   bool cgb_enhancements = memory[0x143] == 0x80;
 
-  u8 mapper_id  = this->memory[0x147];
+  u8 mapper_id  = this->memory.at(0x147);
   u64 rom_banks = 2 * (1 << memory[0x148]);
   u64 ram_banks = 0;
   switch (memory[0x149]) {
@@ -51,6 +51,15 @@ void Cartridge::set_cart_info() {
       ram_banks = 4;
       break;
     }
+    case 4: {
+      ram_banks = 16;
+      break;
+    }
+    case 5: {
+      ram_banks = 8;
+      break;
+    }
+    
     default: {
       // fmt::println("couldn't determine ram banks");
       // assert(1==2);

@@ -27,10 +27,9 @@ u8 Mapper::handle_system_memory_read(const u16 address) {
       fmt::format("[CPU] out of bounds CPU read: {:#04x}", address));
 }
 
-
 void Mapper::handle_system_memory_write(const u16 address, const u8 value) {
   if (address <= 0x7FFF) {
-    throw std::runtime_error("cannot write to ROM area");
+    return;
   }
   if (address >= 0x8000 && address <= 0x9FFF) {
     // fmt::println("wrote to vram");
@@ -47,7 +46,6 @@ void Mapper::handle_system_memory_write(const u16 address, const u8 value) {
   }
   if (address >= 0xFEA0 && address <= 0xFEFF) {  // unused/illegal
     return;
-    throw std::runtime_error("cannot write to prohibited area");
   }
   if (address >= 0xFF00 && address <= 0xFFFF) {
     return bus->wram.write8(address, value);
@@ -62,12 +60,12 @@ class ROM_ONLY : public Mapper {
     if (address <= 0x7FFF) {
       return bus->cart.read8(address);
     }
+
     return handle_system_memory_read(address);
   }
   void write8(const u16 address, const u8 value) override {
     if (address >= 0xA000 && address <= 0xBFFF) {
-        return bus->cart.ext_ram.write8((0x2000 * ram_bank) +
-                                       (address % 0xA000), value);
+      return bus->cart.ext_ram.write8(address - 0xA000, value);
     }
     return handle_system_memory_write(address, value);
   }
@@ -76,12 +74,17 @@ class ROM_ONLY : public Mapper {
 class MBC_1 : public Mapper {
   u8 read8(const u16 address) {
     if (address >= 0x4000 && address <= 0x7FFF) {
-      return bus->cart.read8((0x4000 * (rom_bank == 0 ? 1 : rom_bank)) + address);
+      return bus->cart.read8((0x4000 * (rom_bank == 0 ? 1 : rom_bank)) +
+                             address);
     }
     if (address >= 0xA000 && address <= 0xBFFF) {
       if (ram_enabled) {
-        return bus->cart.ext_ram.read8((0x2000 * ram_bank) +
-                                       (address % 0xA000));
+        if (banking_mode == 0) {
+          return bus->cart.ext_ram.read8((0x2000 * 0) + (address % 0xA000));
+        } else {
+          return bus->cart.ext_ram.read8((0x2000 * ram_bank) +
+                                         (address % 0xA000));
+        }
       }
       return 0xFF;
     }
@@ -89,7 +92,7 @@ class MBC_1 : public Mapper {
   }
   void write8(const u16 address, const u8 value) {
     if (address <= 0x1FFF) {
-      if((value & 0xF) == 0xA) {
+      if ((value & 0xF) == 0xA) {
         ram_enabled = true;
       } else {
         ram_enabled = false;
@@ -97,15 +100,15 @@ class MBC_1 : public Mapper {
       return;
     }
 
-    if(address >= 0x2000 && address <= 0x3FFF) {
+    if (address >= 0x2000 && address <= 0x3FFF) {
       rom_bank = (value & 0x1f);
       return;
     }
-    if(address >= 0x4000 && address <= 0x5FFF) {
+    if (address >= 0x4000 && address <= 0x5FFF) {
       ram_bank = value & 0x3;
       return;
     }
-    if(address >= 0x6000 && address <= 0x7FFF) {
+    if (address >= 0x6000 && address <= 0x7FFF) {
       banking_mode = value & 0x1;
       return;
     }
@@ -120,7 +123,6 @@ class MBC_1 : public Mapper {
     }
     return handle_system_memory_write(address, value);
   }
-
 };
 
 Mapper* get_mapper_by_id(u8 mapper_id) {

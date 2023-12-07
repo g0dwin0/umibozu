@@ -609,25 +609,8 @@ inline void SharpSM83::BIT(const u8 p, const u8& r) {
 void SharpSM83::m_cycle() {
   timer.div += 4;
   ppu->tick();
-  // u8 bit_pos = offset_table[bus->wram.data[TAC] & 0x3];
-  // u8 m       = (timer.div & (1 << bit_pos)) >> bit_pos;
-  // u8 n_r     = m & timer.ticking_enabled;
-
-  // if (timer.prev_and == 0 && n_r == 1) {
-  //   timer.counter++;
-  // }
-
-  // timer.prev_and = n_r;
-
-  // if (timer.ticking_enabled) {
-  //   fmt::println("tima: {:#04x}", timer.counter);
-  //   fmt::println("div: {:#04x}", timer.div);
-  //   fmt::println("cycles: {:#04x}", timer.cycles);
-  //   fmt::println("increment frequency: {:#04x}", timer.increment_frequency);
-  // }
 
   if (timer.ticking_enabled && timer.get_div() == timer.increment_frequency) {
-    // timer.cycles = 0;
     if (timer.counter == 0xFF) {
       timer.counter                = 0;
       timer.overflow_update_queued = true;
@@ -688,9 +671,9 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
     }
     case SC: {
       if (value == 0x81) {
-        bus->serial_port_buffer[bus->serial_port_index++] = bus->wram.data[SB];
-        std::string str_data(bus->serial_port_buffer, SERIAL_PORT_BUFFER_SIZE);
-        fmt::println("serial data: {}", str_data);
+        // bus->serial_port_buffer[bus->serial_port_index++] = bus->wram.data[SB];
+        // std::string str_data(bus->serial_port_buffer, SERIAL_PORT_BUFFER_SIZE);
+        // fmt::println("serial data: {}", str_data);
       }
       if (value == 0x01) {
         fmt::println("transfer completed");
