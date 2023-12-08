@@ -130,7 +130,65 @@ class MBC_1 : public Mapper {
     return handle_system_memory_write(address, value);
   }
 };
+class MBC_3 : public Mapper {
+  u8 read8(const u16 address) {
+    if (address >= 0x4000 && address <= 0x7FFF) {
+      return bus->cart.read8((0x4000 * (rom_bank == 0 ? 1 : rom_bank)) +
+                             address - 0x4000);
+    }
+    if (address >= 0xA000 && address <= 0xBFFF) {
+      if (ram_enabled) {
+        if (banking_mode == 0) {
+          return bus->cart.ext_ram.read8((0x2000 * 0) + (address - 0xA000));
+        } else {
+          return bus->cart.ext_ram.read8((0x2000 * ram_bank) +
+                                         (address - 0xA000));
+        }
+      }
+      return 0xFF;
+    }
+    return handle_system_memory_read(address);
+  }
+  void write8(const u16 address, const u8 value) {
+    if (address <= 0x1FFF) {
+      if ((value & 0xF) == 0xA) {
+        ram_enabled = true;
+      } else {
+        ram_enabled = false;
+      }
+      return;
+    }
 
+    if (address >= 0x2000 && address <= 0x3FFF) {
+      rom_bank = (value & 0x1f);
+      // rom_bank &= bus->cart.info.rom_banks;
+      return;
+    }
+    if (address >= 0x4000 && address <= 0x5FFF) {
+      if(bus->cart.info.ram_banks >= 4){
+      ram_bank = value & 0x3;}
+      return;
+    }
+    if (address >= 0x6000 && address <= 0x7FFF) {
+      banking_mode = value & 0x1;
+      return;
+    }
+
+    if (address >= 0xA000 && address <= 0xBFFF) {
+      if (ram_enabled) {
+        assert(ram_bank <= 3);
+        if (banking_mode == 0) {
+          bus->cart.ext_ram.write8((0x2000 * 0) + (address % 0xA000), value);
+        } else {
+          bus->cart.ext_ram.write8((0x2000 * ram_bank) + (address % 0xA000),
+                                   value);
+        }
+      }
+      return;
+    }
+    return handle_system_memory_write(address, value);
+  }
+};
 Mapper* get_mapper_by_id(u8 mapper_id) {
   fmt::println("MAPPER ID: {:#04x} ({})", mapper_id, cart_types.at(mapper_id));
   Mapper* mapper = nullptr;
@@ -145,6 +203,18 @@ Mapper* get_mapper_by_id(u8 mapper_id) {
       mapper = dynamic_cast<Mapper*>(new MBC_1());
       break;
     }
+    case 0xF:
+    case 0x10:
+    case 0x11:
+    case 0x12:
+    case 0x13:
+    {
+      {
+      mapper = dynamic_cast<Mapper*>(new MBC_3());
+      break;
+    }
+    }
+    
     default: {
       throw std::runtime_error(
           fmt::format("[MAPPER] unimplemented mapper with ID: {:d} ({})",

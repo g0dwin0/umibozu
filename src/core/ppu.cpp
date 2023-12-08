@@ -43,8 +43,8 @@ void PPU::add_sprite_to_buffer(u8 sprite_index) {
     return;
   }
 
-  if (!(bus->wram.data[LY] + 16 <
-        sprite_y + (lcdc.sprite_size == 1 ? 16 : 8))) {
+  if (!((bus->wram.data[LY] + 16) <
+        sprite_y + get_sprite_size())) {
     return;
   }
 
@@ -60,12 +60,13 @@ Tile PPU::flip_sprite(Tile t, FLIP_AXIS a) {
 
   if (a == FLIP_AXIS::X) {
     for (u8 y = 0; y < 8; y++) {
+      
       std::reverse(std::begin(n.pixel_data[y]), std::end(n.pixel_data[y]));
     }
   } else {
     std::reverse(std::begin(n.pixel_data), std::end(n.pixel_data));
   }
-  
+
   return n;
 }
 void PPU::tick() {
@@ -87,6 +88,7 @@ void PPU::tick() {
         add_sprite_to_buffer(sprite_index);
       }
       if (dots == 80) {
+        assert(sprite_count < 11);
         set_ppu_mode(PIXEL_DRAW);
       }
       break;
@@ -138,16 +140,16 @@ void PPU::tick() {
           for (u8 x = 0; x < 8; x++) {
             u16 c_x = x + (x_pos_offset * 8);
             u16 c_y = sprite.y_pos - bus->wram.data[LY];
-            // X_POS: 44
-            // X = 32
-            if (c_x >= sprite.x_pos - 8 && c_x <= sprite.x_pos + 0) {
-              Tile t;
-              Tile o;
+            if (c_x >= sprite.x_pos - 8 && c_x < sprite.x_pos ) {
+              Tile top_tile;
+              Tile lower_tile;
+
+              
               if (get_sprite_size() == 16) {
-                t = get_tile_data(sprite.tile_no & 0xFE, true);
-                o = get_tile_data(sprite.tile_no | 0x01, true);
+                top_tile = get_tile_data((sprite.tile_no & 0xFE), true);
+                lower_tile = get_tile_data((sprite.tile_no | 0x01), true);
               } else {
-                t = get_tile_data(sprite.tile_no, true);
+                top_tile = get_tile_data(sprite.tile_no, true);
                 //  o= get_tile_data(sprite.tile_no, true);
               }
 
@@ -155,37 +157,54 @@ void PPU::tick() {
                   sys_palettes.get_palette_by_id(sprite.palette_number);
 
               if (sprite.x_flip == 1) {
-                t = flip_sprite(t, FLIP_AXIS::X);
-                o = flip_sprite(o, FLIP_AXIS::X);
+                top_tile = flip_sprite(top_tile, FLIP_AXIS::X);
+                lower_tile = flip_sprite(lower_tile, FLIP_AXIS::X);
               }
+
               if (sprite.y_flip == 1) {
                 // o = flip_sprite(o, FLIP_AXIS::Y);
                 if (get_sprite_size() == 16) {
-                  std::swap(t, o);
+                  std::swap(top_tile, lower_tile);
                 } else {
-                  t = flip_sprite(t, FLIP_AXIS::Y);
+                  top_tile = flip_sprite(top_tile, FLIP_AXIS::Y);
                 }
               }
+              u8 cor_x = 7 - x;
+              // fmt::println("cor x: {:d}", cor_x);
 
               if (sprite.obj_to_bg_priority == 0) {
                 if (get_sprite_size() == 16) {
-                  if (c_y > 8) {
+                  if (c_y > 7) {
                     sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
-                        pal[t.pixel_data[c_y % 8][7 - x].color];
+                        pal[top_tile.pixel_data[c_y % 8][cor_x].color];
                   } else {
                     sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
-                        pal[o.pixel_data[c_y % 8][7 - x].color];
+                        pal[lower_tile.pixel_data[c_y % 8][cor_x].color];
                   }
                 } else {
                   sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
-                      pal[t.pixel_data[y % 8][7 - x].color];
+                      pal[top_tile.pixel_data[y % 8][cor_x].color];
                 }
               }
 
               if (sprite.obj_to_bg_priority == 1 &&
                   frame.color_id[x + (x_pos_offset * 8) + (y * 256)] == 0) {
-                sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
-                    pal[t.pixel_data[y % 8][7 - x].color];
+
+                if (get_sprite_size() == 16) {
+                  if (c_y > 7) {
+                    sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
+                        pal[lower_tile.pixel_data[c_y % 8][cor_x].color];
+                  } else {
+                    sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
+                        pal[top_tile.pixel_data[c_y % 8][cor_x].color];
+                  }
+                } else {
+                  sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
+                      pal[top_tile.pixel_data[y % 8][7 - x].color];
+                }
+
+                // sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
+                //     pal[t.pixel_data[y % 8][7 - x].color];
               }
             }
           }
@@ -260,7 +279,7 @@ void PPU::increment_scanline() {
 std::array<Pixel, 8> PPU::decode_pixel_row(u8 high_byte, u8 low_byte) {
   std::array<Pixel, 8> pixel_array;
 
-  for (int i = 0; i < 8; i++) {
+  for (u8 i = 0; i < 8; i++) {
     u8 h_c = (high_byte & (1 << i)) != 0 ? 2 : 0;
     u8 l_c = (low_byte & (1 << i)) != 0 ? 1 : 0;
 
@@ -280,9 +299,9 @@ Tile PPU::get_tile_data(u8 index, bool sprite) {
       u8 high_byte = bus->vram.read8(
           ((0x8000 + (row * 2) + (index * 16)) - VRAM_ADDRESS_OFFSET) + 1);
 
-      const auto& pixel_array = decode_pixel_row(high_byte, low_byte);
+      auto pixel_array = decode_pixel_row(high_byte, low_byte);
 
-      for (int pixel_index = 0; pixel_index < 8; pixel_index++) {
+      for (u8 pixel_index = 0; pixel_index < 8; pixel_index++) {
         tile.pixel_data[row][pixel_index] = pixel_array[pixel_index];
       }
     }

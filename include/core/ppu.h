@@ -69,7 +69,7 @@ struct LCDC_R {
   };
 };
 struct Pixel {
-  u8 color;
+  u8 color = 0;
 };
 struct Tile {
   std::array<std::array<Pixel, 8>, 8> pixel_data;
@@ -112,8 +112,8 @@ struct Sprite {
   }
 };
 struct Frame {
-  std::array<u32, 256 * 256> data;
-  std::array<u8, 256 * 256> color_id;
+  std::array<u32, 256 * 256> data = {};
+  std::array<u8, 256 * 256> color_id = {};
 };
 
 enum class FLIP_AXIS { X, Y };
@@ -131,6 +131,12 @@ struct SystemPalettes {
 
   Palette get_palette_by_id(u8 index) {
     assert(index < 3);
+    assert((OBP_0[0] & 0xFF) == 0);
+    assert((OBP_1[0] & 0xFF) == 0);
+
+    // fmt::println("OBP0 [0]: {:#16x}", OBP_0[0]);
+    // fmt::println("OBP1 [0]: {:#16x}", OBP_1[0]);
+    
     Palette pal;
     switch (index) {
       case 0: {
@@ -188,6 +194,7 @@ class PPU {
   bool frame_queued            = false;
   u8 y_index                   = 0;
   u8 x_index                   = 0;
+  bool done = false;
 
   PPU();
   u8 x_pos_offset     = 0;

@@ -185,7 +185,7 @@ void Frontend::show_viewport() {
   ImGui::Text("pointer to gb instance = %p", (void*)&gb);
   ImGui::Text("fps = %f", state.io->Framerate);
 
-  ImGui::Image((void*)state.ppu_texture, ImVec2(256, 256));
+  ImGui::Image((void*)state.ppu_texture, ImVec2(256 * 2, 256 * 2));
 
   ImGui::End();
 }
