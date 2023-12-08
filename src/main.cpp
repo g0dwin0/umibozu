@@ -12,8 +12,8 @@ using namespace Umibozu;
 int main() {
   GB gb;
   Frontend fe;
-
-  gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/smbl.gb"));
+  
+  gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/mooneye/manual-only/sprite_priority.gb"));
 
 
   // OPTIMIZE: abstract this away

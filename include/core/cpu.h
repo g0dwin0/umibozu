@@ -33,11 +33,11 @@ namespace Umibozu {
   enum class FLAG { CARRY = 4, HALF_CARRY = 5, NEGATIVE = 6, ZERO = 7 };
   enum class CPU_STATUS { ACTIVE, HALT_MODE, STOP, PAUSED };
   static constexpr std::array<u32, 4> CLOCK_SELECT_TABLE = {1024, 16, 64, 256};
+  static constexpr std::array<u32, 4> TIMER_BIT = {9, 3, 5, 7};
+  
   struct Timer {
     bool overflow_update_queued = false;
-    u32 cycles;
-
-    u8 prev_and;
+    u8 prev_and_result = 0;
 
     // DIV
     u16 div = 0xAB << 8;
@@ -53,16 +53,12 @@ namespace Umibozu {
     // TMA
     u8 modulo = 0x0;
 
+
+
     u8 get_div() { return div >> 8; }
     void set_tac(u8 value) {
-      
-      cycles = 0;
-      
-      bool old_ticking_enabled = ticking_enabled;
-      ticking_enabled          = (value & 0x4) ? true : false;  
-      if (old_ticking_enabled == false && ticking_enabled) {
-        fmt::println("ticking enabled");
-      }
+      ticking_enabled          = (value & 0x4) ? true : false; 
+      fmt::println("ticking enabled: {}", ticking_enabled); 
       increment_frequency = CLOCK_SELECT_TABLE[value & 0x3];
     }
   };
@@ -132,13 +128,13 @@ namespace Umibozu {
     REG_16 DE{D, E};
     REG_16 HL{H, L};
     u16 SP            = 0xFFFE;
-    u16 PC            = 0x100;
+    u16 PC            = 0x0100;
     CPU_STATUS status = CPU_STATUS::ACTIVE;
     Timer timer;
     PPU* ppu                                           = nullptr;
     Mapper* mapper                                     = nullptr;
     bool IME                                           = false;
-    static constexpr std::array<u8, 4> offset_table    = {9, 3, 5, 7};
+    static constexpr std::array<u8,   4> offset_table    = {9, 3, 5, 7};
     static constexpr std::array<u8, 5> interrupt_table = {
         VBLANK_INTERRUPT, STAT_INTERRUPT, TIMER_INTERRUPT, SERIAL_INTERRUPT,
         JOYPAD_INTERRUPT};
