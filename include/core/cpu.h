@@ -55,17 +55,11 @@ namespace Umibozu {
 
     u8 get_div() { return div >> 8; }
     void set_tac(u8 value) {
-      fmt::println("{:#04x}", value);
-      fmt::println("ticking enabled? = {}", (value & 0x4) ? true : false);
-      fmt::println("frequency interval? = {:d}",
-                   CLOCK_SELECT_TABLE[value & 0x3]);
-
+      
       cycles = 0;
-      if (ticking_enabled && (value & 0x4) == 0) {
-        fmt::println("ticking disabled");
-      }
+      
       bool old_ticking_enabled = ticking_enabled;
-      ticking_enabled          = (bool)(value & 0x4);
+      ticking_enabled          = (value & 0x4) ? true : false;  
       if (old_ticking_enabled == false && ticking_enabled) {
         fmt::println("ticking enabled");
       }

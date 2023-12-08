@@ -8,9 +8,9 @@
 
 class Mapper {
  public:
-  static inline Bus* bus = nullptr;
-  u8 banking_mode: 1 = 0;
-  u16 rom_bank                                           = 0;
+  static inline Bus* bus                                 = nullptr;
+  u8 banking_mode                                        = 0;
+  u8 rom_bank                                            = 0;
   u8 ram_bank                                            = 0;
   bool ram_enabled                                       = false;
   virtual u8 read8(const u16 address)                    = 0;

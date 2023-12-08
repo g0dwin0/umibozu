@@ -1,6 +1,7 @@
 #include "cart.h"
 
 #include "common.h"
+#include "fmt/core.h"
 #include "io.hpp"
 #include "mapper.h"
 #define LOGO_START 0x104
@@ -35,14 +36,9 @@ void Cartridge::set_cart_info() {
   bool cgb_enhancements = memory[0x143] == 0x80;
 
   u8 mapper_id  = this->memory.at(0x147);
-  u64 rom_banks = 2 * (1 << memory[0x148]);
-  u64 ram_banks = 0;
+  u16 rom_banks = 2 * (1 << memory[0x148]);
+  u16 ram_banks = 0;
   switch (memory[0x149]) {
-    case 0: {
-      ram_banks = 0;
-      break;
-    }
-
     case 2: {
       ram_banks = 1;
       break;
@@ -59,10 +55,8 @@ void Cartridge::set_cart_info() {
       ram_banks = 8;
       break;
     }
-    
+
     default: {
-      // fmt::println("couldn't determine ram banks");
-      // assert(1==2);
       break;
     }
   }
@@ -79,7 +73,9 @@ void Cartridge::set_cart_info() {
   info.supports_cgb_enhancements = cgb_enhancements;
 };
 
-u8 Cartridge::read8(const u16 address) { return memory.at(address); }
+u8 Cartridge::read8(const u16 address) {
+  return memory.at(address);
+}
 // void Cartridge::write8(const u16 address, const u8 value) {
 //   memory.at(address) = value;
 // }

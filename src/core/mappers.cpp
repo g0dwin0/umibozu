@@ -17,7 +17,7 @@ u8 Mapper::handle_system_memory_read(const u16 address) {
     return bus->oam.read8(address - 0xFE00);
   }
   if (address >= 0xFEA0 && address <= 0xFEFF) {  // unused/illegal
-    return 0x0;
+    return 0xFF;
   }
   if (address >= 0xFF00 && address <= 0xFFFF) {
     return bus->wram.read8(address);
@@ -75,15 +75,15 @@ class MBC_1 : public Mapper {
   u8 read8(const u16 address) {
     if (address >= 0x4000 && address <= 0x7FFF) {
       return bus->cart.read8((0x4000 * (rom_bank == 0 ? 1 : rom_bank)) +
-                             address);
+                             address - 0x4000);
     }
     if (address >= 0xA000 && address <= 0xBFFF) {
       if (ram_enabled) {
         if (banking_mode == 0) {
-          return bus->cart.ext_ram.read8((0x2000 * 0) + (address % 0xA000));
+          return bus->cart.ext_ram.read8((0x2000 * 0) + (address - 0xA000));
         } else {
           return bus->cart.ext_ram.read8((0x2000 * ram_bank) +
-                                         (address % 0xA000));
+                                         (address - 0xA000));
         }
       }
       return 0xFF;
@@ -102,10 +102,12 @@ class MBC_1 : public Mapper {
 
     if (address >= 0x2000 && address <= 0x3FFF) {
       rom_bank = (value & 0x1f);
+      // rom_bank &= bus->cart.info.rom_banks;
       return;
     }
     if (address >= 0x4000 && address <= 0x5FFF) {
-      ram_bank = value & 0x3;
+      if(bus->cart.info.ram_banks >= 4){
+      ram_bank = value & 0x3;}
       return;
     }
     if (address >= 0x6000 && address <= 0x7FFF) {
@@ -116,8 +118,12 @@ class MBC_1 : public Mapper {
     if (address >= 0xA000 && address <= 0xBFFF) {
       if (ram_enabled) {
         assert(ram_bank <= 3);
-        bus->cart.ext_ram.write8((0x2000 * ram_bank) + (address % 0xA000),
-                                 value);
+        if (banking_mode == 0) {
+          bus->cart.ext_ram.write8((0x2000 * 0) + (address % 0xA000), value);
+        } else {
+          bus->cart.ext_ram.write8((0x2000 * ram_bank) + (address % 0xA000),
+                                   value);
+        }
       }
       return;
     }
