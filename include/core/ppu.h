@@ -160,9 +160,9 @@ class PPU {
   SDL_Texture* sprite_overlay_texture = nullptr;
 
   SDL_Renderer* renderer = nullptr;
-  std::array<Sprite, 10> sprite_buf;
+  std::vector<Sprite> sprite_buf;
   bool had_window_pixels = false;
-  u8 sprite_count        = 0;
+  // u8 sprite_count        = 0;
   u8 sprite_index        = 0;
 
   u8 get_ppu_mode();
@@ -194,6 +194,7 @@ class PPU {
   bool frame_queued            = false;
   u8 y_index                   = 0;
   u8 x_index                   = 0;
+  u8 its = 0;
   bool done = false;
 
   PPU();
