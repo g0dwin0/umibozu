@@ -43,8 +43,7 @@ void PPU::add_sprite_to_buffer(u8 sprite_index) {
     return;
   }
 
-  if (!((bus->wram.data[LY] + 16) <
-        sprite_y + get_sprite_size())) {
+  if (!((bus->wram.data[LY] + 16) < sprite_y + get_sprite_size())) {
     return;
   }
 
@@ -60,7 +59,6 @@ Tile PPU::flip_sprite(Tile t, FLIP_AXIS a) {
 
   if (a == FLIP_AXIS::X) {
     for (u8 y = 0; y < 8; y++) {
-      
       std::reverse(std::begin(n.pixel_data[y]), std::end(n.pixel_data[y]));
     }
   } else {
@@ -96,127 +94,113 @@ void PPU::tick() {
     case PIXEL_DRAW: {
       // draw code
       u8 y = bus->wram.data[LY] + bus->wram.data[SCY];
-
-      if (y % 8 == 0) {
-        y_index = (y / 8);
-      }
-
-      u16 address = (get_tile_bg_map_address_base() + (y_index * 32) +
-                     ((x_pos_offset + bus->wram.data[SCX] / 8) % 32)) -
-                    VRAM_ADDRESS_OFFSET;
-
-      if (window_enabled && lcdc.window_disp_enable == 1 &&
-          bus->wram.data[WX] <= 167 &&
-          (x_pos_offset * 8) >= bus->wram.data[WX] - 7) {
-        address = (get_tile_window_map_address_base() + (w_line_count * 32) +
-                   (w_x_pos_offset)) -
-                  VRAM_ADDRESS_OFFSET;
-        w_x_pos_offset++;
-      }
-
-      u8 index    = bus->vram.read8(address);
-      active_tile = get_tile_data(index);
-
-      // HACK: tile data is being loaded in backwards; fix that!
-      // TODO: decouple frontend-reliant drawing code, use frame struct
-
-      for (u8 x = 0; x < 8; x++) {
-        u32 c = sys_palettes.BGP[active_tile.pixel_data[y % 8][7 - x].color];
-
-        if (lcdc.bg_and_window_enable_priority == 0) {
-          frame.data[x + (x_pos_offset * 8) + (y * 256)] = 0xFFFFFF00;
-          frame.color_id[x + (x_pos_offset * 8) + (y * 256)] =
-              active_tile.pixel_data[y % 8][7 - x].color;
-        } else {
-          frame.data[x + (x_pos_offset * 8) + (y * 256)] = c;
-          frame.color_id[x + (x_pos_offset * 8) + (y * 256)] =
-              active_tile.pixel_data[y % 8][7 - x].color;
+      for (u16 z = 0; z < 32; z++) {
+        if (y % 8 == 0) {
+          y_index = (y / 8);
         }
+
+        u16 address = (get_tile_bg_map_address_base() + (y_index * 32) +
+                       ((x_pos_offset + bus->wram.data[SCX] / 8) % 32)) -
+                      VRAM_ADDRESS_OFFSET;
+
+        if (window_enabled && lcdc.window_disp_enable == 1 &&
+            bus->wram.data[WX] <= 167 &&
+            (x_pos_offset * 8) >= bus->wram.data[WX] - 7) {
+          address = (get_tile_window_map_address_base() + (w_line_count * 32) +
+                     (w_x_pos_offset)) -
+                    VRAM_ADDRESS_OFFSET;
+          w_x_pos_offset++;
+        }
+
+        u8 index    = bus->vram.read8(address);
+        active_tile = get_tile_data(index);
+
+        // HACK: tile data is being loaded in backwards; fix that!
+        // TODO: decouple frontend-reliant drawing code, use frame struct
+
+        for (u8 x = 0; x < 8; x++) {
+          u32 c = sys_palettes.BGP[active_tile.pixel_data[y % 8][7 - x].color];
+
+          if (lcdc.bg_and_window_enable_priority == 0) {
+            frame.data[x + (x_pos_offset * 8) + (y * 256)] = 0xFFFFFF00;
+            frame.color_id[x + (x_pos_offset * 8) + (y * 256)] =
+                active_tile.pixel_data[y % 8][7 - x].color;
+          } else {
+            frame.data[x + (x_pos_offset * 8) + (y * 256)] = c;
+            frame.color_id[x + (x_pos_offset * 8) + (y * 256)] =
+                active_tile.pixel_data[y % 8][7 - x].color;
+          }
+        }
+
+        x_pos_offset++;
       }
 
+      // Sprite
       if (lcdc.sprite_enable == 1) {
         for (u8 i = 0; i < sprite_count; i++) {
           Sprite sprite = sprite_buf[i];
+
+          Tile top_tile;
+          Tile lower_tile;
+
+          if (get_sprite_size() == 16) {
+            top_tile   = get_tile_data((sprite.tile_no & 0xFE), true);
+            lower_tile = get_tile_data((sprite.tile_no | 0x01), true);
+          } else {
+            top_tile = get_tile_data(sprite.tile_no, true);
+          }
+
+          Palette pal = sys_palettes.get_palette_by_id(sprite.palette_number);
+
+          // Flipping
+          if (sprite.x_flip == 1) {
+            top_tile   = flip_sprite(top_tile, FLIP_AXIS::X);
+            lower_tile = flip_sprite(lower_tile, FLIP_AXIS::X);
+          }
+          if (sprite.y_flip == 1) {
+            if (get_sprite_size() == 16) {
+              std::swap(top_tile, lower_tile);
+            } else {
+              top_tile = flip_sprite(top_tile, FLIP_AXIS::Y);
+            }
+          }
+
+          u16 current_y = bus->wram.data[LY] - sprite.y_pos;
           for (u8 x = 0; x < 8; x++) {
-            u16 c_x = x + (x_pos_offset * 8);
-            u16 c_y = sprite.y_pos - bus->wram.data[LY];
-            if (c_x >= sprite.x_pos - 8 && c_x < sprite.x_pos ) {
-              Tile top_tile;
-              Tile lower_tile;
+            u16 current_x = sprite.x_pos - x - 1;
+            if (sprite.obj_to_bg_priority == 0) {
+              sprite_overlay.data[(current_x) + (y * 256)] =
+                  pal[top_tile.pixel_data[current_y % 8][x].color];
+            }
 
-              
+            if (sprite.obj_to_bg_priority == 1 &&
+                frame.color_id[(current_x) + (y * 256)] == 0) {
+              if (get_sprite_size() != 8) {
+                fmt::println("sprite size: {:d}", get_sprite_size());
+              }
               if (get_sprite_size() == 16) {
-                top_tile = get_tile_data((sprite.tile_no & 0xFE), true);
-                lower_tile = get_tile_data((sprite.tile_no | 0x01), true);
+                if (current_y < 8) {
+                  fmt::println("less than 8");
+                  sprite_overlay.data[(current_x) + (y * 256)] =
+                      pal[top_tile.pixel_data[current_y % 8][x].color];
+                } else {
+                  sprite_overlay.data[(current_x) + (y * 256)] =
+                      pal[lower_tile.pixel_data[current_y % 8][x].color];
+                  fmt::println("more than 8");
+                }
+
               } else {
-                top_tile = get_tile_data(sprite.tile_no, true);
-                //  o= get_tile_data(sprite.tile_no, true);
-              }
-
-              Palette pal =
-                  sys_palettes.get_palette_by_id(sprite.palette_number);
-
-              if (sprite.x_flip == 1) {
-                top_tile = flip_sprite(top_tile, FLIP_AXIS::X);
-                lower_tile = flip_sprite(lower_tile, FLIP_AXIS::X);
-              }
-
-              if (sprite.y_flip == 1) {
-                // o = flip_sprite(o, FLIP_AXIS::Y);
-                if (get_sprite_size() == 16) {
-                  std::swap(top_tile, lower_tile);
-                } else {
-                  top_tile = flip_sprite(top_tile, FLIP_AXIS::Y);
-                }
-              }
-              u8 cor_x = 7 - x;
-              // fmt::println("cor x: {:d}", cor_x);
-
-              if (sprite.obj_to_bg_priority == 0) {
-                if (get_sprite_size() == 16) {
-                  if (c_y > 7) {
-                    sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
-                        pal[top_tile.pixel_data[c_y % 8][cor_x].color];
-                  } else {
-                    sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
-                        pal[lower_tile.pixel_data[c_y % 8][cor_x].color];
-                  }
-                } else {
-                  sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
-                      pal[top_tile.pixel_data[y % 8][cor_x].color];
-                }
-              }
-
-              if (sprite.obj_to_bg_priority == 1 &&
-                  frame.color_id[x + (x_pos_offset * 8) + (y * 256)] == 0) {
-
-                if (get_sprite_size() == 16) {
-                  if (c_y > 7) {
-                    sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
-                        pal[lower_tile.pixel_data[c_y % 8][cor_x].color];
-                  } else {
-                    sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
-                        pal[top_tile.pixel_data[c_y % 8][cor_x].color];
-                  }
-                } else {
-                  sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
-                      pal[top_tile.pixel_data[y % 8][7 - x].color];
-                }
-
-                // sprite_overlay.data[x + (x_pos_offset * 8) + (y * 256)] =
-                //     pal[t.pixel_data[y % 8][7 - x].color];
+                sprite_overlay.data[(current_x) + (y * 256)] =
+                    pal[top_tile.pixel_data[current_y % 8][x].color];
               }
             }
           }
         }
       }
 
-      x_pos_offset++;
-
       if (x_pos_offset == 32) {
         return set_ppu_mode(HBLANK);
       }
-
       break;
     }
     case HBLANK: {
