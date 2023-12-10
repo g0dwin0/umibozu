@@ -173,7 +173,7 @@ void PPU::tick() {
           }
 
           u16 current_y = (bus->wram.data[LY] - sprite.y_pos) + 16;
-          fmt::println("current y: {:d}", current_y);
+          // fmt::println("current y: {:d}", current_y);
           for (u8 x = 0; x < 8; x++) {
             u16 current_x = abs(sprite.x_pos - x - 1);
             if (sprite.obj_to_bg_priority == 0) {
@@ -194,6 +194,8 @@ void PPU::tick() {
 
             if (sprite.obj_to_bg_priority == 1 &&
                 frame.color_id[(current_x) + (y * 256)] == 0) {
+
+
               if (get_sprite_size() == 16) {
                 if (current_y < 8) {
                   sprite_overlay.data[(current_x) + (y * 256)] =
@@ -202,7 +204,6 @@ void PPU::tick() {
                   sprite_overlay.data[(current_x) + (y * 256)] =
                       pal[lower_tile.pixel_data[current_y % 8][x].color];
                 }
-
               } else {
                 sprite_overlay.data[(current_x) + (y * 256)] =
                     pal[top_tile.pixel_data[current_y % 8][x].color];

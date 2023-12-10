@@ -711,7 +711,7 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
     }
     case TAC: {
       timer.set_tac(value);
-      fmt::println("TAC: {:08b}", value);
+      // fmt::println("TAC: {:08b}", value);
       break;
     }
     case IF: {
@@ -761,9 +761,6 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
       for (u8 i = 0; i < 0xA0; i++) {
         bus->oam.data[i] = read8(address + i);
       }
-      // for (u8 i = 0; i < 40; i++) {
-      //   m_cycle();
-      // }
       break;
     }
     case OBP0: {
@@ -790,6 +787,7 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
       u8 id_1                    = (value & 0b00001100) >> 2;
       u8 id_2                    = (value & 0b00110000) >> 4;
       u8 id_3                    = (value & 0b11000000) >> 6;
+
       ppu->sys_palettes.OBP_1[0] = ppu->shade_table[id_0] + MIN_ALPHA;
       ppu->sys_palettes.OBP_1[1] = ppu->shade_table[id_1] + MAX_ALPHA;
       ppu->sys_palettes.OBP_1[2] = ppu->shade_table[id_2] + MAX_ALPHA;
@@ -957,7 +955,7 @@ void SharpSM83::run_instruction() {
       RRCA();
       break;
     }
-
+    // TODO: implement STOP
     // case 0x10: {
     //   STOP();
     //   break;

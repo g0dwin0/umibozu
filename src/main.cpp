@@ -13,8 +13,6 @@ int main() {
   GB gb;
   Frontend fe;
   
-  gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/smbl.gb"));
-
 
   // OPTIMIZE: abstract this away
   fe.gb = &gb;

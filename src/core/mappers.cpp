@@ -78,7 +78,7 @@ class MBC_1 : public Mapper {
                              address - 0x4000);
     }
     if (address >= 0xA000 && address <= 0xBFFF) {
-      if (ram_enabled) {
+      if (ram_rtc_enabled) {
         if (banking_mode == 0) {
           return bus->cart.ext_ram.read8((0x2000 * 0) + (address - 0xA000));
         } else {
@@ -93,9 +93,9 @@ class MBC_1 : public Mapper {
   void write8(const u16 address, const u8 value) {
     if (address <= 0x1FFF) {
       if ((value & 0xF) == 0xA) {
-        ram_enabled = true;
+        ram_rtc_enabled = true;
       } else {
-        ram_enabled = false;
+        ram_rtc_enabled = false;
       }
       return;
     }
@@ -106,8 +106,9 @@ class MBC_1 : public Mapper {
       return;
     }
     if (address >= 0x4000 && address <= 0x5FFF) {
-      if(bus->cart.info.ram_banks >= 4){
-      ram_bank = value & 0x3;}
+      if (bus->cart.info.ram_banks >= 4) {
+        ram_bank = value & 0x3;
+      }
       return;
     }
     if (address >= 0x6000 && address <= 0x7FFF) {
@@ -116,7 +117,7 @@ class MBC_1 : public Mapper {
     }
 
     if (address >= 0xA000 && address <= 0xBFFF) {
-      if (ram_enabled) {
+      if (ram_rtc_enabled) {
         assert(ram_bank <= 3);
         if (banking_mode == 0) {
           bus->cart.ext_ram.write8((0x2000 * 0) + (address % 0xA000), value);
@@ -133,17 +134,13 @@ class MBC_1 : public Mapper {
 class MBC_3 : public Mapper {
   u8 read8(const u16 address) {
     if (address >= 0x4000 && address <= 0x7FFF) {
-      return bus->cart.read8((0x4000 * (rom_bank == 0 ? 1 : rom_bank)) +
-                             address - 0x4000);
+    // fmt::println("reading: {:#04x} bank: {:d}", (0x4000 * rom_bank) + (address - 0x4000), rom_bank);
+      return bus->cart.read8((0x4000 * rom_bank) + (address - 0x4000));
     }
     if (address >= 0xA000 && address <= 0xBFFF) {
-      if (ram_enabled) {
-        if (banking_mode == 0) {
-          return bus->cart.ext_ram.read8((0x2000 * 0) + (address - 0xA000));
-        } else {
-          return bus->cart.ext_ram.read8((0x2000 * ram_bank) +
-                                         (address - 0xA000));
-        }
+      if (ram_rtc_enabled) {
+        return bus->cart.ext_ram.read8((0x2000 * ram_bank) +
+                                       (address - 0xA000));
       }
       return 0xFF;
     }
@@ -152,37 +149,43 @@ class MBC_3 : public Mapper {
   void write8(const u16 address, const u8 value) {
     if (address <= 0x1FFF) {
       if ((value & 0xF) == 0xA) {
-        ram_enabled = true;
+        ram_rtc_enabled = true;
       } else {
-        ram_enabled = false;
+        ram_rtc_enabled = false;
       }
       return;
     }
 
     if (address >= 0x2000 && address <= 0x3FFF) {
-      rom_bank = (value & 0x1f);
-      // rom_bank &= bus->cart.info.rom_banks;
+      if (value == 0) {
+        rom_bank = 1;
+        return;
+      }
+      rom_bank = value;
       return;
     }
+
     if (address >= 0x4000 && address <= 0x5FFF) {
-      if(bus->cart.info.ram_banks >= 4){
-      ram_bank = value & 0x3;}
+      if (value >= 0x0 && value <= 0x3) {
+        ram_bank = value & 0x3;
+      }
+
+      // if (value >= 0x08 && value <= 0x0C) {  // RTC
+      //   ram_bank = value;
+      // }
       return;
     }
+
     if (address >= 0x6000 && address <= 0x7FFF) {
-      banking_mode = value & 0x1;
+      // banking_mode = value & 0x1;
       return;
     }
 
     if (address >= 0xA000 && address <= 0xBFFF) {
-      if (ram_enabled) {
+      if (ram_rtc_enabled) {
         assert(ram_bank <= 3);
-        if (banking_mode == 0) {
-          bus->cart.ext_ram.write8((0x2000 * 0) + (address % 0xA000), value);
-        } else {
-          bus->cart.ext_ram.write8((0x2000 * ram_bank) + (address % 0xA000),
-                                   value);
-        }
+        bus->cart.ext_ram.write8((0x2000 * ram_bank) + (address % 0xA000),
+                                 value);
       }
       return;
     }
@@ -207,14 +210,11 @@ Mapper* get_mapper_by_id(u8 mapper_id) {
     case 0x10:
     case 0x11:
     case 0x12:
-    case 0x13:
-    {
-      {
+    case 0x13: {
       mapper = dynamic_cast<Mapper*>(new MBC_3());
       break;
     }
-    }
-    
+
     default: {
       throw std::runtime_error(
           fmt::format("[MAPPER] unimplemented mapper with ID: {:d} ({})",

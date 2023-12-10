@@ -27,6 +27,8 @@ void Cartridge::print_cart_info() {
   fmt::println("destination: {}",
                info.destination_code ? "japanese" : "overseas");
   fmt::println("cgb support: {}", info.supports_cgb_enhancements);
+  fmt::println("mem vec size: {}", memory.size());
+  
 }
 std::string Cartridge::get_mapper_string(u8 cartridge_type) {
   return cart_types.at(cartridge_type);
@@ -73,7 +75,7 @@ void Cartridge::set_cart_info() {
   info.supports_cgb_enhancements = cgb_enhancements;
 };
 
-u8 Cartridge::read8(const u16 address) {
+u8 Cartridge::read8(const u64 address) {
   return memory.at(address);
 }
 // void Cartridge::write8(const u16 address, const u8 value) {

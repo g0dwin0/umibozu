@@ -58,7 +58,7 @@ namespace Umibozu {
     u8 get_div() { return div >> 8; }
     void set_tac(u8 value) {
       ticking_enabled          = (value & 0x4) ? true : false; 
-      fmt::println("ticking enabled: {}", ticking_enabled); 
+      // fmt::println("ticking enabled: {}", ticking_enabled); 
       increment_frequency = CLOCK_SELECT_TABLE[value & 0x3];
     }
   };

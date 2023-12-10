@@ -30,6 +30,6 @@ namespace Umibozu {
     Cartridge();
     ~Cartridge();
     
-    u8 read8(const u16);
+    u8 read8(const u64);
   };
 }  // namespace Umibozu
