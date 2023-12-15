@@ -1,11 +1,13 @@
 #pragma once
+#include <span>
 #include <string>
 
 #include "common.h"
 namespace Umibozu {
   class Cartridge {
    private:
-    std::string get_manufacturer(u8, std::vector<u8>&);
+    std::string get_title(std::span<const u8>);
+    std::string get_manufacturer(u8, std::span<const u8>);
     struct Info {
       std::string title;
       std::string manufacturer;
