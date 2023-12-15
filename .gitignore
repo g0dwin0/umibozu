@@ -10,3 +10,4 @@ compile_commands.json
 *.ini
 TODO.md
 tests/
+callgrind.*
