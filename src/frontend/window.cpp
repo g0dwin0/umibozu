@@ -232,7 +232,6 @@ void Frontend::show_cpu_info() {
   ImGui::Text("%s", fmt::format("IME: {}", gb->cpu.IME).c_str());
   ImGui::Text("%s", fmt::format("IF:  {:08b}", gb->bus.wram.data[IF]).c_str());
   ImGui::Text("%s", fmt::format("IE:  {:08b}", gb->bus.wram.data[IE]).c_str());
-  // ImGui::Text("%s", fmt::format("1:   {:08b}", 1).c_str());
 
   if (ImGui::Button("STEP")) {
     gb->cpu.run_instruction();
@@ -281,7 +280,7 @@ void Frontend::show_viewport() {
   ImGui::Text("pointer to gb instance = %p", (void*)&gb);
   ImGui::Text("fps = %f", state.io->Framerate);
 
-  ImGui::Image((void*)state.ppu_texture, ImVec2(160 * 2, 144 * 2));
+  ImGui::Image((void*)state.ppu_texture, ImVec2(256 * 2, 256 * 2));
 
   ImGui::End();
 }
