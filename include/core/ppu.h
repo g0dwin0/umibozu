@@ -4,8 +4,7 @@
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_surface.h>
 
-#include <queue>
-#include <vector>
+#include <array>
 
 #include "bus.h"
 #include "common.h"
@@ -112,8 +111,10 @@ struct Sprite {
   }
 };
 struct Frame {
-  std::array<u32, 256 * 256> data = {};
+  std::array<u32, 256 * 256> data    = {};
   std::array<u8, 256 * 256> color_id = {};
+
+  Frame() { data.fill(0xFFFFFF00); }
 };
 
 enum class FLIP_AXIS { X, Y };
@@ -124,34 +125,19 @@ typedef std::array<u32, 4> Palette;
 struct SystemPalettes {
   Palette BGP = {WHITE + MAX_ALPHA, LIGHTGREY + MAX_ALPHA, DARKGREY + MAX_ALPHA,
                  BLACK + MAX_ALPHA};
-  Palette OBP_0 = {WHITE + MIN_ALPHA, LIGHTGREY + MAX_ALPHA,
-                   DARKGREY + MAX_ALPHA, BLACK + MAX_ALPHA};
-  Palette OBP_1 = {WHITE + MIN_ALPHA, LIGHTGREY + MAX_ALPHA,
-                   DARKGREY + MAX_ALPHA, BLACK + MAX_ALPHA};
+  std::array<Palette, 2> OBP = {
+      Palette{WHITE + MIN_ALPHA, LIGHTGREY + MAX_ALPHA, DARKGREY + MAX_ALPHA,
+              BLACK + MAX_ALPHA},
+      Palette{WHITE + MIN_ALPHA, LIGHTGREY + MAX_ALPHA, DARKGREY + MAX_ALPHA,
+              BLACK + MAX_ALPHA}
+  };
 
   Palette get_palette_by_id(u8 index) {
     assert(index < 3);
-    assert((OBP_0[0] & 0xFF) == 0);
-    assert((OBP_1[0] & 0xFF) == 0);
+    assert((OBP[0][0] & 0xFF) == 0);
+    assert((OBP[1][0] & 0xFF) == 0);
 
-    // fmt::println("OBP0 [0]: {:#16x}", OBP_0[0]);
-    // fmt::println("OBP1 [0]: {:#16x}", OBP_1[0]);
-    
-    Palette pal;
-    switch (index) {
-      case 0: {
-        pal = OBP_0;
-        break;
-      }
-      case 1: {
-        pal = OBP_1;
-        break;
-      }
-      default: {
-        throw std::runtime_error("bad palette index");
-      }
-    }
-    return pal;
+    return OBP[index];
   }
 };
 class PPU {
@@ -162,20 +148,19 @@ class PPU {
   SDL_Renderer* renderer = nullptr;
   std::vector<Sprite> sprite_buf;
   bool had_window_pixels = false;
-  // u8 sprite_count        = 0;
-  u8 sprite_index        = 0;
+  u8 sprite_index = 0;
 
   u8 get_ppu_mode();
   void set_ppu_mode(RENDERING_MODE mode);
   void add_sprite_to_buffer(u8 sprite_index);
   u8 get_sprite_size();
   void render_frame();
-  Tile flip_sprite(Tile, FLIP_AXIS);
+  void flip_sprite(Tile&, FLIP_AXIS);
   LAYER currentLayer;
   Tile active_tile;
-  u8 w_y              = 0;
-  u8 w_line_count     = 0;
-  u8 w_x_pos_offset   = 0;
+  u8 w_y            = 0;
+  u8 w_line_count   = 0;
+  u8 w_x_pos_offset = 0;
   u16 get_tile_bg_map_address_base();
   u16 get_tile_window_map_address_base();
 
@@ -194,11 +179,11 @@ class PPU {
   bool frame_queued            = false;
   u8 y_index                   = 0;
   u8 x_index                   = 0;
-  u8 its = 0;
-  bool done = false;
+  u8 its                       = 0;
+  bool done                    = false;
 
   PPU();
-  u8 x_pos_offset     = 0;
+  u8 x_pos_offset = 0;
   void tick();
   std::string get_mode_string();
   void set_renderer(SDL_Renderer* renderer);
@@ -207,7 +192,8 @@ class PPU {
   void get_dots();
   void increment_scanline();
   Tile get_tile_data(u8 index, bool sprite = false);
+  // TODO: allow for custom shades in frontend
   const std::array<u32, 4> shade_table = {WHITE, LIGHTGREY, DARKGREY, BLACK};
-  bool window_enabled = false;
+  bool window_enabled                  = false;
   std::array<Pixel, 8> decode_pixel_row(u8 high_byte, u8 low_byte);
 };
