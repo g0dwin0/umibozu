@@ -1,18 +1,13 @@
 #pragma once
 #define FMT_HEADER_ONLY
-#include <fmt/core.h>
+#include "fmt/core.h"
 
-#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <iostream>
-#include <sstream>
-#include <stdexcept>
 #include <vector>
-#include <algorithm>
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -47,15 +42,6 @@ enum HARDWARE_REG {
   WY          = 0xFF4A,
   WX          = 0xFF4B,
   IE          = 0xFFFF
-};
-
-// TODO: move these to where they actually belong
-enum struct InterruptType {
-  VBLANK,
-  LCD,
-  TIMER,
-  SERIAL,
-  JOYPAD,
 };
 
 struct RAM {

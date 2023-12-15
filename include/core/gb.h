@@ -1,12 +1,9 @@
 #pragma once
 #include <limits>
-#include <vector>
 
 #include "bus.h"
-#include "cart.h"
 #include "common.h"
 #include "cpu.h"
-#include "mapper.h"
 #include "io.hpp"
 
 struct GB {

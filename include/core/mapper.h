@@ -1,6 +1,5 @@
 #pragma once
 #include "bus.h"
-#include "cart_constants.hpp"
 #include "common.h"
 #pragma GCC diagnostic ignored "-Wtype-limits"
 // TODO: implement MBC1M (>1mb carts)

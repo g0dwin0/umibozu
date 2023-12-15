@@ -30,22 +30,4 @@ namespace Umibozu {
 
     return File{vec, static_cast<u64>(fileSize)};
   }
-
-
-  inline std::vector<u8> get_bytes_in_range(const std::vector<u8>& vector, u16 start,
-                                            u16 end) {
-    if (start > end) {
-      throw std::runtime_error(
-          fmt::format("[IO] {}: invalid range, start: {:d}, end {:d}", __func__,
-                      start, end));
-    }
-
-    std::vector<u8> vec;
-
-    for (u16 i = 0; i < (end - start) + 1; i++) {
-      vec.push_back(vector[start + i]);
-    }
-    return vec;
-  }
-
 }  // namespace Umibozu

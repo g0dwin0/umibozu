@@ -1,6 +1,6 @@
 #pragma once
-#include <bitset>
-#include <stdexcept>
+
+#include <array>
 
 #include "bus.h"
 #include "common.h"
@@ -30,42 +30,14 @@
 #define JOYPAD_INTERRUPT 0x60
 
 namespace Umibozu {
+
   enum class FLAG { CARRY = 4, HALF_CARRY = 5, NEGATIVE = 6, ZERO = 7 };
   enum class CPU_STATUS { ACTIVE, HALT_MODE, STOP, PAUSED };
-  static constexpr std::array<u32, 4> CLOCK_SELECT_TABLE = {1024, 16, 64, 256};
-  static constexpr std::array<u32, 4> TIMER_BIT = {9, 3, 5, 7};
-  
-  struct Timer {
-    bool overflow_update_queued = false;
-    u8 prev_and_result = 0;
 
-    // DIV
-    u16 div = 0xAB << 8;
-
-    // TAC
-    bool ticking_enabled    = false;
-    u32 increment_frequency = 0;
-
-    bool prev_behaviour = false;
-    // TIMA
-    u8 counter = 0x0;
-
-    // TMA
-    u8 modulo = 0x0;
-
-
-
-    u8 get_div() { return div >> 8; }
-    void set_tac(u8 value) {
-      ticking_enabled          = (value & 0x4) ? true : false; 
-      // fmt::println("ticking enabled: {}", ticking_enabled); 
-      increment_frequency = CLOCK_SELECT_TABLE[value & 0x3];
-    }
-  };
   struct SharpSM83 {
     SharpSM83();
     ~SharpSM83();
-    Bus* bus;
+    Bus* bus = nullptr;
     struct REG_16 {
       u8& high;
       u8& low;
@@ -134,20 +106,22 @@ namespace Umibozu {
     PPU* ppu                                           = nullptr;
     Mapper* mapper                                     = nullptr;
     bool IME                                           = false;
-    static constexpr std::array<u8,   4> offset_table    = {9, 3, 5, 7};
+    static constexpr std::array<u8, 4> offset_table    = {9, 3, 5, 7};
     static constexpr std::array<u8, 5> interrupt_table = {
         VBLANK_INTERRUPT, STAT_INTERRUPT, TIMER_INTERRUPT, SERIAL_INTERRUPT,
         JOYPAD_INTERRUPT};
-
     u8 read8(const u16 address);
     u16 read16(const u16 address);
+    
     u8 peek(const u16 address);
     void write8(const u16 address, const u8 value);
+    
     void push_to_stack(const u8 value);
     u8 pull_from_stack();
+    
     void set_flag(FLAG);
-    u8 get_flag(FLAG);
     void unset_flag(FLAG);
+    u8 get_flag(FLAG);
     void handle_system_io_write(const u16 address, const u8 value);
     void handle_interrupts();
     void run_instruction();
@@ -158,10 +132,8 @@ namespace Umibozu {
     // TODO: replace u8 refs with REG8 register type
     inline void HALT();
     inline void LD_HL_SP_E8();
-
     inline void LD_R_R(u8& r_1, u8 r_2);
     inline void LD_R16_U16(REG_16& r_1, u16 val);
-
     inline void ADD_SP_E8();
     inline void LD_M_R(const u16 address, u8 val);
     inline void LD_SP_U16(u16& r_1, u16 val);
