@@ -1,12 +1,11 @@
 # TODO: switch to CMake
-CPPFLAGS = -g -Ilib/imgui -Ilib/imgui/backends -Ilib/tinyfiledialogs  -Iinclude/core -Iinclude/frontend -Iinclude/ -std=c++20 -Wall -Wextra -Wpedantic -Werror -lpthread -lSDL2 -lGL -Wno-deprecated-enum-enum-conversion
+CPPFLAGS = -g -Ilib/imgui -Ilib/ -Ilib/imgui/backends -Ilib/tinyfiledialogs  -Iinclude/core -Iinclude/frontend -Iinclude/ -std=c++20 -Wall -Wextra -Wpedantic -Werror -lpthread -lSDL2 -lGL -Wno-deprecated-enum-enum-conversion
 
 OBJ_DIR = build/obj
 OBJ_IMGUI = $(OBJ_DIR)/imgui
 OBJS_IMGUI = $(OBJ_IMGUI)/imgui_demo.o $(OBJ_IMGUI)/imgui_draw.o $(OBJ_IMGUI)/imgui_impl_sdlrenderer2.o $(OBJ_IMGUI)/imgui_impl_sdl2.o $(OBJ_IMGUI)/imgui_tables.o $(OBJ_IMGUI)/imgui_widgets.o $(OBJ_IMGUI)/imgui.o
 OBJS = $(OBJ_DIR)/main.o $(OBJ_DIR)/cart.o $(OBJ_DIR)/cpu.o $(OBJ_DIR)/ppu.o  $(OBJ_DIR)/bus.o $(OBJ_DIR)/gb.o $(OBJ_DIR)/frontend.o $(OBJ_DIR)/file_dialog.o $(OBJ_DIR)/mappers.o 
 CC=g++
-# CPPFLAGS += -fsanitize=undefined,address -D_GLIBCXX_DEBUG
 
 all: final
 
@@ -16,7 +15,7 @@ final: $(OBJS)
 	chmod +x build/bin/umibozu
 
 $(OBJ_DIR)/main.o: src/main.cpp include/common.h
-	$(CC) $(CPPFLAGS) -c src/main.cpp -o $(OBJ_DIR)/main.o
+	$(CC) $(CPPFLAGS) -c src/main.cpp -Ilib/cli11 -o $(OBJ_DIR)/main.o
 
 $(OBJ_DIR)/cart.o: src/core/cart.cpp include/core/cart.h
 	$(CC) $(CPPFLAGS) -c src/core/cart.cpp -o $(OBJ_DIR)/cart.o

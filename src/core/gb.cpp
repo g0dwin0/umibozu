@@ -1,7 +1,6 @@
 #include "core/gb.h"
 
 #include <cassert>
-#include <cstddef>
 
 #include "bus.h"
 #include "common.h"
@@ -49,11 +48,4 @@ void GB::load_cart(const File& rom) {
   bus.cart.set_cart_info();
   bus.cart.print_cart_info();
   cpu.mapper = get_mapper_by_id(bus.cart.info.mapper_id);
-}
-void GB::start(u64 count) {
-  assert(!bus.cart.memory.empty());
-  while (count != 0) {
-    cpu.run_instruction();
-    count--;
-  }
 }
