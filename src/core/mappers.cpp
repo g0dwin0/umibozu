@@ -1,3 +1,4 @@
+#include "cart_constants.hpp"
 #include "core/mapper.h"
 
 u8 Mapper::handle_system_memory_read(const u16 address) {
@@ -71,7 +72,7 @@ class ROM_ONLY : public Mapper {
   }
 };
 
-class MBC_1 : public Mapper {
+class MBC1 : public Mapper {
   u8 read8(const u16 address) {
     if (address >= 0x4000 && address <= 0x7FFF) {
       return bus->cart.read8((0x4000 * (rom_bank == 0 ? 1 : rom_bank)) +
@@ -131,10 +132,9 @@ class MBC_1 : public Mapper {
     return handle_system_memory_write(address, value);
   }
 };
-class MBC_3 : public Mapper {
+class MBC3 : public Mapper {
   u8 read8(const u16 address) {
     if (address >= 0x4000 && address <= 0x7FFF) {
-    // fmt::println("reading: {:#04x} bank: {:d}", (0x4000 * rom_bank) + (address - 0x4000), rom_bank);
       return bus->cart.read8((0x4000 * rom_bank) + (address - 0x4000));
     }
     if (address >= 0xA000 && address <= 0xBFFF) {
@@ -169,15 +169,10 @@ class MBC_3 : public Mapper {
       if (value >= 0x0 && value <= 0x3) {
         ram_bank = value & 0x3;
       }
-
-      // if (value >= 0x08 && value <= 0x0C) {  // RTC
-      //   ram_bank = value;
-      // }
       return;
     }
 
     if (address >= 0x6000 && address <= 0x7FFF) {
-      // banking_mode = value & 0x1;
       return;
     }
 
@@ -203,7 +198,7 @@ Mapper* get_mapper_by_id(u8 mapper_id) {
     case 0x1:
     case 0x2:
     case 0x3: {
-      mapper = dynamic_cast<Mapper*>(new MBC_1());
+      mapper = dynamic_cast<Mapper*>(new MBC1());
       break;
     }
     case 0xF:
@@ -211,7 +206,7 @@ Mapper* get_mapper_by_id(u8 mapper_id) {
     case 0x11:
     case 0x12:
     case 0x13: {
-      mapper = dynamic_cast<Mapper*>(new MBC_3());
+      mapper = dynamic_cast<Mapper*>(new MBC3());
       break;
     }
 
@@ -219,7 +214,6 @@ Mapper* get_mapper_by_id(u8 mapper_id) {
       throw std::runtime_error(
           fmt::format("[MAPPER] unimplemented mapper with ID: {:d} ({})",
                       mapper_id, cart_types.at(mapper_id)));
-      break;
     }
   }
   return mapper;
