@@ -1,19 +1,24 @@
 #include "cart.h"
 
+#include <bits/ranges_util.h>
+
+#include <algorithm>
+#include <sstream>
+#include <vector>
+
+#include "cart_constants.hpp"
 #include "common.h"
 #include "fmt/core.h"
-#include "io.hpp"
-#include "mapper.h"
-#define LOGO_START 0x104
 using namespace Umibozu;
 
 Cartridge::Cartridge(){};
 Cartridge::~Cartridge(){};
 
 std::string Cartridge::get_manufacturer(u8 index,
-                                        std::vector<u8> new_vendor_bytes) {
+                                        std::vector<u8>& new_vendor_bytes) {
   std::stringstream ss;
   ss << new_vendor_bytes[0] << new_vendor_bytes[1];
+  // fmt::println("ss buf: {}", ss.rdbuf()->str());
 
   return index == 0x33 ? NEW_MANUFACTURER_MAP.at(atoi(ss.str().c_str()))
                        : OLD_MANUFACTURER_MAP.at(index);
@@ -28,13 +33,12 @@ void Cartridge::print_cart_info() {
                info.destination_code ? "japanese" : "overseas");
   fmt::println("cgb support: {}", info.supports_cgb_enhancements);
   fmt::println("mem vec size: {}", memory.size());
-  
 }
-std::string Cartridge::get_mapper_string(u8 cartridge_type) {
-  return cart_types.at(cartridge_type);
-};
 
 void Cartridge::set_cart_info() {
+  if (memory[0x143] == 0xC0) {
+    throw std::runtime_error("ROM only works on CGB");
+  }
   bool cgb_enhancements = memory[0x143] == 0x80;
 
   u8 mapper_id  = this->memory.at(0x147);
@@ -58,26 +62,22 @@ void Cartridge::set_cart_info() {
       break;
     }
 
-    default: {
-      break;
-    }
+    assert(false);
   }
+
   u8 destination_code      = memory[0x14A];
   u8 old_manufacturer_code = memory[0x14B];
+  std::vector<u8> manu_bytes;
 
-  info.manufacturer = get_manufacturer(
-      old_manufacturer_code, get_bytes_in_range(memory, 0x144, 0x145));
-  info.mapper_string             = get_mapper_string(mapper_id);
-  info.mapper_id                 = mapper_id;
-  info.rom_banks                 = rom_banks;
-  info.ram_banks                 = ram_banks;
-  info.destination_code          = destination_code;
+  std::copy_n(memory.cbegin() + 0x144, 2, std::back_inserter(manu_bytes));
+
+  info.manufacturer     = get_manufacturer(old_manufacturer_code, manu_bytes);
+  info.mapper_string    = cart_types.at(mapper_id);
+  info.mapper_id        = mapper_id;
+  info.rom_banks        = rom_banks;
+  info.ram_banks        = ram_banks;
+  info.destination_code = destination_code;
   info.supports_cgb_enhancements = cgb_enhancements;
 };
 
-u8 Cartridge::read8(const u64 address) {
-  return memory.at(address);
-}
-// void Cartridge::write8(const u16 address, const u8 value) {
-//   memory.at(address) = value;
-// }
+u8 Cartridge::read8(const u64 address) { return memory.at(address); }
