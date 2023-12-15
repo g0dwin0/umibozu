@@ -1,12 +1,8 @@
 #pragma once
 #include <SDL2/SDL.h>
 
-#include "common.h"
 #include "core/gb.h"
 #include "imgui.h"
-#include "imgui_impl_sdl2.h"
-#include "imgui_impl_sdlrenderer2.h"
-#include "tinyfiledialogs.h"
 struct State {
   SDL_Texture* ppu_texture            = nullptr;
   SDL_Texture* sprite_overlay_texture = nullptr;
@@ -23,15 +19,13 @@ struct State {
 
   ImGuiIO* io;
 };
-struct Config {
-  char const* patterns[2] = {"*.gb", "*.gbc"};
-};
 struct Frontend {
   SDL_Window* window;
   SDL_Renderer* renderer;
   State state;
   GB* gb = nullptr;
-  Config config;
+  
+  char const* patterns[2] = {"*.gb", "*.gbc"};
 
   void handle_events();
   void render_frame();
@@ -42,6 +36,8 @@ struct Frontend {
   void show_ppu_info();
   void show_tile_maps();
 
-  Frontend();
-  Frontend(GB* gb);
+  void shutdown();
+
+  // Frontend();
+  Frontend(GB&);
 };

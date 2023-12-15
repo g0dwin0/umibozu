@@ -1,29 +1,111 @@
 #include "frontend/window.h"
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_video.h>
+#include <cstddef>
 
-#include <SDL2/SDL_render.h>
-
+#include "bus.h"
 #include "common.h"
 #include "cpu.h"
 #include "imgui.h"
+#include "imgui_impl_sdl2.h"
+#include "imgui_impl_sdlrenderer2.h"
 #include "io.hpp"
+#include "tinyfiledialogs.h"
+
 void Frontend::handle_events() {
   SDL_Event event;
 
   while (SDL_PollEvent(&event)) {
     ImGui_ImplSDL2_ProcessEvent(&event);
-    if (event.type == SDL_QUIT) {
-      state.running = false;
+    switch (event.type) {
+      case SDL_QUIT: {
+        // Get SRAM, dump to .sav file
+
+        // gb->bus.cart.ext_ram.data
+
+        state.running = false;
+        break;
+      }
+
+      case SDL_KEYDOWN: {
+        const u8* state = SDL_GetKeyboardState(NULL);
+        if (state[SDL_SCANCODE_RIGHT]) {
+          gb->bus.control_manager.RIGHT = 0;
+        }
+        if (state[SDL_SCANCODE_LEFT]) {
+          gb->bus.control_manager.LEFT = 0;
+        }
+        if (state[SDL_SCANCODE_UP]) {
+          gb->bus.control_manager.UP = 0;
+        }
+        if (state[SDL_SCANCODE_DOWN]) {
+          gb->bus.control_manager.DOWN = 0;
+        }
+
+        if (state[SDL_SCANCODE_Z]) {
+          gb->bus.control_manager.A = 0;
+        }
+        if (state[SDL_SCANCODE_X]) {
+          gb->bus.control_manager.B = 0;
+        }
+        if (state[SDL_SCANCODE_RETURN]) {
+          gb->bus.control_manager.START = 0;
+        }
+        if (state[SDL_SCANCODE_BACKSPACE]) {
+          gb->bus.control_manager.SELECT = 0;
+        }
+
+        gb->bus.request_interrupt(InterruptType::JOYPAD);
+        break;
+      }
+      case SDL_KEYUP: {
+        const u8* state = SDL_GetKeyboardState(NULL);
+
+        if (!state[SDL_SCANCODE_RIGHT]) {
+          gb->bus.control_manager.RIGHT = 1;
+        }
+        if (!state[SDL_SCANCODE_LEFT]) {
+          gb->bus.control_manager.LEFT = 1;
+        }
+        if (!state[SDL_SCANCODE_UP]) {
+          gb->bus.control_manager.UP = 1;
+        }
+        if (!state[SDL_SCANCODE_DOWN]) {
+          gb->bus.control_manager.DOWN = 1;
+        }
+
+        if (!state[SDL_SCANCODE_Z]) {
+          gb->bus.control_manager.A = 1;
+        }
+        if (!state[SDL_SCANCODE_X]) {
+          gb->bus.control_manager.B = 1;
+        }
+        if (!state[SDL_SCANCODE_RETURN]) {
+          gb->bus.control_manager.START = 1;
+        }
+        if (!state[SDL_SCANCODE_BACKSPACE]) {
+          gb->bus.control_manager.SELECT = 1;
+        }
+
+        break;
+      }
     }
   }
 }
+void Frontend::shutdown() {
+  ImGui_ImplSDLRenderer2_Shutdown();
+  ImGui_ImplSDL2_Shutdown();
+  ImGui::DestroyContext();
 
+  SDL_Quit();
+}
 void Frontend::show_menubar() {
   if (ImGui::BeginMainMenuBar()) {
     ImGui::Separator();
     if (ImGui::BeginMenu("File")) {
       if (ImGui::MenuItem("Load ROM")) {
         // draw_gui();
-        auto path = tinyfd_openFileDialog("Load ROM", ".", 2, config.patterns,
+        auto path = tinyfd_openFileDialog("Load ROM", ".", 2, patterns,
                                           "Gameboy ROMs", 0);
         if (path != NULL) {
           this->gb->load_cart(read_file(path));
@@ -62,6 +144,17 @@ void Frontend::show_ppu_info() {
               fmt::format("STAT = {:08b}", gb->bus.wram.data[STAT]).c_str());
 
   ImGui::Separator();
+  if(ImGui::Button("Enable VSYNC")) {
+    SDL_GL_SetSwapInterval(1);
+  }
+  if(ImGui::Button("Disable VSYNC")) {
+    SDL_GL_SetSwapInterval(0);
+  }
+  
+  ImGui::Separator();
+
+  
+
   ImGui::Text("%s",
               fmt::format("LCDC =  {:08b}", gb->bus.wram.data[LCDC]).c_str());
   ImGui::Text(
@@ -107,10 +200,10 @@ void Frontend::show_ppu_info() {
 }
 
 void Frontend::show_cpu_info() {
+  
   ImGui::Begin("CPU INFO", &state.cpu_info_open, 0);
-
-  ImGui::Text("ROM BANK: %d", gb->cpu.mapper->rom_bank);
-  ImGui::Text("RAM BANK: %d", gb->cpu.mapper->ram_bank);
+  // ImGui::Text("ROM BANK: %d", gb->cpu.mapper->rom_bank);
+  // ImGui::Text("RAM BANK: %d", gb->cpu.mapper->ram_bank);
   ImGui::Text("STATUS: %s", gb->cpu.get_cpu_mode().c_str());
   ImGui::Separator();
   ImGui::Text("Z: %x", gb->cpu.get_flag(Umibozu::FLAG::ZERO));
@@ -120,14 +213,17 @@ void Frontend::show_cpu_info() {
   ImGui::Separator();
   ImGui::Text("pointer to cpu = %p", (void*)&gb->cpu);
   ImGui::Text("PC = 0x%x", gb->cpu.PC);
-  ImGui::Text("OPCODE: 0x%x", gb->cpu.peek(gb->cpu.PC));
+  ImGui::Text("OPCODE: 0x%x", gb->cpu.PC);
   ImGui::Text("STATUS: %s", gb->cpu.get_cpu_mode().c_str());
   ImGui::Separator();
   ImGui::Text("DIV = 0x%x", gb->cpu.timer.get_div());
   ImGui::Text("timer enabled = %d", gb->cpu.timer.ticking_enabled);
   ImGui::Text("TIMA = 0x%x", gb->cpu.timer.counter);
-
   ImGui::Text("TMA = 0x%x", gb->cpu.timer.modulo);
+
+  ImGui::Separator();
+  ImGui::Text("%s", fmt::format("P1:  {:08b}", gb->bus.wram.data[P1]).c_str());
+  ImGui::Separator();
 
   ImGui::Text("%s",
               fmt::format("TAC:  {:08b}", gb->bus.wram.data[TAC]).c_str());
@@ -173,9 +269,9 @@ void Frontend::render_frame() {
                      state.io->DisplayFramebufferScale.y);
 
   SDL_SetRenderTarget(renderer, NULL);
-  
+
   SDL_RenderClear(renderer);
-  
+
   ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
   SDL_RenderPresent(renderer);
 }
@@ -185,11 +281,14 @@ void Frontend::show_viewport() {
   ImGui::Text("pointer to gb instance = %p", (void*)&gb);
   ImGui::Text("fps = %f", state.io->Framerate);
 
-  ImGui::Image((void*)state.ppu_texture, ImVec2(256 * 2, 256 * 2));
+  ImGui::Image((void*)state.ppu_texture, ImVec2(160 * 2, 144 * 2));
 
   ImGui::End();
 }
-Frontend::Frontend() {
+Frontend::Frontend(GB& gb) {
+  this->gb = &gb;
+  assert(this->gb != NULL);
+
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) {
     fmt::println("ERROR: failed initialize SDL");
     exit(-1);
@@ -222,17 +321,18 @@ Frontend::Frontend() {
 
   // setup output graphical output texture
   this->state.ppu_texture = SDL_CreateTexture(
-      renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 256, 256);
+      renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 160, 144);
 
   this->state.sprite_overlay_texture = SDL_CreateTexture(
-      renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 256, 256);
+      renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 160, 144);
 
-  
-  this->state.bg_viewport = SDL_CreateTexture(
-      renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 256, 256);
+  // this->state.bg_viewport = SDL_CreateTexture(
+  //     renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 256,
+  //     256);
 
-  this->state.sprite_viewport = SDL_CreateTexture(
-      renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 256, 256);
+  // this->state.sprite_viewport = SDL_CreateTexture(
+  //     renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 256,
+  //     256);
 
   ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
   ImGui_ImplSDLRenderer2_Init(renderer);
