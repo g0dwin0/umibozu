@@ -1,10 +1,11 @@
 #include "cpu.h"
 
+#include <array>
+#include <bitset>
 #include <cassert>
 #include <cstddef>
 #include <stdexcept>
-#include <array>
-#include <bitset>
+
 #include "common.h"
 #include "fmt/core.h"
 #include "ppu.h"
@@ -40,9 +41,8 @@ std::string SharpSM83::get_cpu_mode() {
   assert(false);
 }
 inline void SharpSM83::HALT() {
-
   status = CPU_STATUS::HALT_MODE;
-  
+
   while (status == CPU_STATUS::HALT_MODE) {
     for (u8 i = 0; i < 8; i++) {
       if ((bus->wram.data[IE] & (1 << i)) && (bus->wram.data[IF] & (1 << i))) {
@@ -51,7 +51,6 @@ inline void SharpSM83::HALT() {
     }
     m_cycle();
   };
-
 }
 inline void SharpSM83::LD_HL_SP_E8() {
   u8 op  = read8(PC++);
@@ -131,7 +130,7 @@ inline void SharpSM83::SCF() {
   reset_half_carry();
   set_carry();
 }
-inline void SharpSM83::NOP(){};
+inline void SharpSM83::NOP() {};
 inline void SharpSM83::DEC_R16(REG_16& r) {
   r--;
   m_cycle();
@@ -658,7 +657,7 @@ u8 SharpSM83::read8(const u16 address) {
         case 0x3: {
           return 0xF;
         }
-        assert(false);
+          assert(false);
       }
 
       break;
@@ -707,7 +706,8 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
       break;
     }
     case SC: {
-      // DEPRECATED: doesn't have much use except for logging; remove when color is implemented & working
+      // DEPRECATED: doesn't have much use except for logging; remove when color
+      // is implemented & working
       if (value == 0x81) {
         // bus->serial_port_buffer[bus->serial_port_index++] =
         // bus->wram.data[SB]; std::string str_data(bus->serial_port_buffer,
@@ -738,7 +738,9 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
     }
     case LCDC: {
       if ((value & 0x80) == 0) {
-        bus->wram.data[LY] = 0;
+        bus->wram.data[LY]  = 0;
+        ppu->frame          = Frame();
+        ppu->sprite_overlay = Frame();
       }
       ppu->lcdc = value;
       break;
@@ -755,12 +757,13 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
     case LYC: {
       bus->wram.data[LYC] = value;
       bus->wram.data[STAT] &= 0xfb;
-      bus->wram.data[STAT] |= (bus->wram.data[LY] == bus->wram.data[LYC]) ? 1 << 2 : 0;
+      bus->wram.data[STAT] |=
+          (bus->wram.data[LY] == bus->wram.data[LYC]) ? 1 << 2 : 0;
 
       if ((bus->wram.data[STAT] & 1 << 6) && (bus->wram.data[STAT] & 1 << 2)) {
         bus->request_interrupt(InterruptType::LCD);
       }
-      
+
       break;
     }
     case DMA: {
@@ -1259,7 +1262,7 @@ void SharpSM83::run_instruction() {
     case 0x39: {
       m_cycle();
 
-      if (((HL & 0xfff) + ((SP)&0xfff)) & 0x1000) {
+      if (((HL & 0xfff) + ((SP) & 0xfff)) & 0x1000) {
         set_half_carry();
       } else {
         reset_half_carry();
@@ -3123,7 +3126,7 @@ void SharpSM83::run_instruction() {
     }
     case 0xD6: {
       u8 val = read8(PC++);
-      if (((A & 0xf) - ((val)&0xf)) & 0x10) {
+      if (((A & 0xf) - ((val) & 0xf)) & 0x10) {
         set_half_carry();
       } else {
         reset_half_carry();

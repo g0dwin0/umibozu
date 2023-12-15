@@ -4,6 +4,7 @@
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_surface.h>
 
+#include <algorithm>
 #include <array>
 
 #include "bus.h"
@@ -111,9 +112,13 @@ struct Sprite {
   }
 };
 struct Frame {
-  std::array<u32, 256 * 256> data    = {};
-  std::array<u8, 256 * 256> color_id = {};
+  std::array<u32, 256 * 256> data;
+  std::array<u8, 256 * 256> color_id;
 
+  void clear() {
+    data.fill(0);
+    color_id.fill(0);
+  }
   Frame() { data.fill(0xFFFFFF00); }
 };
 
@@ -148,7 +153,7 @@ class PPU {
   SDL_Renderer* renderer = nullptr;
   std::vector<Sprite> sprite_buf;
   bool had_window_pixels = false;
-  u8 sprite_index = 0;
+  u8 sprite_index        = 0;
 
   u8 get_ppu_mode();
   void set_ppu_mode(RENDERING_MODE mode);

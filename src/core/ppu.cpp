@@ -163,8 +163,7 @@ std::array<Pixel, 8> PPU::decode_pixel_row(u8 high_byte, u8 low_byte) {
     u8 h_c = (high_byte & (1 << i)) != 0 ? 2 : 0;
     u8 l_c = (low_byte & (1 << i)) != 0 ? 1 : 0;
 
-    u8 f_c         = h_c + l_c;
-    pixel_array[i] = Pixel{f_c};
+    pixel_array[i] = Pixel{static_cast<u8>(h_c + l_c)};
   }
 
   return pixel_array;
@@ -260,8 +259,7 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
               w_x_pos_offset++;
             }
 
-            u8 index    = bus->vram.read8(address);
-            active_tile = get_tile_data(index);
+            active_tile = get_tile_data(bus->vram.read8(address));
 
             for (u8 x = 0; x < 8; x++) {
               u32 c = sys_palettes
@@ -358,10 +356,10 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
         break;
       }
       case VBLANK: {
-        Frame d = frame;
-        Frame o = sprite_overlay;
-        SDL_UpdateTexture(sprite_overlay_texture, NULL, &o.data, 4 * 256);
-        SDL_UpdateTexture(frame_texture, NULL, &d.data, 4 * 256);
+        // Frame d = frame;
+        // Frame o = sprite_overlay;
+        SDL_UpdateTexture(sprite_overlay_texture, NULL, &sprite_overlay.data, 4 * 256);
+        SDL_UpdateTexture(frame_texture, NULL, &frame.data, 4 * 256);
 
         SDL_SetRenderTarget(renderer, frame_texture);
         SDL_SetTextureBlendMode(sprite_overlay_texture, SDL_BLENDMODE_BLEND);
@@ -370,8 +368,8 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
         SDL_SetRenderTarget(renderer, NULL);
         bus->request_interrupt(InterruptType::VBLANK);
 
-        sprite_overlay = Frame();
-        frame          = Frame();
+        sprite_overlay.clear();
+        frame.clear();
 
         frame_queued = true;
         break;
