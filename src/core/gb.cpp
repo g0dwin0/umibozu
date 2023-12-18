@@ -6,33 +6,47 @@
 #include "common.h"
 
 void GB::init_hw_regs() {
-  bus.wram.data[P1]          = 0xCF;
-  bus.wram.data[SB]          = 0x00;
-  bus.wram.data[SC]          = 0x7E;
-  bus.wram.data[UNUSED_FF03] = 0xFF;
-  bus.wram.data[DIV]         = 0xAB;
-  bus.wram.data[TIMA]        = 0x00;
-  bus.wram.data[TMA]         = 0x00;
-  bus.wram.data[TAC]         = 0xF8;
-  bus.wram.data[IF]          = 0xE1;
-  bus.wram.data[LCDC]        = 0x91;
-  bus.wram.data[STAT]        = 0x85;
-  bus.wram.data[SCY]         = 0x00;
-  bus.wram.data[SCX]         = 0x00;
-  bus.wram.data[LY]          = 0x00;
-  bus.wram.data[LYC]         = 0x00;
-  bus.wram.data[DMA]         = 0xFF;
-  bus.wram.data[BGP]         = 0xFC;
-  bus.wram.data[OBP0]        = 0x00;
-  bus.wram.data[OBP1]        = 0x00;
-  bus.wram.data[WY]          = 0x00;
-  bus.wram.data[WX]          = 0x00;
-  bus.wram.data[IE]          = 0x00;
+  bus.io.data[JOYPAD]      = 0xC7;
+  bus.io.data[SB]          = 0x00;
+  bus.io.data[SC]          = 0x7F;
+  bus.io.data[UNUSED_FF03] = 0xFF;
+  bus.io.data[DIV]         = 0x00;
+  bus.io.data[TIMA]        = 0x00;
+  bus.io.data[TMA]         = 0x00;
+  bus.io.data[TAC]         = 0xF8;
+  bus.io.data[IF]          = 0xE1;
+  bus.io.data[LCDC]        = 0x91;
+  bus.io.data[STAT]        = 0x00;
+  bus.io.data[SCY]         = 0x00;
+  bus.io.data[SCX]         = 0x00;
+  bus.io.data[LY]          = 0x00;
+  bus.io.data[LYC]         = 0x00;
+  bus.io.data[DMA]         = 0x00;
+  bus.io.data[BGP]         = 0xFC;
+  bus.io.data[OBP0]        = 0x00;
+  bus.io.data[OBP1]        = 0x00;
+  bus.io.data[WY]          = 0x00;
+  bus.io.data[WX]          = 0x00;
+  bus.io.data[KEY0]        = 0xC0;
+  bus.io.data[KEY1]        = 0xFF;
+  bus.io.data[VBK]         = 0xFF;
+  bus.io.data[HDMA1]       = 0xFF;
+  bus.io.data[HDMA2]       = 0xFF;
+  bus.io.data[HDMA3]       = 0xFF;
+  bus.io.data[HDMA4]       = 0xFF;
+  bus.io.data[HDMA5]       = 0xFF;
+  bus.io.data[RP]          = 0xFF;
+  bus.io.data[BCPS]        = 0x00;
+  bus.io.data[BCPD]        = 0x00;
+  bus.io.data[OCPS]        = 0x00;
+  bus.io.data[OCPD]        = 0x00;
+  bus.io.data[SVBK]        = 0xFF;
+  bus.io.data[IE]          = 0x00;
 
-  cpu.AF = 0x01B0;
-  cpu.BC = 0x0013;
-  cpu.DE = 0x00D8;
-  cpu.HL = 0x014D;
+  cpu.AF = 0x1180;
+  cpu.BC = 0x0000;
+  cpu.DE = 0xFF56;
+  cpu.HL = 0x000D;
 }
 
 GB::GB() {
