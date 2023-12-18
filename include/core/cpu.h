@@ -106,8 +106,8 @@ namespace Umibozu {
     PPU* ppu                                           = nullptr;
     Mapper* mapper                                     = nullptr;
     bool IME                                           = false;
-    static constexpr std::array<u8, 4> offset_table    = {9, 3, 5, 7};
-    static constexpr std::array<u8, 5> interrupt_table = {
+     const std::array<u8, 4> OFFSET_TABLE    = {9, 3, 5, 7};
+     const std::array<u8, 5> INTERRUPT_TABLE = {
         VBLANK_INTERRUPT, STAT_INTERRUPT, TIMER_INTERRUPT, SERIAL_INTERRUPT,
         JOYPAD_INTERRUPT};
     u8 read8(const u16 address);

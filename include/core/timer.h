@@ -2,8 +2,8 @@
 
 #include "common.h"
 
-static constexpr std::array<u32, 4> CLOCK_SELECT_TABLE = {1024, 16, 64, 256};
-static constexpr std::array<u32, 4> TIMER_BIT          = {9, 3, 5, 7};
+const std::array<u32, 4> CLOCK_SELECT_TABLE = {1024, 16, 64, 256};
+const std::array<u32, 4> TIMER_BIT          = {9, 3, 5, 7};
 
 struct Timer {
   bool overflow_update_queued = false;

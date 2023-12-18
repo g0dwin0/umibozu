@@ -6,11 +6,16 @@ u8 Mapper::handle_system_memory_read(const u16 address) {
     return bus->cart.read8(address);
   }
   if (address >= 0x8000 && address <= 0x9FFF) {
-    return bus->vram.read8(address - 0x8000);
+    return bus->vram->read8((address - 0x8000));
   }
-  if (address >= 0xC000 && address <= 0xDFFF) {
+  if (address >= 0xC000 && address <= 0xCFFF) {
     return bus->wram.read8(address - 0xC000);
   }
+  if (address >= 0xD000 && address <= 0xDFFF) {
+    return bus->wram.read8((address - 0xD000) +
+                           (bus->svbk == 0 ? 0x1000 : bus->svbk * 0x1000));
+  }
+
   if (address >= 0xE000 && address <= 0xFDFF) {
     return bus->wram.read8((address & 0xDFFF));
   }
@@ -20,8 +25,14 @@ u8 Mapper::handle_system_memory_read(const u16 address) {
   if (address >= 0xFEA0 && address <= 0xFEFF) {  // unused/illegal
     return 0xFF;
   }
-  if (address >= 0xFF00 && address <= 0xFFFF) {
-    return bus->wram.read8(address);
+  if (address >= 0xFF00 && address <= 0xFF7F) {
+    return bus->io.read8(address - 0xFF00);
+  }
+  if (address >= 0xFF80 && address <= 0xFFFE) {
+    return bus->hram.read8(address - 0xFF80);
+  }
+  if (address == 0xFFFF) {
+    return bus->io.read8(IE);
   }
 
   throw std::runtime_error(
@@ -33,12 +44,19 @@ void Mapper::handle_system_memory_write(const u16 address, const u8 value) {
     return;
   }
   if (address >= 0x8000 && address <= 0x9FFF) {
-    // fmt::println("wrote to vram");
-    return bus->vram.write8(address - 0x8000, value);
+    if(bus->vbk == 1){
+    fmt::println("writing to VRAM {:d}:{:#04x}", +bus->vbk, address);}
+    return bus->vram->write8(address - 0x8000, value);
   }
-  if (address >= 0xC000 && address <= 0xDFFF) {
+  if (address >= 0xC000 && address <= 0xCFFF) {
     return bus->wram.write8(address - 0xC000, value);
   }
+  if (address >= 0xD000 && address <= 0xDFFF) {
+    return bus->wram.write8(
+        (address - 0xD000) + (bus->svbk == 0 ? 0x1000 : bus->svbk * 0x1000),
+        value);
+  }
+
   if (address >= 0xE000 && address <= 0xFDFF) {
     return bus->wram.write8((address & 0xDFFF), value);
   }
@@ -48,9 +66,15 @@ void Mapper::handle_system_memory_write(const u16 address, const u8 value) {
   if (address >= 0xFEA0 && address <= 0xFEFF) {  // unused/illegal
     return;
   }
-  if (address >= 0xFF00 && address <= 0xFFFF) {
-    return bus->wram.write8(address, value);
+  // if (address >= 0xFF00 && address <= 0xFF7F) {
+  //   assert(false);  // should be caught by handle sys io write
+  // }
+  if (address >= 0xFF80 && address <= 0xFFFE) {
+    return bus->hram.write8(address, value);
   }
+  // if (address == 0xFFFF) {
+  //   assert(false);  // should be caught by handle sys io write
+  // }
 
   throw std::runtime_error(
       fmt::format("[CPU] out of bounds CPU write: {:#04x}", address));
@@ -161,6 +185,7 @@ class MBC3 : public Mapper {
         rom_bank = 1;
         return;
       }
+      this->read8(0x4000);
       rom_bank = value;
       return;
     }

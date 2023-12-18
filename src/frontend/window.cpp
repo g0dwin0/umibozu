@@ -1,6 +1,9 @@
 #include "frontend/window.h"
+
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_video.h>
+
 #include <cstddef>
 
 #include "bus.h"
@@ -30,29 +33,29 @@ void Frontend::handle_events() {
       case SDL_KEYDOWN: {
         const u8* state = SDL_GetKeyboardState(NULL);
         if (state[SDL_SCANCODE_RIGHT]) {
-          gb->bus.control_manager.RIGHT = 0;
+          gb->bus.joypad.RIGHT = 0;
         }
         if (state[SDL_SCANCODE_LEFT]) {
-          gb->bus.control_manager.LEFT = 0;
+          gb->bus.joypad.LEFT = 0;
         }
         if (state[SDL_SCANCODE_UP]) {
-          gb->bus.control_manager.UP = 0;
+          gb->bus.joypad.UP = 0;
         }
         if (state[SDL_SCANCODE_DOWN]) {
-          gb->bus.control_manager.DOWN = 0;
+          gb->bus.joypad.DOWN = 0;
         }
 
         if (state[SDL_SCANCODE_Z]) {
-          gb->bus.control_manager.A = 0;
+          gb->bus.joypad.A = 0;
         }
         if (state[SDL_SCANCODE_X]) {
-          gb->bus.control_manager.B = 0;
+          gb->bus.joypad.B = 0;
         }
         if (state[SDL_SCANCODE_RETURN]) {
-          gb->bus.control_manager.START = 0;
+          gb->bus.joypad.START = 0;
         }
         if (state[SDL_SCANCODE_BACKSPACE]) {
-          gb->bus.control_manager.SELECT = 0;
+          gb->bus.joypad.SELECT = 0;
         }
 
         gb->bus.request_interrupt(InterruptType::JOYPAD);
@@ -62,29 +65,29 @@ void Frontend::handle_events() {
         const u8* state = SDL_GetKeyboardState(NULL);
 
         if (!state[SDL_SCANCODE_RIGHT]) {
-          gb->bus.control_manager.RIGHT = 1;
+          gb->bus.joypad.RIGHT = 1;
         }
         if (!state[SDL_SCANCODE_LEFT]) {
-          gb->bus.control_manager.LEFT = 1;
+          gb->bus.joypad.LEFT = 1;
         }
         if (!state[SDL_SCANCODE_UP]) {
-          gb->bus.control_manager.UP = 1;
+          gb->bus.joypad.UP = 1;
         }
         if (!state[SDL_SCANCODE_DOWN]) {
-          gb->bus.control_manager.DOWN = 1;
+          gb->bus.joypad.DOWN = 1;
         }
 
         if (!state[SDL_SCANCODE_Z]) {
-          gb->bus.control_manager.A = 1;
+          gb->bus.joypad.A = 1;
         }
         if (!state[SDL_SCANCODE_X]) {
-          gb->bus.control_manager.B = 1;
+          gb->bus.joypad.B = 1;
         }
         if (!state[SDL_SCANCODE_RETURN]) {
-          gb->bus.control_manager.START = 1;
+          gb->bus.joypad.START = 1;
         }
         if (!state[SDL_SCANCODE_BACKSPACE]) {
-          gb->bus.control_manager.SELECT = 1;
+          gb->bus.joypad.SELECT = 1;
         }
 
         break;
@@ -128,35 +131,35 @@ void Frontend::show_ppu_info() {
   ImGui::Text("pointer to ppu = %p", (void*)&gb->ppu);
   ImGui::Text("PPU MODE = %s", gb->ppu.get_mode_string().c_str());
   ImGui::Text("dots = %d", gb->ppu.dots);
-  ImGui::Text("LY (scanline) = %d", gb->bus.wram.data[LY]);
-  ImGui::Text("LYC = %d", gb->bus.wram.data[LYC]);
-  // ImGui::Text("scanline sprite count = %d", gb->ppu.sprite_count);
+  ImGui::Text("LY (scanline) = %d", gb->bus.io.data[LY]);
+  ImGui::Text("LYC = %d", gb->bus.io.data[LYC]);
+  ImGui::Text("WRAM BANK = %d", gb->bus.svbk);
+  ImGui::Text("VRAM BANK = %d", gb->bus.vbk);
+
   // ImGui::Text("oam index = %d", gb->ppu.sprite_index);
   ImGui::Separator();
   ImGui::Text("x pos offset = %d", gb->ppu.x_pos_offset);
   ImGui::Separator();
-  ImGui::Text("SCX = %d", gb->bus.wram.data[SCX]);
-  ImGui::Text("SCY = %d", gb->bus.wram.data[SCY]);
-  ImGui::Text("WY = %d", gb->bus.wram.data[WY]);
-  ImGui::Text("WX = %d", gb->bus.wram.data[WX]);
-  ImGui::Text("STAT = %d", gb->bus.wram.data[STAT]);
+  ImGui::Text("SCX = %d", gb->bus.io.data[SCX]);
+  ImGui::Text("SCY = %d", gb->bus.io.data[SCY]);
+  ImGui::Text("WY = %d", gb->bus.io.data[WY]);
+  ImGui::Text("WX = %d", gb->bus.io.data[WX]);
+  ImGui::Text("STAT = %d", gb->bus.io.data[STAT]);
   ImGui::Text("%s",
-              fmt::format("STAT = {:08b}", gb->bus.wram.data[STAT]).c_str());
+              fmt::format("STAT = {:08b}", gb->bus.io.data[STAT]).c_str());
 
   ImGui::Separator();
-  if(ImGui::Button("Enable VSYNC")) {
+  if (ImGui::Button("Enable VSYNC")) {
     SDL_GL_SetSwapInterval(1);
   }
-  if(ImGui::Button("Disable VSYNC")) {
+  if (ImGui::Button("Disable VSYNC")) {
     SDL_GL_SetSwapInterval(0);
   }
-  
+
   ImGui::Separator();
 
-  
-
   ImGui::Text("%s",
-              fmt::format("LCDC =  {:08b}", gb->bus.wram.data[LCDC]).c_str());
+              fmt::format("LCDC =  {:08b}", gb->bus.io.data[LCDC]).c_str());
   ImGui::Text(
       "LCDC.0 (BG & window enable) = %s",
       gb->ppu.lcdc.bg_and_window_enable_priority == 1 ? "True" : "False");
@@ -200,7 +203,6 @@ void Frontend::show_ppu_info() {
 }
 
 void Frontend::show_cpu_info() {
-  
   ImGui::Begin("CPU INFO", &state.cpu_info_open, 0);
   // ImGui::Text("ROM BANK: %d", gb->cpu.mapper->rom_bank);
   // ImGui::Text("RAM BANK: %d", gb->cpu.mapper->ram_bank);
@@ -222,16 +224,16 @@ void Frontend::show_cpu_info() {
   ImGui::Text("TMA = 0x%x", gb->cpu.timer.modulo);
 
   ImGui::Separator();
-  ImGui::Text("%s", fmt::format("P1:  {:08b}", gb->bus.wram.data[P1]).c_str());
+  ImGui::Text("%s",
+              fmt::format("JOYPAD:  {:08b}", gb->bus.io.data[JOYPAD]).c_str());
   ImGui::Separator();
 
-  ImGui::Text("%s",
-              fmt::format("TAC:  {:08b}", gb->bus.wram.data[TAC]).c_str());
+  ImGui::Text("%s", fmt::format("TAC:  {:08b}", gb->bus.io.data[TAC]).c_str());
 
   ImGui::Separator();
   ImGui::Text("%s", fmt::format("IME: {}", gb->cpu.IME).c_str());
-  ImGui::Text("%s", fmt::format("IF:  {:08b}", gb->bus.wram.data[IF]).c_str());
-  ImGui::Text("%s", fmt::format("IE:  {:08b}", gb->bus.wram.data[IE]).c_str());
+  ImGui::Text("%s", fmt::format("IF:  {:08b}", gb->bus.io.data[IF]).c_str());
+  ImGui::Text("%s", fmt::format("IE:  {:08b}", gb->bus.io.data[IE]).c_str());
 
   if (ImGui::Button("STEP")) {
     gb->cpu.run_instruction();
@@ -320,10 +322,10 @@ Frontend::Frontend(GB& gb) {
 
   // setup output graphical output texture
   this->state.ppu_texture = SDL_CreateTexture(
-      renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 160, 144);
+      renderer, SDL_PIXELFORMAT_BGR555, SDL_TEXTUREACCESS_TARGET, 256, 256);
 
-  this->state.sprite_overlay_texture = SDL_CreateTexture(
-      renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 160, 144);
+  // this->state.sprite_overlay_texture = SDL_CreateTexture(
+  //     renderer, SDL_PIXELFORMAT_BGR555, SDL_TEXTUREACCESS_TARGET, 256, 256);
 
   // this->state.bg_viewport = SDL_CreateTexture(
   //     renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 256,

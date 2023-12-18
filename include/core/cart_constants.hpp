@@ -37,6 +37,7 @@ const std::unordered_map<u8, std::string> cart_types = {
 const std::unordered_map<u8, std::string> NEW_MANUFACTURER_MAP = {
     {0x00,                     "None"},
     {0x01,            "Nintendo R&D1"},
+    {0x02,                  "UNKNOWN"},
     {0x08,                   "Capcom"},
     {0x13,          "Electronic Arts"},
     {0x18,              "Hudson Soft"},

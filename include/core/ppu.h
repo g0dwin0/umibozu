@@ -156,13 +156,6 @@ struct SystemPalettes {
   std::array<Palette, 8> BGP;
   std::array<Palette, 8> OBP;
 
-  // std::array<Palette, 2> OBP = {
-  //     Palette{WHITE + MIN_ALPHA, LIGHTGREY + MAX_ALPHA, DARKGREY + MAX_ALPHA,
-  //             BLACK + MAX_ALPHA},
-  //     Palette{WHITE + MIN_ALPHA, LIGHTGREY + MAX_ALPHA, DARKGREY + MAX_ALPHA,
-  //             BLACK + MAX_ALPHA}
-  // };
-
   Palette get_palette_by_id(u8 index) {
     assert(index < 8);
     return OBP[index];
@@ -208,8 +201,6 @@ class PPU {
   bool frame_queued            = false;
   u8 y_index                   = 0;
   u8 x_index                   = 0;
-  // u8 its                       = 0;
-  // bool done                    = false;
 
   PPU();
   u8 x_pos_offset = 0;
@@ -218,13 +209,13 @@ class PPU {
   void set_renderer(SDL_Renderer* renderer);
   void set_frame_texture(SDL_Texture* texture);
   void set_sprite_overlay_texture(SDL_Texture* texture);
-  void get_dots();
+  // void get_dots();
   void increment_scanline();
   Tile get_tile_data(u16 address, bool sprite = false);
   Tile get_tile_sprite_data(u16 index, bool sprite = false, u8 bank = 0);
 
   // TODO: allow for custom shades in frontend
-  const std::array<u32, 4> shade_table = {WHITE, LIGHTGREY, DARKGREY, BLACK};
+  // const std::array<u32, 4> shade_table = {WHITE, LIGHTGREY, DARKGREY, BLACK};
   bool window_enabled                  = false;
   std::array<Pixel, 8> decode_pixel_row(u8 high_byte, u8 low_byte);
 };

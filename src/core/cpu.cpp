@@ -624,8 +624,8 @@ void SharpSM83::m_cycle() {
   if (timer.ticking_enabled) {
     // fmt::println("offset: {:d}", offset_table[bus->wram.data[TAC] & 0x3]);
 
-    u16 div_bits = (timer.div & (1 << offset_table[bus->io.data[TAC] & 0x3])) >>
-                   offset_table[bus->io.data[TAC] & 0x3];
+    u16 div_bits = (timer.div & (1 << OFFSET_TABLE[bus->io.data[TAC] & 0x3])) >>
+                   OFFSET_TABLE[bus->io.data[TAC] & 0x3];
     // fmt::println("Div bits: {:d}", div_bits);
     u8 te_bit = (bus->io.data[TAC] & (1 << 2)) >> 2;
 
@@ -1017,7 +1017,7 @@ void SharpSM83::handle_interrupts() {
         m_cycle();
         push_to_stack(((PC & 0xFF00) >> 8));
         push_to_stack((PC & 0xFF));
-        PC = interrupt_table[i];
+        PC = INTERRUPT_TABLE[i];
         m_cycle();
         // fmt::println("[INTERRUPT HANDLER] AFTER PC: {:#04x}", PC);
       };

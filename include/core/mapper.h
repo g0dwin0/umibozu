@@ -15,10 +15,11 @@ enum RTC_REGISTER {
 
 class Mapper {
  public:
-  static inline Bus* bus                                 = nullptr;
-  u8 banking_mode                                        = 0;
-  u32 rom_bank                                            = 0;
-  u32 ram_bank                                            = 0;
+  static inline Bus* bus = nullptr;
+  u8 banking_mode        = 0;
+  u32 rom_bank           = 0;
+  u32 ram_bank           = 0;
+
   bool ram_rtc_enabled                                   = false;
   virtual u8 read8(const u16 address)                    = 0;
   virtual void write8(const u16 address, const u8 value) = 0;
