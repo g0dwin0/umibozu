@@ -15,7 +15,8 @@ Cartridge::~Cartridge(){};
 std::string Cartridge::get_title(std::span<const u8> title_bytes) {
   std::stringstream ss;
 
-  for (size_t i = 0; i < 16; i++) {
+  for (size_t i = 0; i < 16; i++) { 
+    if(title_bytes[i] == 0) break;
     ss << title_bytes[i];
   }
 
@@ -25,7 +26,8 @@ std::string Cartridge::get_manufacturer(u8 index,
                                         std::span<const u8> new_vendor_bytes) {
   std::stringstream ss;
   ss << new_vendor_bytes[0] << new_vendor_bytes[1];
-
+  fmt::println("{}", index);
+  fmt::println("{}", atoi(ss.str().c_str()));
   return index == 0x33 ? NEW_MANUFACTURER_MAP.at(atoi(ss.str().c_str()))
                        : OLD_MANUFACTURER_MAP.at(index);
 }
@@ -44,9 +46,9 @@ void Cartridge::print_cart_info() {
 
 void Cartridge::set_cart_info() {
 
-  if (memory[0x143] == 0xC0) {
-    throw std::runtime_error("ROM only works on CGB");
-  }
+  // if (memory[0x143] == 0xC0) {
+  //   // throw std::runtime_error("ROM only works on CGB");
+  // }
 
   bool cgb_enhancements = memory[0x143] == 0x80;
 
