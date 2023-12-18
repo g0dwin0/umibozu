@@ -1,5 +1,7 @@
 #include "cpu.h"
 
+#include <SDL2/SDL_pixels.h>
+
 #include <array>
 #include <bitset>
 #include <cassert>
@@ -9,6 +11,10 @@
 #include "common.h"
 #include "fmt/core.h"
 #include "ppu.h"
+
+// #define RED_MASK 0b000000000011111
+// #define GREEN_MASK 0b000001111100000
+// #define BLUE_MASK 0b111110000000000
 
 using namespace Umibozu;
 
@@ -38,14 +44,14 @@ std::string SharpSM83::get_cpu_mode() {
     }
   }
 
-  assert(false);
+  throw std::runtime_error("invalid cpu mode");
 }
 inline void SharpSM83::HALT() {
   status = CPU_STATUS::HALT_MODE;
 
   while (status == CPU_STATUS::HALT_MODE) {
     for (u8 i = 0; i < 8; i++) {
-      if ((bus->wram.data[IE] & (1 << i)) && (bus->wram.data[IF] & (1 << i))) {
+      if ((bus->io.data[IE] & (1 << i)) && (bus->io.data[IF] & (1 << i))) {
         status = CPU_STATUS::ACTIVE;
       }
     }
@@ -618,11 +624,10 @@ void SharpSM83::m_cycle() {
   if (timer.ticking_enabled) {
     // fmt::println("offset: {:d}", offset_table[bus->wram.data[TAC] & 0x3]);
 
-    u16 div_bits =
-        (timer.div & (1 << offset_table[bus->wram.data[TAC] & 0x3])) >>
-        offset_table[bus->wram.data[TAC] & 0x3];
+    u16 div_bits = (timer.div & (1 << offset_table[bus->io.data[TAC] & 0x3])) >>
+                   offset_table[bus->io.data[TAC] & 0x3];
     // fmt::println("Div bits: {:d}", div_bits);
-    u8 te_bit = (bus->wram.data[TAC] & (1 << 2)) >> 2;
+    u8 te_bit = (bus->io.data[TAC] & (1 << 2)) >> 2;
 
     u8 n_val = div_bits & te_bit;
 
@@ -638,21 +643,21 @@ void SharpSM83::m_cycle() {
 
 u8 SharpSM83::read8(const u16 address) {
   m_cycle();
-
+  // fmt::println("[R] {:#04x}", address);
   if (address >= 0xFE00 && address <= 0xFE9F && ppu->get_mode() >= 2) {
     return 0xFF;
   };
 
-  switch (address) {
-    case P1: {
-      u8 method_bits = (bus->wram.data[P1] & 0x30) >> 4;
+  switch (address - 0xFF00) {
+    case JOYPAD: {
+      u8 method_bits = (bus->io.data[JOYPAD] & 0x30) >> 4;
 
       switch (method_bits) {
         case 0x1: {
-          return bus->control_manager.get_buttons();
+          return bus->joypad.get_buttons();
         }
         case 0x2: {
-          return bus->control_manager.get_dpad();
+          return bus->joypad.get_dpad();
         }
         case 0x3: {
           return 0xF;
@@ -672,13 +677,26 @@ u8 SharpSM83::read8(const u16 address) {
       return timer.modulo;
     }
     case TAC: {
-      return bus->wram.data[TAC];
+      return bus->io.data[TAC];
     }
 
     case STAT: {
       if (ppu->lcdc.lcd_ppu_enable == 0) {
         return 0;
       }
+      break;
+    }
+    case SVBK:
+    case VBK: {
+      assert(false);
+      break;
+    }
+    case KEY1: {
+      throw std::runtime_error("KEY1 unimplemented");
+    }
+
+    case HDMA5: {
+      ;
     }
   }
   return mapper->read8(address);
@@ -693,14 +711,14 @@ u16 SharpSM83::read16(const u16 address) {
 // debug only!
 u8 SharpSM83::peek(const u16 address) { return mapper->read8(address); }
 void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
-  // if (address != SB && address != SC) {
-  // fmt::println("register address: {:#04x}, value: {:#04x}", address,
-  // value);
+  // if (address != (0xFF00 + SB) && address != (0xFF00 + SC)) {
+  //   fmt::println("register address: {:#04x}, value: {:#04x}", address,
+  //   value);
   // }
-  switch (address) {
-    case P1: {
+  switch (address - 0xFF00) {
+    case JOYPAD: {
       if (value == 0x30) {  // BUTTONS NOR D-PAD SELECTED
-        bus->wram.data[P1] = 0xFF;
+        bus->io.data[JOYPAD] = 0xFF;
         return;
       }
       break;
@@ -738,7 +756,7 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
     }
     case LCDC: {
       if ((value & 0x80) == 0) {
-        bus->wram.data[LY]  = 0;
+        bus->io.data[LY]    = 0;
         ppu->frame          = Frame();
         ppu->sprite_overlay = Frame();
       }
@@ -747,20 +765,20 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
     }
     case STAT: {
       // fmt::println("STAT: {:08b}", value);
-      u8 read_only_bits    = bus->wram.data[STAT] & 0x7;
-      bus->wram.data[STAT] = (value & 0xf8) + read_only_bits;
+      u8 read_only_bits  = bus->io.data[STAT] & 0x7;
+      bus->io.data[STAT] = (value & 0xf8) + read_only_bits;
       return;
     }
     case LY: {  // read only
       return;
     }
     case LYC: {
-      bus->wram.data[LYC] = value;
-      bus->wram.data[STAT] &= 0xfb;
-      bus->wram.data[STAT] |=
-          (bus->wram.data[LY] == bus->wram.data[LYC]) ? 1 << 2 : 0;
+      bus->io.data[LYC] = value;
+      bus->io.data[STAT] &= 0xfb;
+      bus->io.data[STAT] |=
+          (bus->io.data[LY] == bus->io.data[LYC]) ? 1 << 2 : 0;
 
-      if ((bus->wram.data[STAT] & 1 << 6) && (bus->wram.data[STAT] & 1 << 2)) {
+      if ((bus->io.data[STAT] & 1 << 6) && (bus->io.data[STAT] & 1 << 2)) {
         bus->request_interrupt(InterruptType::LCD);
       }
 
@@ -774,44 +792,184 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
       }
       break;
     }
-    case OBP0: {
-      // fmt::println("OBP0 write: {:08b}", value);
-      u8 id_0 = (value & 0b00000000);
-      u8 id_1 = (value & 0b00001100) >> 2;
-      u8 id_2 = (value & 0b00110000) >> 4;
-      u8 id_3 = (value & 0b11000000) >> 6;
+    // case OBP0: {
+    //   // fmt::println("OBP0 write: {:08b}", value);
+    //   u8 id_0 = 0;
+    //   u8 id_1 = (value & 0b00001100) >> 2;
+    //   u8 id_2 = (value & 0b00110000) >> 4;
+    //   u8 id_3 = (value & 0b11000000) >> 6;
 
-      ppu->sys_palettes.OBP[0][0] = ppu->shade_table[id_0] + MIN_ALPHA;
-      ppu->sys_palettes.OBP[0][1] = ppu->shade_table[id_1] + MAX_ALPHA;
-      ppu->sys_palettes.OBP[0][2] = ppu->shade_table[id_2] + MAX_ALPHA;
-      ppu->sys_palettes.OBP[0][3] = ppu->shade_table[id_3] + MAX_ALPHA;
+    //   ppu->sys_palettes.OBP[0][0] = ppu->shade_table[id_0] + MIN_ALPHA;
+    //   ppu->sys_palettes.OBP[0][1] = ppu->shade_table[id_1] + MAX_ALPHA;
+    //   ppu->sys_palettes.OBP[0][2] = ppu->shade_table[id_2] + MAX_ALPHA;
+    //   ppu->sys_palettes.OBP[0][3] = ppu->shade_table[id_3] + MAX_ALPHA;
 
-      // fmt::println("OBP_0[0] = {:#16x}", ppu->OBP_0[0]);
-      // fmt::println("OBP_0[1] = {:#16x}", ppu->OBP_0[1]);
-      // fmt::println("OBP_0[2] = {:#16x}", ppu->OBP_0[2]);
-      // fmt::println("OBP_0[3] = {:#16x}", ppu->OBP_0[3]);
+    //   // fmt::println("OBP_0[0] = {:#16x}", ppu->OBP_0[0]);
+    //   // fmt::println("OBP_0[1] = {:#16x}", ppu->OBP_0[1]);
+    //   // fmt::println("OBP_0[2] = {:#16x}", ppu->OBP_0[2]);
+    //   // fmt::println("OBP_0[3] = {:#16x}", ppu->OBP_0[3]);
+    //   break;
+    // }
+    // case OBP1: {
+    //   // fmt::println("OBP1 write: {:08b}", value);
+    //   u8 id_0 = 0;
+    //   u8 id_1 = (value & 0b00001100) >> 2;
+    //   u8 id_2 = (value & 0b00110000) >> 4;
+    //   u8 id_3 = (value & 0b11000000) >> 6;
+
+    //   ppu->sys_palettes.OBP[1][0] = ppu->shade_table[id_0] + MIN_ALPHA;
+    //   ppu->sys_palettes.OBP[1][1] = ppu->shade_table[id_1] + MAX_ALPHA;
+    //   ppu->sys_palettes.OBP[1][2] = ppu->shade_table[id_2] + MAX_ALPHA;
+    //   ppu->sys_palettes.OBP[1][3] = ppu->shade_table[id_3] + MAX_ALPHA;
+
+    //   // fmt::println("OBP_1[0] = {:#16x}", ppu->OBP_1[0]);
+    //   // fmt::println("OBP_1[1] = {:#16x}", ppu->OBP_1[1]);
+    //   // fmt::println("OBP_1[2] = {:#16x}", ppu->OBP_1[2]);
+    //   // fmt::println("OBP_1[3] = {:#16x}", ppu->OBP_1[3]);
+    //   break;
+    // }
+    case VBK: {
+      bus->vbk  = (value & 0x1);
+      bus->vram = &bus->vram_banks[bus->vbk];
+      fmt::println("VRAM bank: {:d}", +bus->vbk);
+
       break;
     }
-    case OBP1: {
-      // fmt::println("OBP1 write: {:08b}", value);
-      u8 id_0 = (value & 0b00000000);
-      u8 id_1 = (value & 0b00001100) >> 2;
-      u8 id_2 = (value & 0b00110000) >> 4;
-      u8 id_3 = (value & 0b11000000) >> 6;
-
-      ppu->sys_palettes.OBP[1][0] = ppu->shade_table[id_0] + MIN_ALPHA;
-      ppu->sys_palettes.OBP[1][1] = ppu->shade_table[id_1] + MAX_ALPHA;
-      ppu->sys_palettes.OBP[1][2] = ppu->shade_table[id_2] + MAX_ALPHA;
-      ppu->sys_palettes.OBP[1][3] = ppu->shade_table[id_3] + MAX_ALPHA;
-
-      // fmt::println("OBP_1[0] = {:#16x}", ppu->OBP_1[0]);
-      // fmt::println("OBP_1[1] = {:#16x}", ppu->OBP_1[1]);
-      // fmt::println("OBP_1[2] = {:#16x}", ppu->OBP_1[2]);
-      // fmt::println("OBP_1[3] = {:#16x}", ppu->OBP_1[3]);
+    case SVBK: {
+      bus->svbk = (value & 0x7);
+      fmt::println("WRAM bank: {:d}", +bus->svbk);
       break;
+    }
+    case KEY1: {
+      throw std::runtime_error("DOUBLE SPEED MODE NOT IMPLEMENTED");
+    }
+    case HDMA1: {
+      break;
+    }
+    case HDMA2: {
+      break;
+    }
+    case HDMA3: {
+      break;
+    }
+    case HDMA4: {
+      break;
+    }
+
+    case HDMA5: {
+      u16 length = ((1 + ((value & 0x7f))) * 0x10);
+      u16 src    = ((bus->io.data[HDMA1] << 8) + bus->io.data[HDMA2]) & 0xfff0;
+      u16 dst    = ((bus->io.data[HDMA3] << 8) + bus->io.data[HDMA4]) & 0x1ff0;
+
+      fmt::println("[HDMA] src:     {:#16x}", src);
+      fmt::println("[HDMA] dst:     {:#16x}", dst);
+      fmt::println("[HDMA] length:  {:#16x}", length);
+
+      if ((value & 0x80) == 0) {  // gp dma
+        for (size_t index = 0; index < length; index++) {
+          u8 src_data = mapper->read8((src + index) % 0x10000);
+          // (0b0001111111110000)
+
+          u16 vram_address = ((dst + index) %  0x1fff);
+          fmt::println("{:#16x}", vram_address);
+          fmt::println("[GDMA] {:#04x} -> VRM: {:#16x} ", src_data,
+                       0x8000 + vram_address);
+
+          bus->vram->write8(vram_address, src_data);
+        }
+      } else {  // hblank dma
+        throw std::runtime_error("HBLANK DMA not implemented");
+      }
+
+      // assert(false);
+      // mapper->read8(const u16 address);
+      // std::vector<u8> to_be_copied_data;
+      // std::copy(to_be_copied_data.begin(), to_be_copied_data.end(),
+      // bus->vram->)
+      break;
+    }
+
+    case BCPS: {
+      bus->bcps.address        = value & 0b111111;
+      bus->bcps.auto_increment = (value & (1 << 7)) >> 7;
+      fmt::println("[BCPS] new address: {:d}", +bus->bcps.address);
+      fmt::println("[BCPS] auto increment: {:d}", bus->bcps.auto_increment);
+
+      break;
+    }
+    case BCPD: {
+      bus->bg_palette_ram.data[bus->bcps.address] = value;
+      if (bus->bcps.auto_increment) {
+        bus->bcps.address++;
+      }
+      fmt::println("bcps address: {:#04x}", +bus->bcps.address);
+
+      for (u8 palette_id = 0; palette_id < 8; palette_id++) {
+        for (u8 color = 0; color < 4; color++) {
+          u8 p_low =
+              bus->bg_palette_ram.data.at((palette_id * 8) + (color * 2) + 0);
+          u8 p_high =
+              (bus->bg_palette_ram.data.at((palette_id * 8) + (color * 2) + 1));
+
+          u16 f_color = (p_high << 8) + p_low;
+          // fmt::println("f color: {:#16X}", f_color);
+          // fmt::println("Palette ID: BGP[{:d}][{:d}] f_color: {:08b}",
+          //              palette_id, color, f_color);
+          // fmt::println("Palette ID: BGP[{:d}][{:d}] f_color: {:#04x}",
+          //              palette_id, color, f_color);
+
+          ppu->sys_palettes.BGP[palette_id][color] = f_color;
+
+          // ppu->sys_palettes.BGP[palette_id][color] |= (1 << 0);
+          // fmt::println("{:08b} AA: ", (1 << 0));
+
+          // fmt::println("[BGP] {:#16b}",
+          // ppu->sys_palettes.BGP[palette_id][color]);
+          // Palette ID 1   = 8
+          // Color   ID 1   = 2
+          // Byte (High)    = 1
+          // Byte (Low)     = 0
+        }
+      }
+      break;
+    }
+    case OCPS: {
+      bus->ocps.address        = value & 0b111111;
+      bus->ocps.auto_increment = (value & (1 << 7)) >> 7;
+      break;
+      // throw std::runtime_error("OCPS not implemented");
+    }
+    case OCPD: {
+      bus->obj_palette_ram.data[bus->ocps.address] = value;
+      if (bus->ocps.auto_increment) {
+        bus->ocps.address++;
+      }
+
+      fmt::println("ocps address: {:#04x}", +bus->ocps.address);
+
+      for (u8 palette_id = 0; palette_id < 8; palette_id++) {
+        for (u8 color = 0; color < 4; color++) {
+          u8 p_low =
+              bus->obj_palette_ram.data.at((palette_id * 8) + (color * 2) + 0);
+          u8 p_high = (bus->obj_palette_ram.data.at((palette_id * 8) +
+                                                    (color * 2) + 1));
+
+          u16 f_color = (p_high << 8) + p_low;
+
+          ppu->sys_palettes.OBP[palette_id][color] = f_color;
+
+          // ppu->sys_palettes.OBP[palette_id][color] &= ~(1 << 0);
+          // Palette ID 1   = 8
+          // Color   ID 1   = 2
+          // Byte (High)    = 1
+          // Byte (Low)     = 0
+        }
+      }
+      break;
+      // throw std::runtime_error("OCPD not implemented");
     }
   }
-  return bus->wram.write8(address, value);
+  return bus->io.write8(address - 0xFF00, value);
 };
 void SharpSM83::write8(const u16 address, const u8 value) {
   m_cycle();
@@ -819,7 +977,8 @@ void SharpSM83::write8(const u16 address, const u8 value) {
   if (address >= 0xFE00 && address <= 0xFE9F && ppu->get_mode() >= 2) {
     return;
   };
-  if (address >= 0xFF00 && address <= 0xFF7F) {
+  if ((address >= 0xFF00 && address <= 0xFF7F) || address == 0xFFFF) {
+    // fmt::println("io write");
     return handle_system_io_write(address, value);
   };
   mapper->write8(address, value);
@@ -837,14 +996,14 @@ u8 SharpSM83::get_flag(FLAG flag) { return F & (1 << (u8)flag) ? 1 : 0; }
 void SharpSM83::handle_interrupts() {
   // fmt::println("[HANDLE INTERRUPTS] IF:   {:08b}", bus->wram.data[IF]);
   // fmt::println("[HANDLE INTERRUPTS] IE:   {:08b}", bus->wram.data[IE]);
-  if (IME && bus->wram.data[IE] && bus->wram.data[IF]) {
+  if (IME && bus->io.data[IE] && bus->io.data[IF]) {
     // fmt::println("[HANDLE INTERRUPTS] IME:  {:08b}", IME);
 
     // IE -> what specific interrupt handler is allowed to be called? (per bit)
     // IF -> requested interrupts (handle here!)
 
-    std::bitset<8> ie_set(bus->wram.data[IE]);
-    std::bitset<8> if_set(bus->wram.data[IF]);
+    std::bitset<8> ie_set(bus->io.data[IE]);
+    std::bitset<8> if_set(bus->io.data[IF]);
 
     for (size_t i = 0; i < 5; i++) {
       if (if_set[i] == true && ie_set[i] == true) {
@@ -853,7 +1012,7 @@ void SharpSM83::handle_interrupts() {
         // fmt::println("handling interrupt: {:#04x}", i);
         // fmt::println("[INTERRUPT HANDLER] PC: {:#04x}", PC);
         if_set[i].flip();
-        // bus->wram.data[IF] &= ~(1 << i);
+        // bus->io.data[IF] &= ~(1 << i);
         m_cycle();
         m_cycle();
         push_to_stack(((PC & 0xFF00) >> 8));
@@ -864,8 +1023,8 @@ void SharpSM83::handle_interrupts() {
       };
     }
 
-    bus->wram.data[IE] = ie_set.to_ulong();
-    bus->wram.data[IF] = if_set.to_ulong();
+    bus->io.data[IE] = ie_set.to_ulong();
+    bus->io.data[IF] = if_set.to_ulong();
     // Bit 0 (VBlank) has the highest priority, and Bit 4 (Joypad) has the
     // lowest priority.
   }
@@ -1043,7 +1202,7 @@ void SharpSM83::run_instruction() {
       E = read8(PC++);
       break;
     }
-    case 0x1F: {
+    case 0x1F: {  // make func
       if (get_flag(FLAG::CARRY)) {
         if (A & 0x1) {
           A >>= 1;

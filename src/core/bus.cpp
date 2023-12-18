@@ -8,5 +8,5 @@ void RAM::write8(const u16 address, u8 value) {
 u8 RAM::read8(const u16 address) { return data[address]; }
 
 void Bus::request_interrupt(InterruptType t) {
-  wram.data[IF] |= (1 << (u8)t);
+  io.data[IF] |= (1 << (u8)t);
 }
