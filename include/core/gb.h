@@ -13,6 +13,5 @@ struct GB {
   GB();
 
   void load_cart(const File&);
-  void init_hw_regs();
-  void start(u64 count = std::numeric_limits<u64>::max());
+  void init_hw_regs(COMPAT_MODE);
 };

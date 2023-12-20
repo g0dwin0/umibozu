@@ -1,7 +1,3 @@
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_video.h>
-
 #include "CLI11.hpp"
 #include "frontend/window.h"
 #include "gb.h"
@@ -9,8 +5,7 @@
 using namespace Umibozu;
 int handle_args(int& argc, char** argv, std::string& filename) {
   CLI::App app{"", "umibozu"};
-
-  app.add_option("-f,--file", filename, "path to ROM");
+  app.add_option("-f,--file", filename, "path to ROM")->required();
   
   CLI11_PARSE(app, argc, argv);
   return 0;
@@ -20,11 +15,13 @@ int main(int argc, char** argv) {
   GB gb;
   Frontend fe(gb);
 
-  std::string filename = "";
+  std::string filename;
   handle_args(argc, argv, filename);
   fmt::println("{}", filename);
   
-  gb.load_cart(read_file(filename));
+//  gb.load_cart(read_file("roms/smbl.gb"));
+   gb.load_cart(read_file(filename));
+//
   
   // OPTIMIZE: abstract this away
 

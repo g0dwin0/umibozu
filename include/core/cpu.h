@@ -42,9 +42,9 @@ namespace Umibozu {
       u8& high;
       u8& low;
 
-      REG_16(u8& _A, u8& _B) : high(_A), low(_B) {
-        high = _A;
-        low  = _B;
+      REG_16(u8& A, u8& B) : high(A), low(B) {
+        high = A;
+        low  = B;
       };
 
       REG_16& operator++() {
@@ -74,8 +74,10 @@ namespace Umibozu {
         return v;
       };
 
-      size_t operator+(int c) { return get_value() + c; }
-      size_t operator+(REG_16& reg) { return get_value() + reg.get_value(); }
+      size_t operator+(int c) const { return get_value() + c; }
+      size_t operator+(REG_16& reg) const {
+        return get_value() + reg.get_value();
+      }
       REG_16& operator+=(REG_16& reg) {
         u16 val = get_value() + reg.get_value();
         high    = (val & 0xFF00) >> 8;
@@ -84,7 +86,7 @@ namespace Umibozu {
       }
       operator u16() { return get_value(); }
 
-      u16 operator&(int val) { return get_value() & val; };
+      u16 operator&(int val) const { return get_value() & val; };
 
       REG_16& operator=(u16 val) {
         high = (val & 0xFF00) >> 8;
@@ -92,7 +94,7 @@ namespace Umibozu {
         return *this;
       };
 
-      u16 get_value() { return ((high << 8) + low); }
+      [[nodiscard]] u16 get_value() const { return ((high << 8) + low); }
     };
     u8 A, F, B, C, D, E, H, L;
     REG_16 AF{A, F};
@@ -103,30 +105,32 @@ namespace Umibozu {
     u16 PC            = 0x0100;
     CPU_STATUS status = CPU_STATUS::ACTIVE;
     Timer timer;
-    PPU* ppu                                           = nullptr;
-    Mapper* mapper                                     = nullptr;
-    bool IME                                           = false;
-     const std::array<u8, 4> OFFSET_TABLE    = {9, 3, 5, 7};
-     const std::array<u8, 5> INTERRUPT_TABLE = {
+    PPU* ppu                                = nullptr;
+    Mapper* mapper                          = nullptr;
+    bool IME                                = false;
+    const std::array<u8, 4> OFFSET_TABLE    = {9, 3, 5, 7};
+    const std::array<u8, 5> INTERRUPT_TABLE = {
         VBLANK_INTERRUPT, STAT_INTERRUPT, TIMER_INTERRUPT, SERIAL_INTERRUPT,
         JOYPAD_INTERRUPT};
-    u8 read8(const u16 address);
-    u16 read16(const u16 address);
-    
-    u8 peek(const u16 address);
-    void write8(const u16 address, const u8 value);
-    
-    void push_to_stack(const u8 value);
+    [[nodiscard]] u8 read8(u16 address);
+    [[nodiscard]] u16 read16(u16 address);
+
+    [[nodiscard]] u8 peek(u16 address) const;
+    void write8(u16 address, u8 value);
+
+    void push_to_stack(u8 value);
     u8 pull_from_stack();
-    
+
     void set_flag(FLAG);
     void unset_flag(FLAG);
-    u8 get_flag(FLAG);
-    void handle_system_io_write(const u16 address, const u8 value);
+    [[nodiscard]] u8 get_flag(FLAG) const;
+    void handle_system_io_write(u16 address, u8 value);
+    u8 handle_system_io_read(u16 address);
+
     void handle_interrupts();
     void run_instruction();
     void m_cycle();
-    std::string get_cpu_mode();
+    [[nodiscard]] std::string get_cpu_mode() const;
 
    private:
     // TODO: replace u8 refs with REG8 register type
@@ -135,7 +139,7 @@ namespace Umibozu {
     inline void LD_R_R(u8& r_1, u8 r_2);
     inline void LD_R16_U16(REG_16& r_1, u16 val);
     inline void ADD_SP_E8();
-    inline void LD_M_R(const u16 address, u8 val);
+    inline void LD_M_R(u16 address, u8 val);
     inline void LD_SP_U16(u16& r_1, u16 val);
     inline void LD_U16_SP(u16 address, u16 sp_val);
     inline void LD_R_AMV(u8& r_1, REG_16& r_16);
@@ -179,7 +183,7 @@ namespace Umibozu {
     inline void SRL_HL();
     inline void SET(u8 p, u8& r);
     inline void RES(u8 p, u8& r);
-    inline void BIT(const u8 p, const u8& r);
+    inline void BIT(u8 p, const u8& r);
     inline void STOP();
   };
 }  // namespace Umibozu

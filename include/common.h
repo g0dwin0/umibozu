@@ -66,7 +66,7 @@ enum HARDWARE_IO_REG {
 
 struct RAM {
   std::vector<u8> data;
-  u8 read8(const u16 address);
-  void write8(const u16 address, u8 value);
+  u8 read8(u16 address);
+  void write8(u16 address, u8 value);
   RAM(size_t size) { data.resize(size, 0); }
 };

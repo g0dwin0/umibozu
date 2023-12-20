@@ -9,15 +9,16 @@
 #include "fmt/core.h"
 using namespace Umibozu;
 
-Cartridge::Cartridge(){};
-Cartridge::~Cartridge(){};
+Cartridge::Cartridge()  = default;
+Cartridge::~Cartridge() = default;
 
 std::string Cartridge::get_title(std::span<const u8> title_bytes) {
   std::stringstream ss;
 
-  for (size_t i = 0; i < 16; i++) { 
-    if(title_bytes[i] == 0) break;
-    ss << title_bytes[i];
+  for (auto& title_byte : title_bytes) {
+    if (title_byte == 0 || title_byte > 127)
+      break;
+    ss << title_byte;
   }
 
   return ss.str();
@@ -40,17 +41,16 @@ void Cartridge::print_cart_info() {
   fmt::println("ram banks: {:d}", info.ram_banks);
   fmt::println("destination: {}",
                info.destination_code ? "japanese" : "overseas");
-  fmt::println("cgb support: {}", info.supports_cgb_enhancements);
+  // fmt::println("cgb support: {}", info.supports_cgb_enhancements);
   fmt::println("mem vec size: {}", memory.size());
 }
 
 void Cartridge::set_cart_info() {
-
   // if (memory[0x143] == 0xC0) {
   //   // throw std::runtime_error("ROM only works on CGB");
   // }
 
-  bool cgb_enhancements = memory[0x143] == 0x80;
+  // bool cgb_enhancements = memory[0x143] == 0x80;
 
   u8 mapper_id  = this->memory[0x147];
   u16 rom_banks = 2 * (1 << memory[0x148]);
@@ -80,12 +80,12 @@ void Cartridge::set_cart_info() {
   info.title        = get_title(std::span<u8>(memory.begin() + 0x134, 16));
   info.manufacturer = get_manufacturer(
       old_manufacturer_code, std::span<u8>(memory.begin() + 0x144, 2));
-  info.mapper_string             = cart_types.at(mapper_id);
-  info.mapper_id                 = mapper_id;
-  info.rom_banks                 = rom_banks;
-  info.ram_banks                 = ram_banks;
-  info.destination_code          = destination_code;
-  info.supports_cgb_enhancements = cgb_enhancements;
+  info.mapper_string    = cart_types.at(mapper_id);
+  info.mapper_id        = mapper_id;
+  info.rom_banks        = rom_banks;
+  info.ram_banks        = ram_banks;
+  info.destination_code = destination_code;
+  // info.supports_cgb_enhancements = cgb_enhancements;
 };
 
 u8 Cartridge::read8(const u64 address) { return memory[address]; }

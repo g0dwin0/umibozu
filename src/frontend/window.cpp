@@ -110,7 +110,7 @@ void Frontend::show_menubar() {
         // draw_gui();
         auto path = tinyfd_openFileDialog("Load ROM", ".", 2, patterns,
                                           "Gameboy ROMs", 0);
-        if (path != NULL) {
+        if (path != nullptr) {
           this->gb->load_cart(read_file(path));
         }
       }
@@ -204,9 +204,8 @@ void Frontend::show_ppu_info() {
 
 void Frontend::show_cpu_info() {
   ImGui::Begin("CPU INFO", &state.cpu_info_open, 0);
-  // ImGui::Text("ROM BANK: %d", gb->cpu.mapper->rom_bank);
-  // ImGui::Text("RAM BANK: %d", gb->cpu.mapper->ram_bank);
-  ImGui::Text("STATUS: %s", gb->cpu.get_cpu_mode().c_str());
+  ImGui::Text("ROM BANK: %d", gb->cpu.mapper->rom_bank);
+  ImGui::Text("RAM BANK: %d", gb->cpu.mapper->ram_bank);
   ImGui::Separator();
   ImGui::Text("Z: %x", gb->cpu.get_flag(Umibozu::FLAG::ZERO));
   ImGui::Text("N: %x", gb->cpu.get_flag(Umibozu::FLAG::NEGATIVE));
@@ -222,7 +221,8 @@ void Frontend::show_cpu_info() {
   ImGui::Text("timer enabled = %d", gb->cpu.timer.ticking_enabled);
   ImGui::Text("TIMA = 0x%x", gb->cpu.timer.counter);
   ImGui::Text("TMA = 0x%x", gb->cpu.timer.modulo);
-
+  ImGui::Separator();
+  ImGui::Text("mode = %s", gb->bus.get_mode_string().c_str());
   ImGui::Separator();
   ImGui::Text("%s",
               fmt::format("JOYPAD:  {:08b}", gb->bus.io.data[JOYPAD]).c_str());

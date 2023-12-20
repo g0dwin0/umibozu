@@ -18,6 +18,7 @@ class Mapper {
   static inline Bus* bus = nullptr;
   u8 banking_mode        = 0;
   u32 rom_bank           = 0;
+  u8 rom_high_bit        = 0;
   u32 ram_bank           = 0;
 
   bool ram_rtc_enabled                                   = false;
