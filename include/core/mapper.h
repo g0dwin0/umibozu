@@ -5,7 +5,7 @@
 // TODO: implement MBC1M (>1mb carts)
 #define SERIAL_PORT_BUFFER_SIZE 2048
 
-enum RTC_REGISTER {
+enum class RTC_REGISTER : u8 {
   RTC_SECOND_TIME = 0x08,
   RTC_MINUTE_TIME = 0x09,
   RTC_HOUR_TIME   = 0x0A,
@@ -17,9 +17,8 @@ class Mapper {
  public:
   static inline Bus* bus = nullptr;
   u8 banking_mode        = 0;
-  u32 rom_bank           = 0;
-  u8 rom_high_bit        = 0;
-  u32 ram_bank           = 0;
+  u16 rom_bank           = 0;
+  u16 ram_bank           = 0;
 
   bool ram_rtc_enabled                                   = false;
   virtual u8 read8(const u16 address)                    = 0;

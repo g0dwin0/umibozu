@@ -17,13 +17,12 @@ u8 Mapper::handle_system_memory_read(const u16 address) {
 
   if (address >= 0xE000 && address <= 0xFDFF) {
     return handle_system_memory_read((address & 0xDFFF));
-    // return bus->wram->read8();
   }
   if (address >= 0xFE00 && address <= 0xFE9F) {
     return bus->oam.read8(address - 0xFE00);
   }
   if (address >= 0xFEA0 && address <= 0xFEFF) {  // unused/illegal
-    return 0xFF;
+    return 0x00;
   }
   if (address >= 0xFF00 && address <= 0xFF7F) {
     return bus->io.read8(address - 0xFF00);
@@ -58,7 +57,6 @@ void Mapper::handle_system_memory_write(const u16 address, const u8 value) {
 
   if (address >= 0xE000 && address <= 0xFDFF) {
     return handle_system_memory_write((address & 0xDFFF), value);
-    // return bus->wram.write8(, value);
   }
   if (address >= 0xFE00 && address <= 0xFE9F) {  // oam
     return bus->oam.write8(address - 0xFE00, value);
@@ -66,26 +64,23 @@ void Mapper::handle_system_memory_write(const u16 address, const u8 value) {
   if (address >= 0xFEA0 && address <= 0xFEFF) {  // unused/illegal
     return;
   }
-  // if (address >= 0xFF00 && address <= 0xFF7F) {
-  //   assert(false);  // should be caught by handle sys io write
-  // }
   if (address >= 0xFF80 && address <= 0xFFFE) {
     return bus->hram.write8(address - 0xFF80, value);
   }
-  // if (address == 0xFFFF) {
-  //   assert(false);  // should be caught by handle sys io write
-  // }
 
   throw std::runtime_error(
       fmt::format("[CPU] out of bounds CPU write: {:#04x}", address));
-};
+}
 
 class ROM_ONLY : public Mapper {
   u8 read8(const u16 address) override {
     if (address <= 0x7FFF) {
       return bus->cart.read8(address);
     }
-
+//    if (address >= 0xA000 && address <= 0xBFFF) {
+//      fmt::println("reading from ext ram");
+//      return bus->cart.ext_ram.read8(address - 0xA000);
+//    }
     return handle_system_memory_read(address);
   }
   void write8(const u16 address, const u8 value) override {
@@ -126,7 +121,7 @@ class MBC1 : public Mapper {
     }
 
     if (address >= 0x2000 && address <= 0x3FFF) {
-      rom_bank = (value & 0x1f);
+      rom_bank = (value & (bus->cart.info.rom_banks - 1));
       // rom_bank &= bus->cart.info.rom_banks;
       return;
     }
@@ -160,8 +155,6 @@ class MBC3 : public Mapper {
  public:
   MBC3() {
     rom_bank = 1;
-    // fmt::println("MBC3 initialized");
-    // exit(-1);
   }
 
   u8 read8(const u16 address) override {
@@ -189,13 +182,12 @@ class MBC3 : public Mapper {
     }
 
     if (address >= 0x2000 && address <= 0x3FFF) {
-//      fmt::println("address: {:#16x}", address);
       if (value == 0) {
         rom_bank = 1;
         return;
       }
 
-      rom_bank = value;
+      rom_bank = value & 0x7f;
       return;
     }
 
@@ -212,8 +204,9 @@ class MBC3 : public Mapper {
 
     if (address >= 0xA000 && address <= 0xBFFF) {
       if (ram_rtc_enabled) {
-        if (ram_bank > 3)
+        if (ram_bank > 3) {
           return;
+        }
         assert(ram_bank <= 3);
         bus->cart.ext_ram.write8((0x2000 * ram_bank) + (address % 0xA000),
                                  value);
