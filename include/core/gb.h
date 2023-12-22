@@ -7,11 +7,13 @@
 #include "io.hpp"
 
 struct GB {
-  SharpSM83 cpu;
+  SM83 cpu;
   PPU ppu;
   Bus bus;
   GB();
+  ~GB();
 
   void load_cart(const File&);
   void init_hw_regs(COMPAT_MODE);
+  void load_save_game();
 };
