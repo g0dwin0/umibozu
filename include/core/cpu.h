@@ -7,22 +7,14 @@
 #include "mapper.h"
 #include "ppu.h"
 #include "timer.h"
-#define set_zero() \
-  { set_flag(FLAG::ZERO); };
-#define set_negative() \
-  { set_flag(FLAG::NEGATIVE); };
-#define set_half_carry() \
-  { set_flag(FLAG::HALF_CARRY); };
-#define set_carry() \
-  { set_flag(FLAG::CARRY); };
-#define reset_zero() \
-  { unset_flag(FLAG::ZERO); };
-#define reset_negative() \
-  { unset_flag(FLAG::NEGATIVE); };
-#define reset_half_carry() \
-  { unset_flag(FLAG::HALF_CARRY); };
-#define reset_carry() \
-  { unset_flag(FLAG::CARRY); };
+#define set_zero() set_flag(Flag::ZERO)
+#define set_negative() set_flag(Flag::NEGATIVE)
+#define set_half_carry() set_flag(Flag::HALF_CARRY)
+#define set_carry() set_flag(Flag::CARRY)
+#define reset_zero() unset_flag(Flag::ZERO)
+#define reset_negative() unset_flag(Flag::NEGATIVE)
+#define reset_half_carry() unset_flag(Flag::HALF_CARRY)
+#define reset_carry() unset_flag(Flag::CARRY)
 #define VBLANK_INTERRUPT 0x40
 #define STAT_INTERRUPT 0x48
 #define TIMER_INTERRUPT 0x50
@@ -31,12 +23,13 @@
 
 namespace Umibozu {
 
-  enum class FLAG { CARRY = 4, HALF_CARRY = 5, NEGATIVE = 6, ZERO = 7 };
-  enum class CPU_STATUS { ACTIVE, HALT_MODE, STOP, PAUSED };
+  struct SM83 {
+    enum class Flag : u8{ CARRY = 4, HALF_CARRY = 5, NEGATIVE = 6, ZERO = 7 };
+    enum class Status : u8 { ACTIVE, HALT_MODE, STOP, PAUSED };
+    enum class Speed : u8{ NORMAL = 0x00, DOUBLE = 0x80 };
 
-  struct SharpSM83 {
-    SharpSM83();
-    ~SharpSM83();
+    SM83();
+    ~SM83();
     Bus* bus = nullptr;
     struct REG_16 {
       u8& high;
@@ -101,14 +94,14 @@ namespace Umibozu {
     REG_16 BC{B, C};
     REG_16 DE{D, E};
     REG_16 HL{H, L};
-    u16 SP            = 0xFFFE;
-    u16 PC            = 0x0100;
-    CPU_STATUS status = CPU_STATUS::ACTIVE;
+    u16 SP        = 0xFFFE;
+    u16 PC        = 0x0100;
+    Status status = Status::ACTIVE;
     Timer timer;
     PPU* ppu                                = nullptr;
     Mapper* mapper                          = nullptr;
     bool IME                                = false;
-    const std::array<u8, 4> OFFSET_TABLE    = {9, 3, 5, 7};
+    Speed speed                             = Speed::DOUBLE;
     const std::array<u8, 5> INTERRUPT_TABLE = {
         VBLANK_INTERRUPT, STAT_INTERRUPT, TIMER_INTERRUPT, SERIAL_INTERRUPT,
         JOYPAD_INTERRUPT};
@@ -121,9 +114,9 @@ namespace Umibozu {
     void push_to_stack(u8 value);
     u8 pull_from_stack();
 
-    void set_flag(FLAG);
-    void unset_flag(FLAG);
-    [[nodiscard]] u8 get_flag(FLAG) const;
+    void set_flag(Flag);
+    void unset_flag(Flag);
+    [[nodiscard]] u8 get_flag(Flag) const;
     void handle_system_io_write(u16 address, u8 value);
     u8 handle_system_io_read(u16 address);
 
@@ -185,5 +178,6 @@ namespace Umibozu {
     inline void RES(u8 p, u8& r);
     inline void BIT(u8 p, const u8& r);
     inline void STOP();
+    void enter_stop_mode();
   };
 }  // namespace Umibozu

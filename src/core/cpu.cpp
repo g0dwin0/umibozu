@@ -13,53 +13,43 @@
 #include "fmt/core.h"
 #include "ppu.h"
 
-// #define RED_MASK 0b000000000011111
-// #define GREEN_MASK 0b000001111100000
-// #define BLUE_MASK 0b111110000000000
-
 using namespace Umibozu;
 
-SharpSM83::SharpSM83() {}
-SharpSM83::~SharpSM83() {}
+SM83::SM83()  = default;
+SM83::~SM83() = default;
 
-inline void SharpSM83::STOP() {
-  throw std::runtime_error("cpu: stop not implemented");
-  // TODO: implement STOP
-  fmt::println("[STOP] stop called", NULL);
-  status = CPU_STATUS::STOP;
-  return;
-}
-std::string SharpSM83::get_cpu_mode() const {
+inline void SM83::STOP() { return; }
+std::string SM83::get_cpu_mode() const {
   switch (status) {
-    case CPU_STATUS::ACTIVE: {
+    case SM83::Status::ACTIVE: {
       return "ACTIVE";
     }
-    case CPU_STATUS::HALT_MODE: {
+    case SM83::Status::HALT_MODE: {
       return "HALT";
     }
-    case CPU_STATUS::STOP: {
+    case SM83::Status::STOP: {
       return "STOP";
     }
-    case CPU_STATUS::PAUSED: {
+    case SM83::Status::PAUSED: {
       return "PAUSED";
     }
   }
 
   throw std::runtime_error("invalid cpu mode");
 }
-inline void SharpSM83::HALT() {
-  status = CPU_STATUS::HALT_MODE;
+inline void SM83::HALT() {
+  status = Status::HALT_MODE;
 
-  while (status == CPU_STATUS::HALT_MODE) {
-    for (u8 i = 0; i < 8; i++) {
-      if ((bus->io.data[IE] & (1 << i)) && (bus->io.data[IF] & (1 << i))) {
-        status = CPU_STATUS::ACTIVE;
+  while (status == Status::HALT_MODE) {
+    for (size_t i = 0; i < 8; i++) {
+      if (bus->io.data[IE] & bus->io.data[IF]) {
+        status = Status::ACTIVE;
       }
     }
     m_cycle();
-  };
+  }
 }
-inline void SharpSM83::LD_HL_SP_E8() {
+inline void SM83::LD_HL_SP_E8() {
   u8 op  = read8(PC++);
   i8 val = op;
 
@@ -82,8 +72,8 @@ inline void SharpSM83::LD_HL_SP_E8() {
   reset_zero();
   reset_negative();
 }
-inline void SharpSM83::LD_R_R(u8& r_1, u8 r_2) { r_1 = r_2; };
-inline void SharpSM83::ADD_SP_E8() {
+inline void SM83::LD_R_R(u8& r_1, u8 r_2) { r_1 = r_2; }
+inline void SM83::ADD_SP_E8() {
   u8 op  = read8(PC++);
   i8 val = op;
   m_cycle();
@@ -107,18 +97,16 @@ inline void SharpSM83::ADD_SP_E8() {
 }
 
 // write value to memory address
-inline void SharpSM83::LD_M_R(const u16 address, u8 val) {
-  write8(address, val);
-}
+inline void SM83::LD_M_R(const u16 address, u8 val) { write8(address, val); }
 
-inline void SharpSM83::LD_SP_U16(u16& r_1, u16 val) { r_1 = val; };
-inline void SharpSM83::LD_R16_U16(REG_16& r_1, u16 val) { r_1 = val; };
-inline void SharpSM83::LD_U16_SP(u16 address, u16 sp_val) {
+inline void SM83::LD_SP_U16(u16& r_1, u16 val) { r_1 = val; }
+inline void SM83::LD_R16_U16(REG_16& r_1, u16 val) { r_1 = val; }
+inline void SM83::LD_U16_SP(u16 address, u16 sp_val) {
   write8(address, sp_val & 0xFF);
   write8(address + 1, (sp_val & 0xFF00) >> 8);
 }
-inline void SharpSM83::LD_R_AMV(u8& r_1, REG_16& r_16) { r_1 = read8(r_16); }
-inline void SharpSM83::DEC(u8& r) {
+inline void SM83::LD_R_AMV(u8& r_1, REG_16& r_16) { r_1 = read8(r_16); }
+inline void SM83::DEC(u8& r) {
   if (((r & 0xf) - (1 & 0xf)) & 0x10) {
     set_half_carry();
   } else {
@@ -132,30 +120,30 @@ inline void SharpSM83::DEC(u8& r) {
   }
   set_negative();
 }
-inline void SharpSM83::SCF() {
+inline void SM83::SCF() {
   reset_negative();
   reset_half_carry();
   set_carry();
 }
-inline void SharpSM83::NOP() {};
-inline void SharpSM83::DEC_R16(REG_16& r) {
+inline void SM83::NOP() {}
+inline void SM83::DEC_R16(REG_16& r) {
   r--;
   m_cycle();
 }
-inline void SharpSM83::DEC_SP(u16& sp) {
+inline void SM83::DEC_SP(u16& sp) {
   sp--;
   m_cycle();
 }
-inline void SharpSM83::CCF() {
+inline void SM83::CCF() {
   reset_negative();
   reset_half_carry();
-  if (get_flag(FLAG::CARRY)) {
+  if (get_flag(Flag::CARRY)) {
     reset_carry();
   } else {
     set_carry();
   }
 }
-inline void SharpSM83::INC(u8& r) {
+inline void SM83::INC(u8& r) {
   if (((r & 0xf) + (1 & 0xf)) & 0x10) {
     set_half_carry();
   } else {
@@ -169,11 +157,11 @@ inline void SharpSM83::INC(u8& r) {
   }
   reset_negative();
 }
-inline void SharpSM83::INC_16(REG_16& r) {
+inline void SM83::INC_16(REG_16& r) {
   m_cycle();
   r++;
-};
-inline void SharpSM83::ADD(u8& r, u8 r_2) {
+}
+inline void SM83::ADD(u8& r, u8 r_2) {
   if (((r & 0xf) + (r_2 & 0xf)) & 0x10) {
     set_half_carry();
   } else {
@@ -195,7 +183,7 @@ inline void SharpSM83::ADD(u8& r, u8 r_2) {
   }
   reset_negative();
 }
-inline void SharpSM83::CP(const u8& r, const u8& r_2) {
+inline void SM83::CP(const u8& r, const u8& r_2) {
   if ((r - r_2) < 0) {
     set_carry();
   } else {
@@ -215,7 +203,7 @@ inline void SharpSM83::CP(const u8& r, const u8& r_2) {
   set_negative();
 }
 
-inline void SharpSM83::OR(u8& r, u8 r_2) {
+inline void SM83::OR(u8& r, u8 r_2) {
   r = r | r_2;
 
   if (r == 0) {
@@ -228,43 +216,43 @@ inline void SharpSM83::OR(u8& r, u8 r_2) {
   reset_half_carry();
   reset_carry();
 }
-inline void SharpSM83::POP(REG_16& r) {
+inline void SM83::POP(REG_16& r) {
   r.low  = pull_from_stack();
   r.high = pull_from_stack();
 }
-inline void SharpSM83::PUSH(REG_16& r) {
+inline void SM83::PUSH(REG_16& r) {
   m_cycle();
   push_to_stack(r.high);
   push_to_stack(r.low);
 }
-inline void SharpSM83::RRCA() {
+inline void SM83::RRCA() {
   if (A & 0x1) {
     set_carry();
   } else {
     reset_carry();
   }
   A >>= 1;
-  A |= get_flag(FLAG::CARRY) ? 0x80 : 0;
+  A |= get_flag(Flag::CARRY) ? 0x80 : 0;
 
   reset_zero();
   reset_negative();
   reset_half_carry();
 }
-inline void SharpSM83::RLCA() {
+inline void SM83::RLCA() {
   if (A & 0x80) {
     set_carry();
   } else {
     reset_carry();
   }
   A <<= 1;
-  A |= get_flag(FLAG::CARRY);
+  A |= get_flag(Flag::CARRY);
 
   reset_zero();
   reset_negative();
   reset_half_carry();
 }
-inline void SharpSM83::RLA() {
-  if (get_flag(FLAG::CARRY)) {
+inline void SM83::RLA() {
+  if (get_flag(Flag::CARRY)) {
     if (A & 0x80) {
       A <<= 1;
       A += 0x1;
@@ -288,14 +276,14 @@ inline void SharpSM83::RLA() {
   reset_negative();
   reset_half_carry();
 }
-inline void SharpSM83::RST(u8 pc_new) {
+inline void SM83::RST(u8 pc_new) {
   m_cycle();
   push_to_stack((PC & 0xFF00) >> 8);
   push_to_stack((PC & 0xFF));
   PC = pc_new;
 }
-inline void SharpSM83::ADC(u8& r, u8 r_2) {
-  u8 carry = get_flag(FLAG::CARRY);
+inline void SM83::ADC(u8& r, u8 r_2) {
+  u8 carry = get_flag(Flag::CARRY);
 
   if (((r & 0xf) + (r_2 & 0xf) + carry) & 0x10) {
     set_half_carry();
@@ -318,8 +306,8 @@ inline void SharpSM83::ADC(u8& r, u8 r_2) {
   }
   reset_negative();
 }
-inline void SharpSM83::SBC(u8& r, u8 r_2) {
-  u8 carry = get_flag(FLAG::CARRY);
+inline void SM83::SBC(u8& r, u8 r_2) {
+  u8 carry = get_flag(Flag::CARRY);
 
   if (((r & 0xf) - (r_2 & 0xf) - carry) & 0x10) {
     set_half_carry();
@@ -342,7 +330,7 @@ inline void SharpSM83::SBC(u8& r, u8 r_2) {
   }
   set_negative();
 }
-inline void SharpSM83::SUB(u8& r, u8 r_2) {
+inline void SM83::SUB(u8& r, u8 r_2) {
   if (((r & 0xf) - (r_2 & 0xf)) & 0x10) {
     set_half_carry();
   } else {
@@ -363,7 +351,7 @@ inline void SharpSM83::SUB(u8& r, u8 r_2) {
   set_negative();
 }
 
-inline void SharpSM83::AND(u8& r, u8 r_2) {
+inline void SM83::AND(u8& r, u8 r_2) {
   r = r & r_2;
 
   if (r == 0) {
@@ -377,7 +365,7 @@ inline void SharpSM83::AND(u8& r, u8 r_2) {
   reset_carry();
 }
 
-inline void SharpSM83::XOR(u8& r, u8 r_2) {
+inline void SM83::XOR(u8& r, u8 r_2) {
   r ^= r_2;
 
   if (r == 0) {
@@ -391,14 +379,14 @@ inline void SharpSM83::XOR(u8& r, u8 r_2) {
   reset_carry();
 }
 
-inline void SharpSM83::RLC(u8& r) {
+inline void SM83::RLC(u8& r) {
   if (r & 0x80) {
     set_carry();
   } else {
     reset_carry();
   }
   r <<= 1;
-  r |= get_flag(FLAG::CARRY);
+  r |= get_flag(Flag::CARRY);
   if (r == 0) {
     set_zero();
   } else {
@@ -409,20 +397,20 @@ inline void SharpSM83::RLC(u8& r) {
   reset_half_carry();
 }
 
-inline void SharpSM83::RLC_HL() {
+inline void SM83::RLC_HL() {
   u8 _hl = read8(HL);
   RLC(_hl);
   write8(HL, _hl);
 }
 
-inline void SharpSM83::RRC(u8& r) {
+inline void SM83::RRC(u8& r) {
   if (r & 0x1) {
     set_carry();
   } else {
     reset_carry();
   }
   r >>= 1;
-  r |= get_flag(FLAG::CARRY) ? 0x80 : 0;
+  r |= get_flag(Flag::CARRY) ? 0x80 : 0;
   if (r == 0) {
     set_zero();
   } else {
@@ -432,12 +420,12 @@ inline void SharpSM83::RRC(u8& r) {
   reset_negative();
   reset_half_carry();
 }
-inline void SharpSM83::RRC_HL() {
+inline void SM83::RRC_HL() {
   u8 _hl = read8(HL);
   RRC(_hl);
   write8(HL, _hl);
 }
-inline void SharpSM83::SLA(u8& r) {
+inline void SM83::SLA(u8& r) {
   if (r & 0x80) {
     set_carry();
   } else {
@@ -454,7 +442,7 @@ inline void SharpSM83::SLA(u8& r) {
   reset_negative();
   reset_half_carry();
 }
-inline void SharpSM83::SRA(u8& r) {
+inline void SM83::SRA(u8& r) {
   u8 msb = r & 0x80;
   if (r & 0x1) {
     set_carry();
@@ -472,19 +460,19 @@ inline void SharpSM83::SRA(u8& r) {
   reset_negative();
   reset_half_carry();
 }
-inline void SharpSM83::SRA_HL() {
+inline void SM83::SRA_HL() {
   u8 _hl = read8(HL);
   SRA(_hl);
   write8(HL, _hl);
 }
-inline void SharpSM83::SLA_HL() {
+inline void SM83::SLA_HL() {
   u8 _hl = read8(HL);
   SLA(_hl);
   write8(HL, _hl);
 }
 
-inline void SharpSM83::RR(u8& r) {
-  if (get_flag(FLAG::CARRY)) {
+inline void SM83::RR(u8& r) {
+  if (get_flag(Flag::CARRY)) {
     if (r & 0x1) {
       r >>= 1;
       r += 0x80;
@@ -514,8 +502,8 @@ inline void SharpSM83::RR(u8& r) {
   reset_half_carry();
 }
 
-inline void SharpSM83::RL(u8& r) {
-  if (get_flag(FLAG::CARRY)) {
+inline void SM83::RL(u8& r) {
+  if (get_flag(Flag::CARRY)) {
     if (r & 0x80) {
       r <<= 1;
       r += 0x1;
@@ -545,19 +533,19 @@ inline void SharpSM83::RL(u8& r) {
   reset_half_carry();
 }
 
-inline void SharpSM83::RL_HL() {
+inline void SM83::RL_HL() {
   u8 r = read8(HL);
   RL(r);
   write8(HL, r);
 }
 
-inline void SharpSM83::RR_HL() {
+inline void SM83::RR_HL() {
   u8 r = read8(HL);
   RR(r);
   write8(HL, r);
 }
 
-inline void SharpSM83::SWAP(u8& r) {
+inline void SM83::SWAP(u8& r) {
   u8 hi = (r & 0xF0);
   u8 lo = r & 0xF;
 
@@ -572,13 +560,13 @@ inline void SharpSM83::SWAP(u8& r) {
   reset_half_carry();
   reset_negative();
 }
-inline void SharpSM83::SWAP_HL() {
+inline void SM83::SWAP_HL() {
   u8 r = read8(HL);
   SWAP(r);
   write8(HL, r);
 }
 
-inline void SharpSM83::SRL(u8& r) {
+inline void SM83::SRL(u8& r) {
   if (r & 0x1) {
     set_carry();
   } else {
@@ -594,15 +582,15 @@ inline void SharpSM83::SRL(u8& r) {
   reset_negative();
   reset_half_carry();
 }
-inline void SharpSM83::SRL_HL() {
+inline void SM83::SRL_HL() {
   u8 r = read8(HL);
   SRL(r);
   write8(HL, r);
 }
 
-inline void SharpSM83::SET(u8 p, u8& r) { r |= (1 << p); }
-inline void SharpSM83::RES(u8 p, u8& r) { r &= ~(1 << p); }
-inline void SharpSM83::BIT(const u8 p, const u8& r) {
+inline void SM83::SET(u8 p, u8& r) { r |= (1 << p); }
+inline void SM83::RES(u8 p, u8& r) { r &= ~(1 << p); }
+inline void SM83::BIT(const u8 p, const u8& r) {
   if (r & (1 << p)) {
     reset_zero();
   } else {
@@ -613,7 +601,7 @@ inline void SharpSM83::BIT(const u8 p, const u8& r) {
   set_half_carry();
 }
 
-void SharpSM83::m_cycle() {
+void SM83::m_cycle() {
   timer.div += 4;
   ppu->tick();
 
@@ -625,8 +613,8 @@ void SharpSM83::m_cycle() {
   if (timer.ticking_enabled) {
     // fmt::println("offset: {:d}", offset_table[bus->wram.data[TAC] & 0x3]);
 
-    u16 div_bits = (timer.div & (1 << OFFSET_TABLE[bus->io.data[TAC] & 0x3])) >>
-                   OFFSET_TABLE[bus->io.data[TAC] & 0x3];
+    u16 div_bits = (timer.div & (1 << TIMER_BIT[bus->io.data[TAC] & 0x3])) >>
+                   TIMER_BIT[bus->io.data[TAC] & 0x3];
     // fmt::println("Div bits: {:d}", div_bits);
     u8 te_bit = (bus->io.data[TAC] & (1 << 2)) >> 2;
 
@@ -641,11 +629,11 @@ void SharpSM83::m_cycle() {
     timer.prev_and_result = n_val;
   }
 }
-u8 SharpSM83::handle_system_io_read(const u16 address) {
-  // if (address != (0xFF00 + SB) && address != (0xFF00 + SC)) {
-  //   fmt::println("register address: {:#04x}, value: {:#04x}", address,
-  //   value);
-  // }
+u8 SM83::handle_system_io_read(const u16 address) {
+  if (address != (0xFF00 + SB) && address != (0xFF00 + SC)) {
+    //     fmt::println("register address: {:#04x}, value: {:#04x}", address,
+    //     bus->io.data[address - 0xFF00]);
+  }
 
   switch (address - 0xFF00) {
     case JOYPAD: {
@@ -687,22 +675,23 @@ u8 SharpSM83::handle_system_io_read(const u16 address) {
     }
     case SVBK:
     case VBK: {
-      assert(false);
       break;
     }
     case KEY1: {
-      throw std::runtime_error("KEY1 unimplemented");
+      return (u8)speed;
+      break;
+      //      throw std::runtime_error("KEY1 unimplemented");
     }
   }
 
   return bus->io.read8(address - 0xFF00);
-};
-u8 SharpSM83::read8(const u16 address) {
+}
+u8 SM83::read8(const u16 address) {
   m_cycle();
   // fmt::println("[R] {:#04x}", address);
-  if (address >= 0xFE00 && address <= 0xFE9F && ppu->get_mode() >= 2) {
+  if (address >= 0xFE00 && address <= 0xFE9F && (u8)ppu->get_mode() >= 2) {
     return 0xFF;
-  };
+  }
 
   if ((address >= 0xFF00 && address <= 0xFF7F) || address == 0xFFFF) {
     // fmt::println("io write");
@@ -711,15 +700,15 @@ u8 SharpSM83::read8(const u16 address) {
   return mapper->read8(address);
 };
 
-u16 SharpSM83::read16(const u16 address) {
+u16 SM83::read16(const u16 address) {
   u8 low  = read8(address);
   u8 high = read8(address + 1);
   PC++;
   return (high << 8) + low;
 }
 // debug only!
-u8 SharpSM83::peek(const u16 address) const { return mapper->read8(address); }
-void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
+u8 SM83::peek(const u16 address) const { return mapper->read8(address); }
+void SM83::handle_system_io_write(const u16 address, const u8 value) {
   // if (address != (0xFF00 + SB) && address != (0xFF00 + SC)) {
   //   fmt::println("register address: {:#04x}, value: {:#04x}", address,
   //   value);
@@ -796,7 +785,7 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
     case DMA: {
       u16 address = (value << 8);
 
-      for (u8 i = 0; i < 0xA0; i++) {
+      for (size_t i = 0; i < 0xA0; i++) {
         bus->oam.data[i] = read8(address + i);
       }
       break;
@@ -813,10 +802,10 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
       ppu->sys_palettes.BGP[0][2] = ppu->shade_table[id_2];
       ppu->sys_palettes.BGP[0][3] = ppu->shade_table[id_3];
 
-//      fmt::println("BGP0[0] = {:#16x}", ppu->sys_palettes.BGP[0][0]);
-//      fmt::println("BGP0[1] = {:#16x}", ppu->sys_palettes.BGP[0][1]);
-//      fmt::println("BGP0[2] = {:#16x}", ppu->sys_palettes.BGP[0][2]);
-//      fmt::println("BGP0[3] = {:#16x}", ppu->sys_palettes.BGP[0][3]);
+      //      fmt::println("BGP0[0] = {:#16x}", ppu->sys_palettes.BGP[0][0]);
+      //      fmt::println("BGP0[1] = {:#16x}", ppu->sys_palettes.BGP[0][1]);
+      //      fmt::println("BGP0[2] = {:#16x}", ppu->sys_palettes.BGP[0][2]);
+      //      fmt::println("BGP0[3] = {:#16x}", ppu->sys_palettes.BGP[0][3]);
       break;
     }
     case OBP0: {
@@ -831,10 +820,10 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
       ppu->sys_palettes.OBP[0][2] = ppu->shade_table[id_2];
       ppu->sys_palettes.OBP[0][3] = ppu->shade_table[id_3];
 
-//      fmt::println("OBP_0[0] = {:#16x}", ppu->sys_palettes.OBP[0][0]);
-//      fmt::println("OBP_0[1] = {:#16x}", ppu->sys_palettes.OBP[0][1]);
-//      fmt::println("OBP_0[2] = {:#16x}", ppu->sys_palettes.OBP[0][2]);
-//      fmt::println("OBP_0[3] = {:#16x}", ppu->sys_palettes.OBP[0][3]);
+      //      fmt::println("OBP_0[0] = {:#16x}", ppu->sys_palettes.OBP[0][0]);
+      //      fmt::println("OBP_0[1] = {:#16x}", ppu->sys_palettes.OBP[0][1]);
+      //      fmt::println("OBP_0[2] = {:#16x}", ppu->sys_palettes.OBP[0][2]);
+      //      fmt::println("OBP_0[3] = {:#16x}", ppu->sys_palettes.OBP[0][3]);
       break;
     }
     case OBP1: {
@@ -856,37 +845,46 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
       break;
     }
     case VBK: {
-      if (bus->mode != CGB_ONLY) {
+      if (bus->mode != COMPAT_MODE::CGB_ONLY) {
         return;
       }
 
       bus->vbk  = (value & 0x1);
       bus->vram = &bus->vram_banks[bus->vbk];
       fmt::println("VRAM bank: {:d}", +bus->vbk);
-
+      bus->io.data[VBK] = 0b11111110 + bus->vbk;
       break;
     }
     case SVBK: {
-      if (bus->mode != CGB_ONLY)
+      if (bus->mode != COMPAT_MODE::CGB_ONLY) {
         return;
+      }
 
       bus->svbk = (value & 0x7);
+      if (bus->svbk == 0) {
+        bus->svbk = 1;
+      }
       bus->wram = &bus->wram_banks[bus->svbk];
       fmt::println("WRAM bank: {:d}", +bus->svbk);
+
+      bus->io.data[SVBK] = 0b11111000 + bus->svbk;
       break;
     }
     case KEY1: {
-      if(bus->mode != CGB_ONLY) {
+      if (bus->mode != COMPAT_MODE::CGB_ONLY) {
         return;
       }
-      bus->io.data[KEY1] &= (1 << 0);
-      throw std::runtime_error("DOUBLE SPEED MODE NOT IMPLEMENTED");
-      return;
-      return;
-      u8 desired_speed = (value & 0x80);
+      fmt::println("value: {:#04x}", value);
+      fmt::println("desired speed: {:#04x}", value & 0x80);
+      fmt::println("current speed: {:#04x}", bus->io.data[KEY1] & 0x80);
+
       u8 current_speed = (bus->io.data[KEY1] & 0x80);
+      u8 desired_speed = (value & 0x80);
 
       if (current_speed != desired_speed) {
+        bus->io.data[KEY1] = desired_speed;
+        speed              = (Speed)desired_speed;
+        timer.div          = 0;
         return;
       }
     }
@@ -898,18 +896,20 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
     }
 
     case HDMA5: {
-      if (bus->mode != CGB_ONLY)
+      if (bus->mode != COMPAT_MODE::CGB_ONLY) {
         return;
+      }
 
       u16 length = ((1 + ((value & 0x7f))) * 0x10);
       u16 src    = ((bus->io.data[HDMA1] << 8) + bus->io.data[HDMA2]) & 0xfff0;
       u16 dst    = ((bus->io.data[HDMA3] << 8) + bus->io.data[HDMA4]) & 0x1ff0;
 
       fmt::println("[HDMA] src:     {:#16x}", src);
-      fmt::println("[HDMA] dst:     {:#16x}", dst);
+      fmt::println("[HDMA] dst:     {:#16x} ({:#04x})", dst,
+                   VRAM_ADDRESS_OFFSET + dst);
       fmt::println("[HDMA] length:  {:#16x}", length);
       // exit(-1);
-      if ((value & 0x80) == 0) {  // gp dma
+      if ((value & 0x80) == 0) {
         // if (ppu->get_mode() == PIXEL_DRAW)
         //   return;
         for (size_t index = 0; index < length; index++) {
@@ -948,29 +948,30 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
     }
 
     case BCPS: {
-      if (bus->mode != CGB_ONLY) {
+      if (bus->mode != COMPAT_MODE::CGB_ONLY) {
         return;
       }
 
       bus->bcps.address        = value & 0b111111;
       bus->bcps.auto_increment = (value & (1 << 7)) >> 7;
-      fmt::println("[BCPS] new address: {:d}", +bus->bcps.address);
-      fmt::println("[BCPS] auto increment: {:d}", bus->bcps.auto_increment);
+      //      fmt::println("[BCPS] new address: {:d}", +bus->bcps.address);
+      //      fmt::println("[BCPS] auto increment: {:d}",
+      //      bus->bcps.auto_increment);
 
       break;
     }
     case BCPD: {
-      if (bus->mode != CGB_ONLY) {
+      if (bus->mode != COMPAT_MODE::CGB_ONLY) {
         return;
       }
       bus->bg_palette_ram.data[bus->bcps.address] = value;
       if (bus->bcps.auto_increment) {
         bus->bcps.address++;
       }
-      fmt::println("bcps address: {:#04x}", +bus->bcps.address);
+      //      fmt::println("bcps address: {:#04x}", +bus->bcps.address);
 
-      for (u8 palette_id = 0; palette_id < 8; palette_id++) {
-        for (u8 color = 0; color < 4; color++) {
+      for (size_t palette_id = 0; palette_id < 8; palette_id++) {
+        for (size_t color = 0; color < 4; color++) {
           u8 p_low =
               bus->bg_palette_ram.data.at((palette_id * 8) + (color * 2) + 0);
           u8 p_high =
@@ -999,30 +1000,31 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
       break;
     }
     case OCPS: {
-      if (bus->mode != CGB_ONLY) {
+      if (bus->mode != COMPAT_MODE::CGB_ONLY) {
         return;
       }
       bus->ocps.address        = value & 0b111111;
       bus->ocps.auto_increment = (value & (1 << 7)) >> 7;
-      fmt::println("[OCPS] new address: {:#04x}", +bus->ocps.address);
-      fmt::println("[OCPS] auto increment: {:d}", bus->ocps.auto_increment);
+      //      fmt::println("[OCPS] new address: {:#04x}", +bus->ocps.address);
+      //      fmt::println("[OCPS] auto increment: {:d}",
+      //      bus->ocps.auto_increment);
       break;
       // throw std::runtime_error("OCPS not implemented");
     }
     case OCPD: {
-      if (bus->mode != CGB_ONLY) {
+      if (bus->mode != COMPAT_MODE::CGB_ONLY) {
         return;
       }
-      fmt::println("write to OCPD");
+      //      fmt::println("write to OCPD");
       bus->obj_palette_ram.data[bus->ocps.address] = value;
       if (bus->ocps.auto_increment) {
         bus->ocps.address++;
       }
 
-      fmt::println("ocps address: {:#04x}", +bus->ocps.address);
+      //      fmt::println("ocps address: {:#04x}", +bus->ocps.address);
 
-      for (u8 palette_id = 0; palette_id < 8; palette_id++) {
-        for (u8 color = 0; color < 4; color++) {
+      for (size_t palette_id = 0; palette_id < 8; palette_id++) {
+        for (size_t color = 0; color < 4; color++) {
           u8 p_low =
               bus->obj_palette_ram.data.at((palette_id * 8) + (color * 2) + 0);
           u8 p_high = (bus->obj_palette_ram.data.at((palette_id * 8) +
@@ -1045,10 +1047,10 @@ void SharpSM83::handle_system_io_write(const u16 address, const u8 value) {
   }
   return bus->io.write8(address - 0xFF00, value);
 };
-void SharpSM83::write8(const u16 address, const u8 value) {
+void SM83::write8(const u16 address, const u8 value) {
   m_cycle();
   // fmt::println("write requested {:#04x}", address);
-  if (address >= 0xFE00 && address <= 0xFE9F && ppu->get_mode() >= 2) {
+  if (address >= 0xFE00 && address <= 0xFE9F && (u8)ppu->get_mode() >= 2) {
     return;
   };
   if ((address >= 0xFF00 && address <= 0xFF7F) || address == 0xFFFF) {
@@ -1057,17 +1059,17 @@ void SharpSM83::write8(const u16 address, const u8 value) {
   };
   mapper->write8(address, value);
 }
-void SharpSM83::push_to_stack(const u8 value) { write8(--SP, value); }
+void SM83::push_to_stack(const u8 value) { write8(--SP, value); }
 
-u8 SharpSM83::pull_from_stack() { return read8(SP++); }
+u8 SM83::pull_from_stack() { return read8(SP++); }
 
-void SharpSM83::set_flag(FLAG flag) { F |= (1 << (u8)flag); };
+void SM83::set_flag(Flag flag) { F |= (1 << (u8)flag); };
 
-void SharpSM83::unset_flag(FLAG flag) { F &= ~(1 << (u8)flag); };
+void SM83::unset_flag(Flag flag) { F &= ~(1 << (u8)flag); };
 
-u8 SharpSM83::get_flag(FLAG flag) const { return F & (1 << (u8)flag) ? 1 : 0; }
+u8 SM83::get_flag(Flag flag) const { return F & (1 << (u8)flag) ? 1 : 0; }
 
-void SharpSM83::handle_interrupts() {
+void SM83::handle_interrupts() {
   // fmt::println("[HANDLE INTERRUPTS] IF:   {:08b}", bus->wram.data[IF]);
   // fmt::println("[HANDLE INTERRUPTS] IE:   {:08b}", bus->wram.data[IE]);
   if (IME && bus->io.data[IE] && bus->io.data[IF]) {
@@ -1080,7 +1082,7 @@ void SharpSM83::handle_interrupts() {
     std::bitset<8> if_set(bus->io.data[IF]);
 
     for (size_t i = 0; i < 5; i++) {
-      if (if_set[i] == true && ie_set[i] == true) {
+      if (if_set[i] && ie_set[i]) {
         IME = false;
 
         // fmt::println("handling interrupt: {:#04x}", i);
@@ -1103,22 +1105,22 @@ void SharpSM83::handle_interrupts() {
     // lowest priority.
   }
 };
-void SharpSM83::run_instruction() {
+void SM83::run_instruction() {
   if (mapper == nullptr) {
     throw std::runtime_error("mapper error");
   }
 
-  if (status == CPU_STATUS::PAUSED) {
+  if (status == Status::PAUSED) {
     return;
   }
   handle_interrupts();
   /*
-  fmt::println(
-      "A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} "
-      "L: {:02X} SP: {:04X} PC: {:02X}:{:04X} ({:02X} {:02X} {:02X} {:02X})",
-      A, F, B, C, D, E, H, L, SP, mapper->rom_bank, PC, peek(PC), peek(PC + 1),
-      peek(PC + 2), peek(PC + 3));
-      */
+    fmt::println(
+        "A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} "
+        "L: {:02X} SP: {:04X} PC: {:02X}:{:04X} ({:02X} {:02X} {:02X} {:02X})",
+        A, F, B, C, D, E, H, L, SP, mapper->rom_bank, PC, peek(PC), peek(PC +
+    1), peek(PC + 2), peek(PC + 3));
+    */
   u8 opcode = read8(PC++);
   switch (opcode) {
     case 0x0: {
@@ -1201,10 +1203,10 @@ void SharpSM83::run_instruction() {
       break;
     }
     // TODO: implement STOP
-    // case 0x10: {
-    //   STOP();
-    //   break;
-    // }
+    case 0x10: {
+      STOP();
+      break;
+    }
     case 0x11: {
       LD_R16_U16(DE, read16(PC++));
       break;
@@ -1277,7 +1279,7 @@ void SharpSM83::run_instruction() {
       break;
     }
     case 0x1F: {  // make func
-      if (get_flag(FLAG::CARRY)) {
+      if (get_flag(Flag::CARRY)) {
         if (A & 0x1) {
           A >>= 1;
           A += 0x80;
@@ -1310,7 +1312,7 @@ void SharpSM83::run_instruction() {
     }
     case 0x20: {
       i8 offset = (i8)read8(PC++);
-      if (!get_flag(FLAG::ZERO)) {
+      if (!get_flag(Flag::ZERO)) {
         m_cycle();
         PC = PC + offset;
       }
@@ -1349,17 +1351,17 @@ void SharpSM83::run_instruction() {
       // WTF is the DAA instruction?
       // https://ehaskins.com/2018-01-30%20Z80%20DAA/
       u8 adjustment = 0;
-      if (get_flag(FLAG::HALF_CARRY) ||
-          (!get_flag(FLAG::NEGATIVE) && (A & 0xf) > 9)) {
+      if (get_flag(Flag::HALF_CARRY) ||
+          (!get_flag(Flag::NEGATIVE) && (A & 0xf) > 9)) {
         adjustment |= 0x6;
       }
 
-      if (get_flag(FLAG::CARRY) || (!get_flag(FLAG::NEGATIVE) && A > 0x99)) {
+      if (get_flag(Flag::CARRY) || (!get_flag(Flag::NEGATIVE) && A > 0x99)) {
         adjustment |= 0x60;
         set_carry();
       }
 
-      if (get_flag(FLAG::NEGATIVE)) {
+      if (get_flag(Flag::NEGATIVE)) {
         A += -adjustment;
       } else {
         A += adjustment;
@@ -1378,7 +1380,7 @@ void SharpSM83::run_instruction() {
 
     case 0x28: {
       i8 offset = (i8)read8(PC++);
-      if (get_flag(FLAG::ZERO)) {
+      if (get_flag(Flag::ZERO)) {
         m_cycle();
         PC = PC + offset;
       }
@@ -1432,7 +1434,7 @@ void SharpSM83::run_instruction() {
     }
     case 0x30: {
       i8 offset = (i8)read8(PC++);
-      if (!get_flag(FLAG::CARRY)) {
+      if (!get_flag(Flag::CARRY)) {
         m_cycle();
         PC = PC + offset;
       }
@@ -1486,7 +1488,7 @@ void SharpSM83::run_instruction() {
     }
     case 0x38: {
       i8 offset = (i8)read8(PC++);
-      if (get_flag(FLAG::CARRY)) {
+      if (get_flag(Flag::CARRY)) {
         m_cycle();
         PC = PC + offset;
       }
@@ -2099,7 +2101,7 @@ void SharpSM83::run_instruction() {
 
     case 0xC0: {
       m_cycle();
-      if (!get_flag(FLAG::ZERO)) {
+      if (!get_flag(Flag::ZERO)) {
         u8 low  = pull_from_stack();
         u8 high = pull_from_stack();
         m_cycle();
@@ -2114,7 +2116,7 @@ void SharpSM83::run_instruction() {
     case 0xC2: {
       u8 low  = read8(PC++);
       u8 high = read8(PC++);
-      if (!get_flag(FLAG::ZERO)) {
+      if (!get_flag(Flag::ZERO)) {
         m_cycle();
         PC = (high << 8) + low;
       }
@@ -2131,7 +2133,7 @@ void SharpSM83::run_instruction() {
     case 0xC4: {
       u8 low  = read8(PC++);
       u8 high = read8(PC++);
-      if (!get_flag(FLAG::ZERO)) {
+      if (!get_flag(Flag::ZERO)) {
         push_to_stack(((PC & 0xFF00) >> 8));
         push_to_stack((PC & 0xFF));
 
@@ -2154,7 +2156,7 @@ void SharpSM83::run_instruction() {
     }
     case 0xC8: {
       m_cycle();
-      if (get_flag(FLAG::ZERO)) {
+      if (get_flag(Flag::ZERO)) {
         u8 low  = pull_from_stack();
         u8 high = pull_from_stack();
         m_cycle();
@@ -2172,7 +2174,7 @@ void SharpSM83::run_instruction() {
     case 0xCA: {
       u8 low  = read8(PC++);
       u8 high = read8(PC++);
-      if (get_flag(FLAG::ZERO)) {
+      if (get_flag(Flag::ZERO)) {
         m_cycle();
         PC = (high << 8) + low;
       }
@@ -3289,7 +3291,7 @@ void SharpSM83::run_instruction() {
     case 0xCC: {
       u8 low  = read8(PC++);
       u8 high = read8(PC++);
-      if (get_flag(FLAG::ZERO)) {
+      if (get_flag(Flag::ZERO)) {
         push_to_stack(((PC & 0xFF00) >> 8));
         push_to_stack((PC & 0xFF));
 
@@ -3320,7 +3322,7 @@ void SharpSM83::run_instruction() {
     }
     case 0xD0: {
       m_cycle();
-      if (!get_flag(FLAG::CARRY)) {
+      if (!get_flag(Flag::CARRY)) {
         u8 low  = pull_from_stack();
         u8 high = pull_from_stack();
         m_cycle();
@@ -3335,7 +3337,7 @@ void SharpSM83::run_instruction() {
     case 0xD2: {
       u8 low  = read8(PC++);
       u8 high = read8(PC++);
-      if (!get_flag(FLAG::CARRY)) {
+      if (!get_flag(Flag::CARRY)) {
         m_cycle();
         PC = (high << 8) + low;
       }
@@ -3344,7 +3346,7 @@ void SharpSM83::run_instruction() {
     case 0xD4: {
       u8 low  = read8(PC++);
       u8 high = read8(PC++);
-      if (!get_flag(FLAG::CARRY)) {
+      if (!get_flag(Flag::CARRY)) {
         push_to_stack(((PC & 0xFF00) >> 8));
         push_to_stack((PC & 0xFF));
 
@@ -3386,7 +3388,7 @@ void SharpSM83::run_instruction() {
     }
     case 0xD8: {
       m_cycle();
-      if (get_flag(FLAG::CARRY)) {
+      if (get_flag(Flag::CARRY)) {
         u8 low  = pull_from_stack();
         u8 high = pull_from_stack();
         m_cycle();
@@ -3406,7 +3408,7 @@ void SharpSM83::run_instruction() {
       m_cycle();
       u8 low  = read8(PC++);
       u8 high = read8(PC++);
-      if (get_flag(FLAG::CARRY)) {
+      if (get_flag(Flag::CARRY)) {
         m_cycle();
         PC = (high << 8) + low;
       }
@@ -3415,7 +3417,7 @@ void SharpSM83::run_instruction() {
     case 0xDC: {
       u8 low  = read8(PC++);
       u8 high = read8(PC++);
-      if (get_flag(FLAG::CARRY)) {
+      if (get_flag(Flag::CARRY)) {
         push_to_stack(((PC & 0xFF00) >> 8));
         push_to_stack((PC & 0xFF));
 
