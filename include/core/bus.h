@@ -14,12 +14,12 @@ struct Joypad {
   u8 UP     : 1 = 1;
   u8 DOWN   : 1 = 1;
 
-  u8 get_buttons() const { return A + (B << 1) + (SELECT << 2) + (START << 3); }
+  [[nodiscard]] u8 get_buttons() const { return A + (B << 1) + (SELECT << 2) + (START << 3); }
 
-  u8 get_dpad() const { return RIGHT + (LEFT << 1) + (UP << 2) + (DOWN << 3); }
+  [[nodiscard]] u8 get_dpad() const { return RIGHT + (LEFT << 1) + (UP << 2) + (DOWN << 3); }
 };
 
-enum struct InterruptType : u8 {
+enum class InterruptType : u8 {
   VBLANK,
   LCD,
   TIMER,
@@ -30,7 +30,7 @@ struct PaletteSpecification {
   u8 address : 6      = 0x0;
   bool auto_increment = false;
 };
-enum COMPAT_MODE {
+enum class COMPAT_MODE : u8 {
   DMG,
   CGB_ONLY = 0xC0
 };
@@ -50,13 +50,13 @@ struct Bus {
   PaletteSpecification bcps;
   PaletteSpecification ocps;
 
-  // RAM wram{0x8000};
-  std::array<RAM, 2> vram_banks = {RAM(0x2000), RAM(0x2000)};
-  RAM* vram                     = &vram_banks[0];
 
+  std::array<RAM, 2> vram_banks = {RAM(0x2000), RAM(0x2000)};
   std::array<RAM, 8> wram_banks = {RAM(0x1000), RAM(0x1000), RAM(0x1000),
                                    RAM(0x1000), RAM(0x1000), RAM(0x1000),
                                    RAM(0x1000), RAM(0x1000)};
+
+  RAM* vram                     = &vram_banks[0];
   RAM* wram                    = &wram_banks[1];
   RAM oam{0xA0};
   RAM io{0x100};
@@ -65,6 +65,7 @@ struct Bus {
   RAM obj_palette_ram{0x40};
 
   void request_interrupt(InterruptType);
+  [[nodiscard]] bool interrupt_pending() const;
   std::string get_mode_string() const;
   u16 serial_port_index = 0;
   std::array<char, 0xFFFF> serial_port_buffer;
