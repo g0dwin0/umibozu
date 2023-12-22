@@ -46,14 +46,9 @@ void Cartridge::print_cart_info() {
 }
 
 void Cartridge::set_cart_info() {
-  // if (memory[0x143] == 0xC0) {
-  //   // throw std::runtime_error("ROM only works on CGB");
-  // }
-
-  // bool cgb_enhancements = memory[0x143] == 0x80;
-
   u8 mapper_id  = this->memory[0x147];
   u16 rom_banks = 2 * (1 << memory[0x148]);
+  fmt::println("ROM banks: {}", rom_banks);
   u16 ram_banks = 0;
   switch (memory[0x149]) {
     case 2: {
@@ -72,6 +67,9 @@ void Cartridge::set_cart_info() {
       ram_banks = 8;
       break;
     }
+    default: {
+      fmt::println("[CART] could not determine ram bank amount");
+    }
   }
 
   u8 destination_code      = memory[0x14A];
@@ -85,7 +83,6 @@ void Cartridge::set_cart_info() {
   info.rom_banks        = rom_banks;
   info.ram_banks        = ram_banks;
   info.destination_code = destination_code;
-  // info.supports_cgb_enhancements = cgb_enhancements;
-};
+}
 
 u8 Cartridge::read8(const u64 address) { return memory[address]; }

@@ -16,7 +16,6 @@ namespace Umibozu {
       u16 rom_banks;
       u16 ram_banks;
       u8 destination_code;
-      bool supports_cgb_enhancements;
     };
 
    public:
