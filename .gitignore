@@ -10,5 +10,5 @@ compile_commands.json
 *.log
 *.ini
 TODO.md
-tests/
 callgrind.*
+saves/
