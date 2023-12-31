@@ -1,4 +1,4 @@
-[submodule "imgui"]
+[submodule "lib/imgui"]
 	path = lib/imgui
 	url = https://github.com/ocornut/imgui
 [submodule "tests/sm83-test-data"]
