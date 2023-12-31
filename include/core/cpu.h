@@ -24,21 +24,19 @@
 namespace Umibozu {
 
   struct SM83 {
-    enum class Flag : u8{ CARRY = 4, HALF_CARRY = 5, NEGATIVE = 6, ZERO = 7 };
+    enum class Flag : u8 { CARRY = 4, HALF_CARRY = 5, NEGATIVE = 6, ZERO = 7 };
     enum class Status : u8 { ACTIVE, HALT_MODE, STOP, PAUSED };
-    enum class Speed : u8{ NORMAL = 0x00, DOUBLE = 0x80 };
+    enum class Speed : u8 { NORMAL = 0x00, DOUBLE = 0x80 };
 
     SM83();
     ~SM83();
     Bus* bus = nullptr;
     struct REG_16 {
+      // REFACTOR: use unions
       u8& high;
       u8& low;
 
-      REG_16(u8& A, u8& B) : high(A), low(B) {
-        high = A;
-        low  = B;
-      };
+      REG_16(u8& A, u8& B) : high(A), low(B) {};
 
       REG_16& operator++() {
         if (low == 0xFF) {
@@ -96,15 +94,17 @@ namespace Umibozu {
     REG_16 HL{H, L};
     u16 SP        = 0xFFFE;
     u16 PC        = 0x0100;
-    Status status = Status::ACTIVE;
+    Status status = Status::PAUSED;
     Timer timer;
     PPU* ppu                                = nullptr;
     Mapper* mapper                          = nullptr;
     bool IME                                = false;
-    Speed speed                             = Speed::DOUBLE;
+    Speed speed                             = Speed::NORMAL;
+    
     const std::array<u8, 5> INTERRUPT_TABLE = {
         VBLANK_INTERRUPT, STAT_INTERRUPT, TIMER_INTERRUPT, SERIAL_INTERRUPT,
         JOYPAD_INTERRUPT};
+        
     [[nodiscard]] u8 read8(u16 address);
     [[nodiscard]] u16 read16(u16 address);
 
@@ -124,7 +124,11 @@ namespace Umibozu {
     void run_instruction();
     void m_cycle();
     [[nodiscard]] std::string get_cpu_mode() const;
-
+    void init_hdma(u16 length);
+    void terminate_hdma();
+    #ifdef CPU_TEST_MODE_H
+    std::vector<u8> test_memory;
+    #endif
    private:
     // TODO: replace u8 refs with REG8 register type
     inline void HALT();
@@ -178,6 +182,5 @@ namespace Umibozu {
     inline void RES(u8 p, u8& r);
     inline void BIT(u8 p, const u8& r);
     inline void STOP();
-    void enter_stop_mode();
   };
 }  // namespace Umibozu
