@@ -9,6 +9,6 @@ compile_commands.json
 *.txt
 *.log
 *.ini
-TODO.md
 callgrind.*
 saves/
+run.sh
