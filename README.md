@@ -24,6 +24,17 @@ I used the following resources to create this emulator:
 
 Run `make check` to run the CPU tests.
 
+## Controls
+```
+A       =>  Z
+B       =>  X
+
+SELECT  => BACKSPACE
+START   => ENTER
+
+DPAD    => Arrow Keys
+```
+
 ## Binaries
 
 Binaries are available in the Releases tab.

@@ -4,7 +4,6 @@ build/
 .cache/
 .clang-format
 roms/
-lib/*
 compile_commands.json
 *.txt
 *.log
