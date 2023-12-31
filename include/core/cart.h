@@ -12,6 +12,7 @@ namespace Umibozu {
       std::string title;
       std::string manufacturer;
       std::string mapper_string;
+      std::string path;
       u8 mapper_id;
       u16 rom_banks;
       u16 ram_banks;

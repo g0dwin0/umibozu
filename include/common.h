@@ -18,7 +18,10 @@ typedef int8_t i8;
 typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
-
+enum class PRIORITY_MODE {
+  CGB,
+  DMG
+};
 enum HARDWARE_IO_REG {
   JOYPAD      = 0x00,
   SB          = 0x01,
@@ -29,6 +32,27 @@ enum HARDWARE_IO_REG {
   TMA         = 0x06,
   TAC         = 0x07,
   IF          = 0x0F,
+  NR10        = 0x10,
+  NR11        = 0x11,
+  NR12        = 0x12,
+  NR13        = 0x13,
+  NR14        = 0x14,
+  NR21        = 0x16,
+  NR22        = 0x17,
+  NR23        = 0x18,
+  NR24        = 0x19,
+  NR30        = 0x1A,
+  NR31        = 0x1B,
+  NR32        = 0x1C,
+  NR33        = 0x1D,
+  NR34        = 0x1E,
+  NR41        = 0x20,
+  NR42        = 0x21,
+  NR43        = 0x22,
+  NR44        = 0x23,
+  NR50        = 0x24,
+  NR51        = 0x25,
+  NR52        = 0x26,
   LCDC        = 0x40,
   STAT        = 0x41,
   SCY         = 0x42,
@@ -43,7 +67,7 @@ enum HARDWARE_IO_REG {
   WX          = 0x4B,
 
   //  CGB
-  KEY0  = 0x4C, // backwards compat reg
+  KEY0  = 0x4C,  // backwards compat reg
   KEY1  = 0x4D,
   VBK   = 0x4F,
   HDMA1 = 0x51,

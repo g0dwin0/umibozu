@@ -5,6 +5,7 @@
 struct File {
   std::vector<u8> data;
   u64 file_size;
+  std::string path;
 };
 
 namespace Umibozu {
@@ -28,6 +29,6 @@ namespace Umibozu {
                std::istream_iterator<u8>());
 
 
-    return File{vec, static_cast<u64>(fileSize)};
+    return File{vec, static_cast<u64>(fileSize), filename};
   }
 }  // namespace Umibozu

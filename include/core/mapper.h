@@ -2,7 +2,6 @@
 #include "bus.h"
 #include "common.h"
 #pragma GCC diagnostic ignored "-Wtype-limits"
-// TODO: implement MBC1M (>1mb carts)
 #define SERIAL_PORT_BUFFER_SIZE 2048
 
 enum class RTC_REGISTER : u8 {
