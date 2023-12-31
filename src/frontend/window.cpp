@@ -298,9 +298,6 @@ void Frontend::render_frame() {
   SDL_Rect rect{0, 0, 160, 151};
   SDL_RenderCopy(renderer, state.ppu_texture, &rect, NULL);
 
-  // SDL_Rect rect{0x0, 0, 160, 144};
-  // SDL_RenderCopy(renderer, state.ppu_texture, &rect, NULL);
-  
   ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
   SDL_RenderPresent(renderer);
   SDL_Delay(16);
