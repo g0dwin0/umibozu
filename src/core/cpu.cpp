@@ -1,11 +1,7 @@
 #include "cpu.h"
 
-#include <SDL2/SDL_pixels.h>
-
-#include <array>
 #include <bitset>
 #include <cassert>
-#include <cstddef>
 #include <stdexcept>
 
 #include "bus.h"
@@ -18,7 +14,9 @@ using namespace Umibozu;
 SM83::SM83()  = default;
 SM83::~SM83() = default;
 
-inline void SM83::STOP() { return; }
+inline void SM83::STOP() {
+  return;
+}
 std::string SM83::get_cpu_mode() const {
   switch (status) {
     case SM83::Status::ACTIVE: {
@@ -39,12 +37,9 @@ std::string SM83::get_cpu_mode() const {
 }
 inline void SM83::HALT() {
   status = Status::HALT_MODE;
-
   while (status == Status::HALT_MODE) {
-    for (size_t i = 0; i < 8; i++) {
-      if (bus->io.data[IE] & bus->io.data[IF]) {
-        status = Status::ACTIVE;
-      }
+    if (bus->io.data[IE] & bus->io.data[IF]) {
+      status = Status::ACTIVE;
     }
     m_cycle();
   }
@@ -602,8 +597,15 @@ inline void SM83::BIT(const u8 p, const u8& r) {
 }
 
 void SM83::m_cycle() {
-  timer.div += 4;
-  ppu->tick();
+#ifndef CPU_TEST_MODE_H
+  if (speed == Speed::DOUBLE) {
+    timer.div += 2;
+    ppu->tick(2);
+  } else {
+    timer.div += 4;
+    ppu->tick(4);
+  }
+#endif
 
   if (timer.overflow_update_queued) {
     timer.overflow_update_queued = false;
@@ -611,7 +613,6 @@ void SM83::m_cycle() {
     bus->request_interrupt(InterruptType::TIMER);
   }
   if (timer.ticking_enabled) {
-    // fmt::println("offset: {:d}", offset_table[bus->wram.data[TAC] & 0x3]);
 
     u16 div_bits = (timer.div & (1 << TIMER_BIT[bus->io.data[TAC] & 0x3])) >>
                    TIMER_BIT[bus->io.data[TAC] & 0x3];
@@ -630,9 +631,11 @@ void SM83::m_cycle() {
   }
 }
 u8 SM83::handle_system_io_read(const u16 address) {
-  if (address != (0xFF00 + SB) && address != (0xFF00 + SC)) {
-    //     fmt::println("register address: {:#04x}, value: {:#04x}", address,
-    //     bus->io.data[address - 0xFF00]);
+  if (address != (0xFF00 + SB) && address != (0xFF00 + SC) &&
+      address != (0xFF00 + LY) && address != (0xFF00 + LCDC) &&
+      address != (0xFF00 + JOYPAD)) {
+    // fmt::println("[R] register address: {:#04x}, value: {:#04x}", address,
+    //              bus->io.data[address - 0xFF00]);
   }
 
   switch (address - 0xFF00) {
@@ -649,7 +652,9 @@ u8 SM83::handle_system_io_read(const u16 address) {
         case 0x3: {
           return 0xF;
         }
+        default: {
           assert(false);
+        }
       }
 
       break;
@@ -663,30 +668,45 @@ u8 SM83::handle_system_io_read(const u16 address) {
     case TMA: {
       return timer.modulo;
     }
-    case TAC: {
-      return bus->io.data[TAC];
-    }
-
-    case STAT: {
-      // if (ppu->lcdc.lcd_ppu_enable == 0) {
-      //   return 0;
-      // }
+    case LY: {
+      if (ppu->lcdc.lcd_ppu_enable == 0) {
+        return 0;
+      }
       break;
     }
-    case SVBK:
+    case NR52: {
+      return 0;
+    }
+    case STAT: {
+      if (ppu->lcdc.lcd_ppu_enable == 0) {
+        return 0;
+      }
+      break;
+    }
+    case SVBK: {
+      fmt::println("SVBK: {:#04x}", bus->io.data[SVBK]);
+      break;
+    }
     case VBK: {
+      fmt::println("VBK: {:#04x}", bus->io.data[VBK]);
       break;
     }
     case KEY1: {
+      fmt::println("returning key1: {:#04x}", (u8)speed);
       return (u8)speed;
+    }
+    case HDMA5: {
+      fmt::println("HDMA5 read while active: {:08b}", bus->io.data[HDMA5]);
       break;
-      //      throw std::runtime_error("KEY1 unimplemented");
     }
   }
 
   return bus->io.read8(address - 0xFF00);
 }
 u8 SM83::read8(const u16 address) {
+#ifdef CPU_TEST_MODE_H
+  return test_memory[address];
+#endif
   m_cycle();
   // fmt::println("[R] {:#04x}", address);
   if (address >= 0xFE00 && address <= 0xFE9F && (u8)ppu->get_mode() >= 2) {
@@ -708,11 +728,24 @@ u16 SM83::read16(const u16 address) {
 }
 // debug only!
 u8 SM83::peek(const u16 address) const { return mapper->read8(address); }
+void SM83::init_hdma(u16 length) {
+  ppu->hdma_index     = 0;
+  bus->io.data[HDMA5] = (length / 0x10) - 1;
+};
+void SM83::terminate_hdma() {
+  fmt::println("HDMA terminated early.");
+  bus->io.data[HDMA5] &= ~(1 << 7);
+
+  fmt::println("HDMA5: {:08b}", bus->io.data[HDMA5]);
+};
+
 void SM83::handle_system_io_write(const u16 address, const u8 value) {
-  // if (address != (0xFF00 + SB) && address != (0xFF00 + SC)) {
-  //   fmt::println("register address: {:#04x}, value: {:#04x}", address,
-  //   value);
-  // }
+  if (address != (0xFF00 + SB) && address != (0xFF00 + SC) &&
+      address != (0xFF00 + LY) && address != (0xFF00 + LCDC) &&
+      address != (0xFF00 + JOYPAD)) {
+    // fmt::println("[W] register address: {:#04x}, value: {:#04x}", address,
+    //              value);
+  }
   switch (address - 0xFF00) {
     case JOYPAD: {
       if (value == 0x30) {  // BUTTONS NOR D-PAD SELECTED
@@ -753,18 +786,18 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
       break;
     }
     case LCDC: {
-      if ((value & 0x80) == 0) {
-        bus->io.data[LY]    = 0;
-        ppu->frame          = Frame();
-        ppu->sprite_overlay = Frame();
+      if ((bus->io.data[LCDC] & 0x80) == 0 && (value & 0x80)) {
+        ppu->frame_skip = true;
+        ppu->frame.clear();
+        bus->io.data[LY] = 0;
       }
       ppu->lcdc = value;
       break;
     }
     case STAT: {
-      // fmt::println("STAT: {:08b}", value);
-      u8 read_only_bits  = bus->io.data[STAT] & 0x7;
-      bus->io.data[STAT] = (value & 0xf8) + read_only_bits;
+      fmt::println("STAT: {:08b}", value);
+      u8 read_only_bits  = value & 0x78;
+      bus->io.data[STAT] = (1<<7) + read_only_bits + (u8)ppu->get_mode();
       return;
     }
     case LY: {  // read only
@@ -774,7 +807,7 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
       bus->io.data[LYC] = value;
       bus->io.data[STAT] &= 0xfb;
       bus->io.data[STAT] |=
-          (bus->io.data[LY] == bus->io.data[LYC]) ? 1 << 2 : 0;
+          (bus->io.data[LY] == bus->io.data[LYC]) ? (1 << 2) : 0;
 
       if ((bus->io.data[STAT] & 1 << 6) && (bus->io.data[STAT] & 1 << 2)) {
         bus->request_interrupt(InterruptType::LCD);
@@ -819,15 +852,9 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
       ppu->sys_palettes.OBP[0][1] = ppu->shade_table[id_1];
       ppu->sys_palettes.OBP[0][2] = ppu->shade_table[id_2];
       ppu->sys_palettes.OBP[0][3] = ppu->shade_table[id_3];
-
-      //      fmt::println("OBP_0[0] = {:#16x}", ppu->sys_palettes.OBP[0][0]);
-      //      fmt::println("OBP_0[1] = {:#16x}", ppu->sys_palettes.OBP[0][1]);
-      //      fmt::println("OBP_0[2] = {:#16x}", ppu->sys_palettes.OBP[0][2]);
-      //      fmt::println("OBP_0[3] = {:#16x}", ppu->sys_palettes.OBP[0][3]);
       break;
     }
     case OBP1: {
-      // fmt::println("OBP1 write: {:08b}", value);
       u8 id_0 = 0;
       u8 id_1 = (value & 0b00001100) >> 2;
       u8 id_2 = (value & 0b00110000) >> 4;
@@ -837,11 +864,6 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
       ppu->sys_palettes.OBP[1][1] = ppu->shade_table[id_1];
       ppu->sys_palettes.OBP[1][2] = ppu->shade_table[id_2];
       ppu->sys_palettes.OBP[1][3] = ppu->shade_table[id_3];
-
-      // fmt::println("OBP_1[0] = {:#16x}", ppu->OBP_1[0]);
-      // fmt::println("OBP_1[1] = {:#16x}", ppu->OBP_1[1]);
-      // fmt::println("OBP_1[2] = {:#16x}", ppu->OBP_1[2]);
-      // fmt::println("OBP_1[3] = {:#16x}", ppu->OBP_1[3]);
       break;
     }
     case VBK: {
@@ -851,9 +873,9 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
 
       bus->vbk  = (value & 0x1);
       bus->vram = &bus->vram_banks[bus->vbk];
-      fmt::println("VRAM bank: {:d}", +bus->vbk);
-      bus->io.data[VBK] = 0b11111110 + bus->vbk;
-      break;
+
+      bus->io.data[VBK] = 0xFE + bus->vbk;
+      return;
     }
     case SVBK: {
       if (bus->mode != COMPAT_MODE::CGB_ONLY) {
@@ -864,11 +886,11 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
       if (bus->svbk == 0) {
         bus->svbk = 1;
       }
-      bus->wram = &bus->wram_banks[bus->svbk];
-      fmt::println("WRAM bank: {:d}", +bus->svbk);
 
-      bus->io.data[SVBK] = 0b11111000 + bus->svbk;
-      break;
+      bus->wram = &bus->wram_banks[bus->svbk];
+      
+      bus->io.data[SVBK] = 0xF8 + bus->svbk;
+      return;
     }
     case KEY1: {
       if (bus->mode != COMPAT_MODE::CGB_ONLY) {
@@ -885,8 +907,11 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
         bus->io.data[KEY1] = desired_speed;
         speed              = (Speed)desired_speed;
         timer.div          = 0;
+        fmt::println("speed switched");
         return;
       }
+
+      return;
     }
     case HDMA1:
     case HDMA2:
@@ -899,8 +924,14 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
       if (bus->mode != COMPAT_MODE::CGB_ONLY) {
         return;
       }
+      fmt::println("entered HDMA5, value: {:#08b}", value);
 
-      u16 length = ((1 + ((value & 0x7f))) * 0x10);
+      if ((bus->io.data[HDMA5] & 0x80) == 0 && (value & 0x80) == 0x80) {
+        fmt::println("terminated HDMA");
+        return terminate_hdma();
+      }
+
+      u16 length = (1 + (value & 0x7f)) * 0x10;
       u16 src    = ((bus->io.data[HDMA1] << 8) + bus->io.data[HDMA2]) & 0xfff0;
       u16 dst    = ((bus->io.data[HDMA3] << 8) + bus->io.data[HDMA4]) & 0x1ff0;
 
@@ -908,42 +939,34 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
       fmt::println("[HDMA] dst:     {:#16x} ({:#04x})", dst,
                    VRAM_ADDRESS_OFFSET + dst);
       fmt::println("[HDMA] length:  {:#16x}", length);
-      // exit(-1);
-      if ((value & 0x80) == 0) {
-        // if (ppu->get_mode() == PIXEL_DRAW)
-        //   return;
+
+      if ((value & 0x80) == 0) {  // GDMA
         for (size_t index = 0; index < length; index++) {
-          // fmt::println("src + index: {:#04x}", (src + index));
-          // continue;
-          u8 src_data = mapper->read8((src + index) % 0x10000);
+          u16 src_address = (src + index);
+          u8 src_data     = mapper->read8(src_address);
 
           u16 vram_address = ((dst + index));
-          // if((dst+index) > 0x1fff) {
-          //   return;
-          // }
-          fmt::println("{:#16x}", vram_address);
-          fmt::println("[GDMA] {:#04x} -> VRM: {:#16x} ", src_data,
-                       0x8000 + vram_address);
+
+          if (vram_address > 0x1FFF) {
+            fmt::println("skipped GDMA");
+            bus->io.data[HDMA5] = 0xFF;
+            exit(-1);
+            return;
+          }
+          fmt::println(
+              "[GDMA] addr: {:#16x} data: {:#04x} -> VRAM ADDRESS: {:#16x} ",
+              src_address, src_data, 0x8000 + vram_address);
 
           bus->vram->write8(vram_address, src_data);
-          if (index % 0x10 == 0 && index != 0) {
-            m_cycle();
-            m_cycle();
-          }
         }
         bus->io.data[HDMA5] = 0xFF;
         return;
       } else {  // hblank dma
-        throw std::runtime_error("HBLANK DMA not implemented");
+        if ((bus->io.data[HDMA5] & 0x80) == 0x80) {
+          init_hdma(length);
+        }
+        return;
       }
-
-      // exit(-1);
-
-      // assert(false);
-      // mapper->read8(const u16 address);
-      // std::vector<u8> to_be_copied_data;
-      // std::copy(to_be_copied_data.begin(), to_be_copied_data.end(),
-      // bus->vram->)
       break;
     }
 
@@ -954,9 +977,6 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
 
       bus->bcps.address        = value & 0b111111;
       bus->bcps.auto_increment = (value & (1 << 7)) >> 7;
-      //      fmt::println("[BCPS] new address: {:d}", +bus->bcps.address);
-      //      fmt::println("[BCPS] auto increment: {:d}",
-      //      bus->bcps.auto_increment);
 
       break;
     }
@@ -968,7 +988,6 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
       if (bus->bcps.auto_increment) {
         bus->bcps.address++;
       }
-      //      fmt::println("bcps address: {:#04x}", +bus->bcps.address);
 
       for (size_t palette_id = 0; palette_id < 8; palette_id++) {
         for (size_t color = 0; color < 4; color++) {
@@ -978,23 +997,8 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
               (bus->bg_palette_ram.data.at((palette_id * 8) + (color * 2) + 1));
 
           u16 f_color = (p_high << 8) + p_low;
-          // fmt::println("f color: {:#16X}", f_color);
-          // fmt::println("Palette ID: BGP[{:d}][{:d}] f_color: {:08b}",
-          //              palette_id, color, f_color);
-          // fmt::println("Palette ID: BGP[{:d}][{:d}] f_color: {:#04x}",
-          //              palette_id, color, f_color);
 
           ppu->sys_palettes.BGP[palette_id][color] = f_color;
-
-          // ppu->sys_palettes.BGP[palette_id][color] |= (1 << 0);
-          // fmt::println("{:08b} AA: ", (1 << 0));
-
-          // fmt::println("[BGP] {:#16b}",
-          // ppu->sys_palettes.BGP[palette_id][color]);
-          // Palette ID 1   = 8
-          // Color   ID 1   = 2
-          // Byte (High)    = 1
-          // Byte (Low)     = 0
         }
       }
       break;
@@ -1003,25 +1007,20 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
       if (bus->mode != COMPAT_MODE::CGB_ONLY) {
         return;
       }
-      bus->ocps.address        = value & 0b111111;
+      bus->ocps.address        = value & 0x3f;
       bus->ocps.auto_increment = (value & (1 << 7)) >> 7;
-      //      fmt::println("[OCPS] new address: {:#04x}", +bus->ocps.address);
-      //      fmt::println("[OCPS] auto increment: {:d}",
-      //      bus->ocps.auto_increment);
+
       break;
-      // throw std::runtime_error("OCPS not implemented");
     }
     case OCPD: {
       if (bus->mode != COMPAT_MODE::CGB_ONLY) {
         return;
       }
-      //      fmt::println("write to OCPD");
+
       bus->obj_palette_ram.data[bus->ocps.address] = value;
       if (bus->ocps.auto_increment) {
         bus->ocps.address++;
       }
-
-      //      fmt::println("ocps address: {:#04x}", +bus->ocps.address);
 
       for (size_t palette_id = 0; palette_id < 8; palette_id++) {
         for (size_t color = 0; color < 4; color++) {
@@ -1030,24 +1029,20 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
           u8 p_high = (bus->obj_palette_ram.data.at((palette_id * 8) +
                                                     (color * 2) + 1));
 
-          u16 f_color = (p_high << 8) + p_low;
 
-          ppu->sys_palettes.OBP[palette_id][color] = f_color;
-
-          // ppu->sys_palettes.OBP[palette_id][color] &= ~(1 << 0);
-          // Palette ID 1   = 8
-          // Color   ID 1   = 2
-          // Byte (High)    = 1
-          // Byte (Low)     = 0
+          ppu->sys_palettes.OBP[palette_id][color] = (p_high << 8) + p_low;
         }
       }
       break;
-      // throw std::runtime_error("OCPD not implemented");
     }
   }
   return bus->io.write8(address - 0xFF00, value);
 };
 void SM83::write8(const u16 address, const u8 value) {
+#ifdef CPU_TEST_MODE_H
+  test_memory[address] = value;
+  return;
+#endif
   m_cycle();
   // fmt::println("write requested {:#04x}", address);
   if (address >= 0xFE00 && address <= 0xFE9F && (u8)ppu->get_mode() >= 2) {
@@ -1074,9 +1069,6 @@ void SM83::handle_interrupts() {
   // fmt::println("[HANDLE INTERRUPTS] IE:   {:08b}", bus->wram.data[IE]);
   if (IME && bus->io.data[IE] && bus->io.data[IF]) {
     // fmt::println("[HANDLE INTERRUPTS] IME:  {:08b}", IME);
-
-    // IE -> what specific interrupt handler is allowed to be called? (per bit)
-    // IF -> requested interrupts (handle here!)
 
     std::bitset<8> ie_set(bus->io.data[IE]);
     std::bitset<8> if_set(bus->io.data[IF]);
@@ -1106,21 +1098,23 @@ void SM83::handle_interrupts() {
   }
 };
 void SM83::run_instruction() {
-  if (mapper == nullptr) {
-    throw std::runtime_error("mapper error");
-  }
+#ifndef CPU_TEST_MODE_H
+  // if (mapper == nullptr) {
+  //   throw std::runtime_error("mapper error");
+  // }
 
   if (status == Status::PAUSED) {
     return;
   }
   handle_interrupts();
-  /*
-    fmt::println(
-        "A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} "
-        "L: {:02X} SP: {:04X} PC: {:02X}:{:04X} ({:02X} {:02X} {:02X} {:02X})",
-        A, F, B, C, D, E, H, L, SP, mapper->rom_bank, PC, peek(PC), peek(PC +
-    1), peek(PC + 2), peek(PC + 3));
-    */
+  // fmt::println(
+  //     "A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H:
+  //     {:02X}L: {:02X} SP: {:04X} PC: {:02X}:{:04X} ({:02X} {:02X} {:02X}
+  //     {:02X}) TE: {}", A, F, B, C, D, E, H, L, SP, mapper->rom_bank, PC,
+  //     peek(PC), peek(PC +
+  // 1), peek(PC + 2), peek(PC + 3), timer.ticking_enabled);
+#endif
+
   u8 opcode = read8(PC++);
   switch (opcode) {
     case 0x0: {
@@ -1202,9 +1196,9 @@ void SM83::run_instruction() {
       RRCA();
       break;
     }
-    // TODO: implement STOP
     case 0x10: {
       STOP();
+      PC++;
       break;
     }
     case 0x11: {

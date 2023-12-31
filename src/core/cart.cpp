@@ -5,7 +5,6 @@
 #include <vector>
 
 #include "cart_constants.hpp"
-#include "common.h"
 #include "fmt/core.h"
 using namespace Umibozu;
 
@@ -16,8 +15,9 @@ std::string Cartridge::get_title(std::span<const u8> title_bytes) {
   std::stringstream ss;
 
   for (auto& title_byte : title_bytes) {
-    if (title_byte == 0 || title_byte > 127)
+    if (title_byte == 0 || title_byte > 127) {
       break;
+    }
     ss << title_byte;
   }
 
@@ -41,7 +41,6 @@ void Cartridge::print_cart_info() {
   fmt::println("ram banks: {:d}", info.ram_banks);
   fmt::println("destination: {}",
                info.destination_code ? "japanese" : "overseas");
-  // fmt::println("cgb support: {}", info.supports_cgb_enhancements);
   fmt::println("mem vec size: {}", memory.size());
 }
 
