@@ -3,7 +3,7 @@ CPPFLAGS = -g -Ilib/imgui -Ilib/ -Ilib/imgui/backends -Ilib/tinyfiledialogs  -Ii
 OBJ_DIR = build/obj
 OBJ_IMGUI = $(OBJ_DIR)/imgui
 OBJS_IMGUI = $(OBJ_IMGUI)/imgui_demo.o $(OBJ_IMGUI)/imgui_draw.o $(OBJ_IMGUI)/imgui_impl_sdlrenderer2.o $(OBJ_IMGUI)/imgui_impl_sdl2.o $(OBJ_IMGUI)/imgui_tables.o $(OBJ_IMGUI)/imgui_widgets.o $(OBJ_IMGUI)/imgui.o
-OBJS = $(OBJ_DIR)/main.o $(OBJ_DIR)/cart.o $(OBJ_DIR)/cpu.o $(OBJ_DIR)/ppu.o  $(OBJ_DIR)/bus.o $(OBJ_DIR)/gb.o $(OBJ_DIR)/frontend.o $(OBJ_DIR)/file_dialog.o $(OBJ_DIR)/mappers.o 
+OBJS = $(OBJ_DIR)/main.o $(OBJ_DIR)/cart.o $(OBJ_DIR)/cpu.o $(OBJ_DIR)/ppu.o  $(OBJ_DIR)/bus.o $(OBJ_DIR)/gb.o $(OBJ_DIR)/frontend.o $(OBJ_DIR)/file_dialog.o $(OBJ_DIR)/mappers.o  $(OBJ_DIR)/instructions.o
 CC=g++
 CPPFLAGS += -O2
 # CPPFLAGS += -fsanitize=undefined,address -D_GLIBCXX_DEBUG
@@ -43,9 +43,14 @@ $(OBJ_DIR)/mappers.o: src/core/mappers.cpp include/core/mapper.h
 $(OBJ_DIR)/frontend.o: src/frontend/window.cpp include/frontend/window.h
 	$(CC) $(CPPFLAGS) -c src/frontend/window.cpp -o $(OBJ_DIR)/frontend.o
 
+$(OBJ_DIR)/instructions.o: src/core/instructions.cpp include/core/instructions.h
+	$(CC) $(CPPFLAGS) -c src/core/instructions.cpp -o $(OBJ_DIR)/instructions.o
+
+
+
 
 check: tests/cpu_tests.cpp
-	$(CC) tests/cpu_tests.cpp src/core/cpu.cpp src/core/bus.cpp -O2 -DCPU_TEST_MODE_H -Ilib/ -Iinclude -Iinclude/core -std=c++20 -o build/bin/tests
+	$(CC) tests/cpu_tests.cpp src/core/cpu.cpp src/core/bus.cpp  src/core/instructions.cpp  -O2 -DCPU_TEST_MODE_H -Ilib/ -Iinclude -Iinclude/core -std=c++20 -o build/bin/tests
 	time build/bin/tests
 
 clean:

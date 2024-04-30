@@ -2,7 +2,6 @@
 #include "cart.h"
 #include "common.h"
 #include "joypad.h"
-// #include "mapper.h"
 
 using namespace Umibozu;
 
