@@ -6,7 +6,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
-
 #include "fmt/core.h"
 
 typedef uint8_t u8;
@@ -18,11 +17,13 @@ typedef int8_t i8;
 typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
+
 enum class PRIORITY_MODE {
   CGB,
   DMG
 };
-enum HARDWARE_IO_REG {
+
+enum HARDWARE_IO_REG : u8 {
   JOYPAD      = 0x00,
   SB          = 0x01,
   SC          = 0x02,

@@ -1,4 +1,4 @@
-CPPFLAGS = -g -Ilib/imgui -Ilib/ -Ilib/imgui/backends -Ilib/tinyfiledialogs  -Iinclude/core -Iinclude/frontend -Iinclude/ -std=c++20 -Wall -Wextra -Wpedantic -Werror -lpthread -lSDL2 -lGL -Wno-deprecated-enum-enum-conversion
+CPPFLAGS = -g -Ilib/imgui -Ilib/ -Ilib/imgui/backends -Ilib/tinyfiledialogs  -Iinclude/core -Iinclude/frontend -Iinclude/ -std=c++20 -Wall -Wextra  -Werror -lpthread -lSDL2 -lGL -Wno-deprecated-enum-enum-conversion
 
 OBJ_DIR = build/obj
 OBJ_IMGUI = $(OBJ_DIR)/imgui
@@ -45,8 +45,6 @@ $(OBJ_DIR)/frontend.o: src/frontend/window.cpp include/frontend/window.h
 
 $(OBJ_DIR)/instructions.o: src/core/instructions.cpp include/core/instructions.h
 	$(CC) $(CPPFLAGS) -c src/core/instructions.cpp -o $(OBJ_DIR)/instructions.o
-
-
 
 
 check: tests/cpu_tests.cpp

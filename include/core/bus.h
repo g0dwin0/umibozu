@@ -13,7 +13,7 @@ enum class InterruptType : u8 {
   JOYPAD,
 };
 
-enum class COMPAT_MODE : u8 {
+enum class SYSTEM_MODE : u8 {
   DMG,
   CGB_ONLY = 0xC0
 };
@@ -27,7 +27,7 @@ struct Bus {
   Cartridge cart;
   Joypad joypad;
 
-  COMPAT_MODE mode;
+  SYSTEM_MODE mode;
 
   // WRAM Bank
   u8 svbk = 0;

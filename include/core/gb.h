@@ -12,6 +12,6 @@ struct GB {
   ~GB();
 
   void load_cart(const File&);
-  void init_hw_regs(COMPAT_MODE);
+  void init_hw_regs(SYSTEM_MODE);
   void load_save_game();
 };

@@ -8,6 +8,7 @@ namespace Umibozu {
    private:
     static std::string get_title(std::span<const u8>);
     static std::string get_manufacturer(u8, std::span<const u8>);
+    
     struct Info {
       std::string title;
       std::string manufacturer;

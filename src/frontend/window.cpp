@@ -162,7 +162,7 @@ void Frontend::show_ppu_info() {
   ImGui::Text("LYC = %d", gb->bus.io.data[LYC]);
   ImGui::Text("WRAM BANK = %d", gb->bus.svbk);
   ImGui::Text("VRAM BANK = %d", gb->bus.vbk);
-  if (gb->bus.mode == COMPAT_MODE::CGB_ONLY) {
+  if (gb->bus.mode == SYSTEM_MODE::CGB_ONLY) {
     ImGui::Text("OPRI = %s",
                 gb->bus.io.data[OPRI] == 1 ? "DMG-style" : "CGB-style");
   }
@@ -230,15 +230,15 @@ void Frontend::show_cpu_info() {
   ImGui::Text("ROM BANK: %d", gb->cpu.mapper->rom_bank);
   ImGui::Text("RAM BANK: %d", gb->cpu.mapper->ram_bank);
   ImGui::Separator();
-  ImGui::Text("Speed: %s", gb->cpu.speed == Umibozu::SM83::Speed::DOUBLE
+  ImGui::Text("SPEED: %s", gb->cpu.speed == Umibozu::SM83::SPEED::DOUBLE
                                ? "DOUBLE"
                                : "NORMAL");
   ImGui::Separator();
 
-  ImGui::Text("Z: %x", gb->cpu.get_flag(Umibozu::SM83::Flag::ZERO));
-  ImGui::Text("N: %x", gb->cpu.get_flag(Umibozu::SM83::Flag::NEGATIVE));
-  ImGui::Text("H: %x", gb->cpu.get_flag(Umibozu::SM83::Flag::HALF_CARRY));
-  ImGui::Text("C: %x", gb->cpu.get_flag(Umibozu::SM83::Flag::CARRY));
+  ImGui::Text("Z: %x", gb->cpu.get_flag(Umibozu::SM83::FLAG::ZERO));
+  ImGui::Text("N: %x", gb->cpu.get_flag(Umibozu::SM83::FLAG::NEGATIVE));
+  ImGui::Text("H: %x", gb->cpu.get_flag(Umibozu::SM83::FLAG::HALF_CARRY));
+  ImGui::Text("C: %x", gb->cpu.get_flag(Umibozu::SM83::FLAG::CARRY));
   ImGui::Separator();
   ImGui::Text("pointer to cpu = %p", (void*)&gb->cpu);
   ImGui::Text("pc = 0x%x", gb->cpu.PC);
@@ -267,10 +267,10 @@ void Frontend::show_cpu_info() {
     gb->cpu.run_instruction();
   }
   if (ImGui::Button("START")) {
-    gb->cpu.status = SM83::Status::ACTIVE;
+    gb->cpu.status = SM83::STATUS::ACTIVE;
   }
   if (ImGui::Button("PAUSE")) {
-    gb->cpu.status = SM83::Status::PAUSED;
+    gb->cpu.status = SM83::STATUS::PAUSED;
   }
 
   ImGui::End();
@@ -312,8 +312,8 @@ void Frontend::show_viewport() {
 
   ImGui::End();
 }
-Frontend::Frontend(GB& gb) {
-  this->gb = &gb;
+Frontend::Frontend(GB* gb) {
+  this->gb = gb;
   assert(this->gb != nullptr);
 
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_GAMECONTROLLER) !=
@@ -350,7 +350,8 @@ Frontend::Frontend(GB& gb) {
   this->state.viewport = SDL_CreateTexture(
       renderer, SDL_PIXELFORMAT_BGR555, SDL_TEXTUREACCESS_TARGET, 256, 256);
   
-  
+    gb->ppu.set_renderer(this->renderer);
+  gb->ppu.set_frame_texture(this->state.ppu_texture);
 
   ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
   ImGui_ImplSDLRenderer2_Init(renderer);

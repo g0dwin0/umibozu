@@ -90,7 +90,7 @@ class ROM_ONLY : public Mapper {
       if (!ram_rtc_enabled) {
         return 0xFF;
       }
-      fmt::println("reading from ext ram");
+      fmt::println("[MAPPER] reading from ext ram");
       return bus->cart.ext_ram.read8(address - 0xA000);
     }
     return handle_system_memory_read(address);
@@ -100,7 +100,7 @@ class ROM_ONLY : public Mapper {
       if (!ram_rtc_enabled) {
         return;
       }
-      fmt::println("reading from ext ram");
+      fmt::println("[MAPPER] reading from ext ram");
       return bus->cart.ext_ram.write8(address - 0xA000, value);
     }
     return handle_system_memory_write(address, value);
@@ -300,7 +300,7 @@ class MBC5 : public Mapper {
   }
 };
 Mapper* get_mapper_by_id(u8 mapper_id) {
-  fmt::println("MAPPER ID: {:#04x} ({})", mapper_id, cart_types.at(mapper_id));
+  fmt::println("[MAPPER] MAPPER ID: {:#04x} ({})", mapper_id, cart_types.at(mapper_id));
   Mapper* mapper;
   switch (mapper_id) {
     case 0x0:

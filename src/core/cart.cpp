@@ -27,28 +27,27 @@ std::string Cartridge::get_manufacturer(u8 index,
                                         std::span<const u8> new_vendor_bytes) {
   std::stringstream ss;
   ss << new_vendor_bytes[0] << new_vendor_bytes[1];
-  fmt::println("{}", index);
-  fmt::println("{}", atoi(ss.str().c_str()));
+  
   return index == 0x33 ? NEW_MANUFACTURER_MAP.at(atoi(ss.str().c_str()))
                        : OLD_MANUFACTURER_MAP.at(index);
 }
 
 void Cartridge::print_cart_info() {
-  fmt::println("title: {}", info.title);
-  fmt::println("manufacturer: {}", info.manufacturer);
-  fmt::println("mapper string: {}", info.mapper_string);
-  fmt::println("rom banks: {:d}", info.rom_banks);
-  fmt::println("ram banks: {:d}", info.ram_banks);
-  fmt::println("destination: {}",
-               info.destination_code ? "japanese" : "overseas");
-  fmt::println("mem vec size: {}", memory.size());
+  fmt::println("[CART] title: {}", info.title.empty() ? "UNKNOWN" : info.title);
+  fmt::println("[CART] manufacturer: {}", info.manufacturer);
+  fmt::println("[CART] mapper string: {}", info.mapper_string);
+  fmt::println("[CART] rom banks: {:d}", info.rom_banks);
+  fmt::println("[CART] ram banks: {:d}", info.ram_banks);
+  fmt::println("[CART] region: {}",
+               info.destination_code ? "japan" : "overseas");
+  fmt::println("[CART] mem vec size: {}", memory.size());
 }
 
 void Cartridge::set_cart_info() {
   u8 mapper_id  = this->memory[0x147];
-  u16 rom_banks = 2 * (1 << memory[0x148]);
-  fmt::println("ROM banks: {}", rom_banks);
-  u16 ram_banks = 0;
+  u8 rom_banks = 2 * (1 << memory[0x148]);
+  u8 ram_banks = 0;
+  
   switch (memory[0x149]) {
     case 2: {
       ram_banks = 1;
@@ -67,7 +66,7 @@ void Cartridge::set_cart_info() {
       break;
     }
     default: {
-      fmt::println("[CART] could not determine ram bank amount");
+      break;
     }
   }
 

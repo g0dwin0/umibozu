@@ -4,16 +4,16 @@
 namespace Instructions {
 using Umibozu::SM83;
 void HALT(SM83 *c) {
-  c->status = SM83::Status::HALT_MODE;
-  while (c->status == SM83::Status::HALT_MODE) {
+  c->status = SM83::STATUS::HALT_MODE;
+  while (c->status == SM83::STATUS::HALT_MODE) {
     if (c->bus->io.data[IE] & c->bus->io.data[IF]) {
-      c->status = SM83::Status::ACTIVE;
+      c->status = SM83::STATUS::ACTIVE;
     }
     c->m_cycle();
   }
 }
 void RRA(SM83 *c) {
-  if (c->get_flag(Umibozu::SM83::Flag::CARRY)) {
+  if (c->get_flag(Umibozu::SM83::FLAG::CARRY)) {
     if (c->A & 0x1) {
       c->A >>= 1;
       c->A += 0x80;
@@ -45,33 +45,34 @@ void RRA(SM83 *c) {
 }
 
 void DAA(SM83 *c) {
-    // WTF is the DAA instruction?
-      // https://ehaskins.com/2018-01-30%20Z80%20DAA/
-      u8 adjustment = 0;
-      if (c->get_flag(Umibozu::SM83::Flag::HALF_CARRY) ||
-          (!c->get_flag(Umibozu::SM83::Flag::NEGATIVE) && (c->A & 0xf) > 9)) {
-        adjustment |= 0x6;
-      }
+  // WTF is the DAA instruction?
+  // https://ehaskins.com/2018-01-30%20Z80%20DAA/
+  u8 adjustment = 0;
+  if (c->get_flag(Umibozu::SM83::FLAG::HALF_CARRY) ||
+      (!c->get_flag(Umibozu::SM83::FLAG::NEGATIVE) && (c->A & 0xf) > 9)) {
+    adjustment |= 0x6;
+  }
 
-      if (c->get_flag(Umibozu::SM83::Flag::CARRY) || (!c->get_flag(Umibozu::SM83::Flag::NEGATIVE) && c->A > 0x99)) {
-        adjustment |= 0x60;
-        c->set_carry();
-      }
+  if (c->get_flag(Umibozu::SM83::FLAG::CARRY) ||
+      (!c->get_flag(Umibozu::SM83::FLAG::NEGATIVE) && c->A > 0x99)) {
+    adjustment |= 0x60;
+    c->set_carry();
+  }
 
-      if (c->get_flag(Umibozu::SM83::Flag::NEGATIVE)) {
-        c->A += -adjustment;
-      } else {
-        c->A += adjustment;
-      }
+  if (c->get_flag(Umibozu::SM83::FLAG::NEGATIVE)) {
+    c->A += -adjustment;
+  } else {
+    c->A += adjustment;
+  }
 
-      c->A &= 0xff;
+  c->A &= 0xff;
 
-      if (c->A == 0) {
-        c->set_zero();
-      } else {
-        c->reset_zero();
-      }
-      c->reset_half_carry();
+  if (c->A == 0) {
+    c->set_zero();
+  } else {
+    c->reset_zero();
+  }
+  c->reset_half_carry();
 }
 void ADD_HL_DE(SM83 *c) {
   if (((c->HL & 0xfff) + (c->DE & 0xfff)) & 0x1000) {
@@ -132,9 +133,7 @@ void LD_HL_SP_E8(SM83 *c) {
 }
 void LD_R_R(u8 &r_1, u8 r_2) { r_1 = r_2; }
 
-void STOP() {
-  return;
-}
+void STOP() { return; }
 void ADD_SP_E8(SM83 *c) {
   u8 op = c->read8(c->PC++);
   i8 val = op;
@@ -159,12 +158,10 @@ void ADD_SP_E8(SM83 *c) {
 }
 
 // write value to memory address
-void LD_M_R(SM83 *c, const u16 address, u8 val) {
-  c->write8(address, val);
-}
+void LD_M_R(SM83 *c, const u16 address, u8 val) { c->write8(address, val); }
 
-void LD_SP_U16(SM83* c, u16 val) { c->SP = val; }
-void LD_R16_U16(SM83*, Umibozu::SM83::REG_16 &r_1, u16 val) { r_1 = val; }
+void LD_SP_U16(SM83 *c, u16 val) { c->SP = val; }
+void LD_R16_U16(SM83 *, Umibozu::SM83::REG_16 &r_1, u16 val) { r_1 = val; }
 void LD_U16_SP(SM83 *c, u16 address, u16 sp_val) {
   c->write8(address, sp_val & 0xFF);
   c->write8(address + 1, (sp_val & 0xFF00) >> 8);
@@ -191,9 +188,7 @@ void SCF(SM83 *c) {
   c->reset_half_carry();
   c->set_carry();
 }
-void NOP(SM83*) {
-  return;
-}
+void NOP(SM83 *) { return; }
 void DEC_R16(SM83 *c, Umibozu::SM83::REG_16 &r) {
   r--;
   c->m_cycle();
@@ -205,7 +200,7 @@ void DEC_SP(SM83 *c) {
 void CCF(SM83 *c) {
   c->reset_negative();
   c->reset_half_carry();
-  if (c->get_flag(Umibozu::SM83::Flag::CARRY)) {
+  if (c->get_flag(Umibozu::SM83::FLAG::CARRY)) {
     c->reset_carry();
   } else {
     c->set_carry();
@@ -300,7 +295,7 @@ void RRCA(SM83 *c) {
     c->reset_carry();
   }
   c->A >>= 1;
-  c->A |= c->get_flag(Umibozu::SM83::Flag::CARRY) ? 0x80 : 0;
+  c->A |= c->get_flag(Umibozu::SM83::FLAG::CARRY) ? 0x80 : 0;
 
   c->reset_zero();
   c->reset_negative();
@@ -313,14 +308,14 @@ void RLCA(SM83 *c) {
     c->reset_carry();
   }
   c->A <<= 1;
-  c->A |= c->get_flag(Umibozu::SM83::Flag::CARRY);
+  c->A |= c->get_flag(Umibozu::SM83::FLAG::CARRY);
 
   c->reset_zero();
   c->reset_negative();
   c->reset_half_carry();
 }
 void RLA(SM83 *c) {
-  if (c->get_flag(Umibozu::SM83::Flag::CARRY)) {
+  if (c->get_flag(Umibozu::SM83::FLAG::CARRY)) {
     if (c->A & 0x80) {
       c->A <<= 1;
       c->A += 0x1;
@@ -351,7 +346,7 @@ void RST(SM83 *c, u8 pc_new) {
   c->PC = pc_new;
 }
 void ADC(SM83 *c, u8 &r, u8 r_2) {
-  u8 carry = c->get_flag(Umibozu::SM83::Flag::CARRY);
+  u8 carry = c->get_flag(Umibozu::SM83::FLAG::CARRY);
 
   if (((r & 0xf) + (r_2 & 0xf) + carry) & 0x10) {
     c->set_half_carry();
@@ -375,7 +370,7 @@ void ADC(SM83 *c, u8 &r, u8 r_2) {
   c->reset_negative();
 }
 void SBC(SM83 *c, u8 &r, u8 r_2) {
-  u8 carry = c->get_flag(Umibozu::SM83::Flag::CARRY);
+  u8 carry = c->get_flag(Umibozu::SM83::FLAG::CARRY);
 
   if (((r & 0xf) - (r_2 & 0xf) - carry) & 0x10) {
     c->set_half_carry();
@@ -454,7 +449,7 @@ void RLC(SM83 *c, u8 &r) {
     c->reset_carry();
   }
   r <<= 1;
-  r |= c->get_flag(Umibozu::SM83::Flag::CARRY);
+  r |= c->get_flag(Umibozu::SM83::FLAG::CARRY);
   if (r == 0) {
     c->set_zero();
   } else {
@@ -478,7 +473,7 @@ void RRC(SM83 *c, u8 &r) {
     c->reset_carry();
   }
   r >>= 1;
-  r |= c->get_flag(Umibozu::SM83::Flag::CARRY) ? 0x80 : 0;
+  r |= c->get_flag(Umibozu::SM83::FLAG::CARRY) ? 0x80 : 0;
   if (r == 0) {
     c->set_zero();
   } else {
@@ -540,7 +535,7 @@ void SLA_HL(SM83 *c) {
 }
 
 void RR(SM83 *c, u8 &r) {
-  if (c->get_flag(Umibozu::SM83::Flag::CARRY)) {
+  if (c->get_flag(Umibozu::SM83::FLAG::CARRY)) {
     if (r & 0x1) {
       r >>= 1;
       r += 0x80;
@@ -571,7 +566,7 @@ void RR(SM83 *c, u8 &r) {
 }
 
 void RL(SM83 *c, u8 &r) {
-  if (c->get_flag(Umibozu::SM83::Flag::CARRY)) {
+  if (c->get_flag(Umibozu::SM83::FLAG::CARRY)) {
     if (r & 0x80) {
       r <<= 1;
       r += 0x1;
@@ -656,8 +651,8 @@ void SRL_HL(SM83 *c) {
   c->write8(c->HL, r);
 }
 
-void SET(SM83 *,u8 p, u8 &r) { r |= (1 << p); }
-void RES(SM83 *,u8 p, u8 &r) { r &= ~(1 << p); }
+void SET(SM83 *, u8 p, u8 &r) { r |= (1 << p); }
+void RES(SM83 *, u8 p, u8 &r) { r &= ~(1 << p); }
 void BIT(SM83 *c, const u8 p, const u8 &r) {
   if (r & (1 << p)) {
     c->reset_zero();

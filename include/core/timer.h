@@ -13,6 +13,7 @@ struct Timer {
 
   // TAC
   bool ticking_enabled    = false;
+
   // TIMA
   u8 counter = 0x0;
 

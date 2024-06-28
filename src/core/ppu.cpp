@@ -17,9 +17,7 @@ void PPU::set_renderer(SDL_Renderer* renderer) { this->renderer = renderer; }
 void PPU::set_frame_texture(SDL_Texture* texture) {
   this->frame_texture = texture;
 }
-void PPU::set_sprite_overlay_texture(SDL_Texture* texture) {
-  this->sprite_overlay_texture = texture;
-}
+
 u8 PPU::get_sprite_size() const { return lcdc.sprite_size == 0 ? 8 : 16; }
 
 void PPU::add_sprite_to_buffer(u8 sprite_index) {
@@ -48,7 +46,7 @@ void PPU::add_sprite_to_buffer(u8 sprite_index) {
   Sprite current_sprite = Sprite(sprite_y, sprite_x, tile_number, sprite_flags);
 
   // DMG sprite prio
-  if (bus->mode == COMPAT_MODE::DMG) {
+  if (bus->mode == SYSTEM_MODE::DMG) {
     for (const auto& sprite : sprite_buf) {
       if (sprite.x_pos == current_sprite.x_pos) {
         return;
@@ -76,7 +74,7 @@ void PPU::tick(u16 dots_inc) {
     return;
   }
 
-  // fmt::println("dots: {:d}", dots);
+  // fmt::println("[PPU] dots: {:d}", dots);
   switch (ppu_mode) {
     case RENDERING_MODE::OAM_SCAN: {
       if (bus->io.data[WY] == bus->io.data[LY] &&
@@ -89,10 +87,10 @@ void PPU::tick(u16 dots_inc) {
       }
       if (dots == 80) {
         // CGB only
-        if (bus->mode == COMPAT_MODE::CGB_ONLY) {
+        if (bus->mode == SYSTEM_MODE::CGB_ONLY) {
           std::reverse(sprite_buf.begin(), sprite_buf.end());
         }
-        assert(sprite_buf.size() < 11);
+        assert(sprite_buf.size() <= 10);
         set_ppu_mode(RENDERING_MODE::PIXEL_DRAW);
       }
       break;
@@ -167,10 +165,7 @@ std::array<Pixel, 8> PPU::decode_pixel_row(u8 high_byte, u8 low_byte) {
   std::array<Pixel, 8> pixel_array;
 
   for (u8 i = 0; i < 8; i++) {
-    u8 h_c = (high_byte & (1 << i)) != 0 ? 2 : 0;
-    u8 l_c = (low_byte & (1 << i)) != 0 ? 1 : 0;
-
-    pixel_array[i] = Pixel{static_cast<u8>(h_c + l_c)};
+    pixel_array[i] = Pixel{static_cast<u8>(((high_byte & (1 << i)) != 0 ? 2 : 0) + ((low_byte & (1 << i)) != 0 ? 1 : 0))};
   }
 
   return pixel_array;
@@ -181,7 +176,7 @@ Tile PPU::get_tile_data(u16 address, bool sprite) const {
 
   u8 index = bus->vram->read8(address);
   u8 matching_attr_byte;
-  if (bus->mode == COMPAT_MODE::CGB_ONLY) {
+  if (bus->mode == SYSTEM_MODE::CGB_ONLY) {
     // bus->vram = &bus->vram_banks[1];
 
     matching_attr_byte = bus->vram_banks[1].read8(address);
@@ -205,7 +200,7 @@ Tile PPU::get_tile_data(u16 address, bool sprite) const {
         tile.pixel_data[row][pixel_index] = pixel_array[pixel_index];
       }
     }
-    if (bus->mode == COMPAT_MODE::CGB_ONLY) {
+    if (bus->mode == SYSTEM_MODE::CGB_ONLY) {
       bus->vram = &bus->vram_banks[bus->vbk];
     }
     return tile;
@@ -224,7 +219,7 @@ Tile PPU::get_tile_data(u16 address, bool sprite) const {
       }
     }
   }
-  if (bus->mode == COMPAT_MODE::CGB_ONLY) {
+  if (bus->mode == SYSTEM_MODE::CGB_ONLY) {
     bus->vram = &bus->vram_banks[bus->vbk];
   }
   return tile;
@@ -234,7 +229,7 @@ Tile PPU::get_tile_sprite_data(u16 index, bool sprite, u8 bank) const {
   Tile tile;
   assert(bank < 2);
 
-  if (bus->mode == COMPAT_MODE::CGB_ONLY) {
+  if (bus->mode == SYSTEM_MODE::CGB_ONLY) {
     bus->vram = &bus->vram_banks[bank];
   }
 
@@ -251,7 +246,7 @@ Tile PPU::get_tile_sprite_data(u16 index, bool sprite, u8 bank) const {
         tile.pixel_data[row][pixel_index] = pixel_array[pixel_index];
       }
     }
-    if (bus->mode == COMPAT_MODE::CGB_ONLY) {
+    if (bus->mode == SYSTEM_MODE::CGB_ONLY) {
       bus->vram = &bus->vram_banks[bus->vbk];
     }
     return tile;
@@ -270,7 +265,7 @@ Tile PPU::get_tile_sprite_data(u16 index, bool sprite, u8 bank) const {
       }
     }
   }
-  if (bus->mode == COMPAT_MODE::CGB_ONLY) {
+  if (bus->mode == SYSTEM_MODE::CGB_ONLY) {
     bus->vram = &bus->vram_banks[bus->vbk];
   }
   return tile;
@@ -347,7 +342,7 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
           for (u8 x = 0; x < 8; x++) {
             u16 color;
 
-            if (bus->mode == COMPAT_MODE::CGB_ONLY) {
+            if (bus->mode == SYSTEM_MODE::CGB_ONLY) {
               color = sys_palettes
                           .BGP[active_tile.attr_data.color_palette]
                               [active_tile.pixel_data[y % 8][(7 - x)].color];
@@ -369,7 +364,7 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
 
             u32 buf_pos = line_base + line_x;
 
-            if (bus->mode == COMPAT_MODE::DMG) {
+            if (bus->mode == SYSTEM_MODE::DMG) {
               if (lcdc.bg_and_window_enable_priority == 0) {
                 frame.data[buf_pos]     = WHITE;
                 frame.color_id[buf_pos] = 0;
@@ -395,7 +390,7 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
             Tile lower_tile;
 
             if (get_sprite_size() == 16) {
-              // fmt::println("hey");
+              
               top_tile   = get_tile_sprite_data((sprite.tile_no & 0xFE), true,
                                                 sprite.bank);
               lower_tile = get_tile_sprite_data((sprite.tile_no | 0x01), true,
@@ -407,7 +402,7 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
 
             Palette pal;
 
-            if (bus->mode == COMPAT_MODE::CGB_ONLY) {
+            if (bus->mode == SYSTEM_MODE::CGB_ONLY) {
               pal = sys_palettes.get_palette_by_id(sprite.cgb_palette);
             } else {
               pal = sys_palettes.get_palette_by_id(sprite.palette_number);
@@ -427,7 +422,7 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
             }
 
             u16 current_y = (bus->io.data[LY] - sprite.y_pos) + 16;
-            // fmt::println("current y: {:d}", current_y);
+            // fmt::println("[PPU] current y: {:d}", current_y);
             for (u8 x = 0; x < 8; x++) {
               // u16 current_x = abs(sprite.x_pos - x - 1);
               i16 current_x = sprite.x_pos - x - 1;
@@ -439,7 +434,7 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
 
               // if(top_tile.pixel_data[current_y % 8][x].color == 0) continue;
 
-              if (bus->mode == COMPAT_MODE::CGB_ONLY &&
+              if (bus->mode == SYSTEM_MODE::CGB_ONLY &&
                   (bus->io.data[OPRI] & 0x1) == (u8)PRIORITY_MODE::CGB) {
                 // BG priority has prio over sprite prio
                 if (lcdc.bg_and_window_enable_priority &&
@@ -519,7 +514,7 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
         //     u16 vram_address = ((dst + (hdma_index * 0x10) + index));
         //     if (vram_address > 0x1FFF) {
         //       bus->io.data[HDMA5] |= 0x80;
-        //       fmt::println("overflow");
+        //       fmt::println("[PPU] overflow");
         //       // assert(false && "overflow");
         //     } else {
         //       // fmt::println(
@@ -532,7 +527,7 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
         //   }
         //   if ((bus->io.data[HDMA5] & 0x7f) == 0) {
         //     // we're done
-        //     fmt::println("TRANSFER FINISHNED");
+        //     fmt::println("[PPU] TRANSFER FINISHNED");
         //     bus->io.data[HDMA5] = 0xFF;
         //     hdma_index          = 0;
         //   } else {
@@ -553,7 +548,7 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
         frame.clear();
         if (frame_skip) {
           frame_skip = false;
-          fmt::println("frame skipped after re-enabling");
+          fmt::println("[PPU] frame skipped after re-enabling");
           break;
         }
         frame_queued = true;

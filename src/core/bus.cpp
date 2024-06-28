@@ -9,7 +9,7 @@ u8 RAM::read8(const u16 address) { return data[address]; }
 void Bus::request_interrupt(InterruptType t) { io.data[IF] |= (1 << (u8)t); }
 
 std::string Bus::get_mode_string() const {
-  if (mode == COMPAT_MODE::CGB_ONLY) {
+  if (mode == SYSTEM_MODE::CGB_ONLY) {
     return "CGB ONLY";
   } else {
     return "DMG";

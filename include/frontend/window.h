@@ -20,7 +20,7 @@ struct Frontend {
   State state;
   GB* gb = nullptr;
 
-  char const* patterns[1] = {"*.gb"};
+  char const* patterns[2] = {"*.gb", "*.gbc"};
 
   void handle_events();
   void render_frame();
@@ -34,5 +34,5 @@ struct Frontend {
 
   void shutdown();
 
-  explicit Frontend(GB&);
+  explicit Frontend(GB*);
 };
