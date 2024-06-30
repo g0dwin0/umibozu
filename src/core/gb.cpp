@@ -51,7 +51,7 @@ void GB::init_hw_regs(SYSTEM_MODE mode) {
     cpu.HL = 0x014D;
     break;
   }
-  case SYSTEM_MODE::CGB_ONLY: {
+  case SYSTEM_MODE::CGB: {
     bus.io.data[JOYPAD] = 0xCF;
     bus.io.data[SB] = 0x00;
     bus.io.data[SC] = 0x7F;
@@ -160,9 +160,9 @@ void GB::load_cart(const File &rom) {
 
   // set compatibility flag
   this->bus.io.data[KEY0] = this->bus.cart.memory[0x143];
-  if (this->bus.io.data[KEY0] == (u8)SYSTEM_MODE::CGB_ONLY) {
+  if (this->bus.io.data[KEY0] == (u8)SYSTEM_MODE::CGB) {
     // experimental
-    this->bus.mode = SYSTEM_MODE::CGB_ONLY;
+    this->bus.mode = SYSTEM_MODE::CGB;
   } else {
     this->bus.mode = SYSTEM_MODE::DMG;
   }

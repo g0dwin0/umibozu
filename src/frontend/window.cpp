@@ -162,7 +162,7 @@ void Frontend::show_ppu_info() {
   ImGui::Text("LYC = %d", gb->bus.io.data[LYC]);
   ImGui::Text("WRAM BANK = %d", gb->bus.svbk);
   ImGui::Text("VRAM BANK = %d", gb->bus.vbk);
-  if (gb->bus.mode == SYSTEM_MODE::CGB_ONLY) {
+  if (gb->bus.mode == SYSTEM_MODE::CGB) {
     ImGui::Text("OPRI = %s",
                 gb->bus.io.data[OPRI] == 1 ? "DMG-style" : "CGB-style");
   }
@@ -300,7 +300,7 @@ void Frontend::render_frame() {
 
   ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
   SDL_RenderPresent(renderer);
-  SDL_Delay(16);
+  // SDL_Delay(16);
 }
 void Frontend::show_viewport() {
   ImGui::Begin("viewport", &state.texture_window_open, 0);

@@ -45,7 +45,7 @@ void Cartridge::print_cart_info() {
 
 void Cartridge::set_cart_info() {
   u8 mapper_id  = this->memory[0x147];
-  u8 rom_banks = 2 * (1 << memory[0x148]);
+  u16 rom_banks = 2 * (1 << memory[0x148]);
   u8 ram_banks = 0;
   
   switch (memory[0x149]) {

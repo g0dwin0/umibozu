@@ -87,7 +87,7 @@ void PPU::tick(u16 dots_inc) {
       }
       if (dots == 80) {
         // CGB only
-        if (bus->mode == SYSTEM_MODE::CGB_ONLY) {
+        if (bus->mode == SYSTEM_MODE::CGB) {
           std::reverse(sprite_buf.begin(), sprite_buf.end());
         }
         assert(sprite_buf.size() <= 10);
@@ -176,7 +176,7 @@ Tile PPU::get_tile_data(u16 address, bool sprite) const {
 
   u8 index = bus->vram->read8(address);
   u8 matching_attr_byte;
-  if (bus->mode == SYSTEM_MODE::CGB_ONLY) {
+  if (bus->mode == SYSTEM_MODE::CGB) {
     // bus->vram = &bus->vram_banks[1];
 
     matching_attr_byte = bus->vram_banks[1].read8(address);
@@ -200,7 +200,7 @@ Tile PPU::get_tile_data(u16 address, bool sprite) const {
         tile.pixel_data[row][pixel_index] = pixel_array[pixel_index];
       }
     }
-    if (bus->mode == SYSTEM_MODE::CGB_ONLY) {
+    if (bus->mode == SYSTEM_MODE::CGB) {
       bus->vram = &bus->vram_banks[bus->vbk];
     }
     return tile;
@@ -219,7 +219,7 @@ Tile PPU::get_tile_data(u16 address, bool sprite) const {
       }
     }
   }
-  if (bus->mode == SYSTEM_MODE::CGB_ONLY) {
+  if (bus->mode == SYSTEM_MODE::CGB) {
     bus->vram = &bus->vram_banks[bus->vbk];
   }
   return tile;
@@ -229,7 +229,7 @@ Tile PPU::get_tile_sprite_data(u16 index, bool sprite, u8 bank) const {
   Tile tile;
   assert(bank < 2);
 
-  if (bus->mode == SYSTEM_MODE::CGB_ONLY) {
+  if (bus->mode == SYSTEM_MODE::CGB) {
     bus->vram = &bus->vram_banks[bank];
   }
 
@@ -246,7 +246,7 @@ Tile PPU::get_tile_sprite_data(u16 index, bool sprite, u8 bank) const {
         tile.pixel_data[row][pixel_index] = pixel_array[pixel_index];
       }
     }
-    if (bus->mode == SYSTEM_MODE::CGB_ONLY) {
+    if (bus->mode == SYSTEM_MODE::CGB) {
       bus->vram = &bus->vram_banks[bus->vbk];
     }
     return tile;
@@ -265,7 +265,7 @@ Tile PPU::get_tile_sprite_data(u16 index, bool sprite, u8 bank) const {
       }
     }
   }
-  if (bus->mode == SYSTEM_MODE::CGB_ONLY) {
+  if (bus->mode == SYSTEM_MODE::CGB) {
     bus->vram = &bus->vram_banks[bus->vbk];
   }
   return tile;
@@ -342,7 +342,7 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
           for (u8 x = 0; x < 8; x++) {
             u16 color;
 
-            if (bus->mode == SYSTEM_MODE::CGB_ONLY) {
+            if (bus->mode == SYSTEM_MODE::CGB) {
               color = sys_palettes
                           .BGP[active_tile.attr_data.color_palette]
                               [active_tile.pixel_data[y % 8][(7 - x)].color];
@@ -402,7 +402,7 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
 
             Palette pal;
 
-            if (bus->mode == SYSTEM_MODE::CGB_ONLY) {
+            if (bus->mode == SYSTEM_MODE::CGB) {
               pal = sys_palettes.get_palette_by_id(sprite.cgb_palette);
             } else {
               pal = sys_palettes.get_palette_by_id(sprite.palette_number);
@@ -434,7 +434,7 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
 
               // if(top_tile.pixel_data[current_y % 8][x].color == 0) continue;
 
-              if (bus->mode == SYSTEM_MODE::CGB_ONLY &&
+              if (bus->mode == SYSTEM_MODE::CGB &&
                   (bus->io.data[OPRI] & 0x1) == (u8)PRIORITY_MODE::CGB) {
                 // BG priority has prio over sprite prio
                 if (lcdc.bg_and_window_enable_priority &&

@@ -15,7 +15,7 @@ enum class InterruptType : u8 {
 
 enum class SYSTEM_MODE : u8 {
   DMG,
-  CGB_ONLY = 0xC0
+  CGB = 0xC0
 };
 
 struct PaletteSpecification {

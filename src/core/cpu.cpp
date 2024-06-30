@@ -38,9 +38,11 @@ void SM83::m_cycle() {
 #ifndef CPU_TEST_MODE_H
   if (speed == SPEED::DOUBLE) {
     timer.div += 2;
+    mapper->increment_internal_clock(2, mapper->actual.RTC_DAY);
     ppu->tick(2);
   } else {
     timer.div += 4;
+    mapper->increment_internal_clock(4, mapper->actual.RTC_DAY);
     ppu->tick(4);
   }
 #endif
@@ -91,6 +93,7 @@ u8 SM83::handle_system_io_read(const u16 address) {
       return 0xF;
     }
     default: {
+      fmt::println("[JOYPAD] method bit: {}", method_bits);
       assert(false);
     }
     }
@@ -307,7 +310,7 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
 
   // GBC-only IO
   case VBK: {
-    if (bus->mode != SYSTEM_MODE::CGB_ONLY) {
+    if (bus->mode != SYSTEM_MODE::CGB) {
       return;
     }
 
@@ -318,7 +321,7 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
     return;
   }
   case SVBK: {
-    if (bus->mode != SYSTEM_MODE::CGB_ONLY) {
+    if (bus->mode != SYSTEM_MODE::CGB) {
       return;
     }
 
@@ -333,7 +336,7 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
     return;
   }
   case KEY1: {
-    if (bus->mode != SYSTEM_MODE::CGB_ONLY) {
+    if (bus->mode != SYSTEM_MODE::CGB) {
       return;
     }
     fmt::println("[CPU] value: {:#04x}", value);
@@ -361,7 +364,7 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
   }
 
   case HDMA5: {
-    if (bus->mode != SYSTEM_MODE::CGB_ONLY) {
+    if (bus->mode != SYSTEM_MODE::CGB) {
       return;
     }
     fmt::println("[HDMA] entered HDMA5, value: {:#08b}", value);
@@ -411,7 +414,7 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
   }
 
   case BCPS: {
-    if (bus->mode != SYSTEM_MODE::CGB_ONLY) {
+    if (bus->mode != SYSTEM_MODE::CGB) {
       return;
     }
 
@@ -421,7 +424,7 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
     break;
   }
   case BCPD: {
-    if (bus->mode != SYSTEM_MODE::CGB_ONLY) {
+    if (bus->mode != SYSTEM_MODE::CGB) {
       return;
     }
     bus->bg_palette_ram.data[bus->bcps.address] = value;
@@ -444,7 +447,7 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
     break;
   }
   case OCPS: {
-    if (bus->mode != SYSTEM_MODE::CGB_ONLY) {
+    if (bus->mode != SYSTEM_MODE::CGB) {
       return;
     }
     bus->ocps.address = value & 0x3f;
@@ -453,7 +456,7 @@ void SM83::handle_system_io_write(const u16 address, const u8 value) {
     break;
   }
   case OCPD: {
-    if (bus->mode != SYSTEM_MODE::CGB_ONLY) {
+    if (bus->mode != SYSTEM_MODE::CGB) {
       return;
     }
 
@@ -547,9 +550,7 @@ void SM83::run_instruction() {
   }
   handle_interrupts();
   // fmt::println(
-  //     "A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H:
-  //     {:02X}L: {:02X} SP: {:04X} PC: {:02X}:{:04X} ({:02X} {:02X} {:02X}
-  //     {:02X}) TE: {}", A, F, B, C, D, E, H, L, SP, mapper->rom_bank, PC,
+  //     "A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} L: {:02X} SP: {:04X} PC: {:02X}:{:04X} ({:02X} {:02X} {:02X} {:02X}) TE: {}", A, F, B, C, D, E, H, L, SP, mapper->rom_bank, PC,
   //     peek(PC), peek(PC +
   // 1), peek(PC + 2), peek(PC + 3), timer.ticking_enabled);
 #endif
