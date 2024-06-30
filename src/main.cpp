@@ -8,8 +8,9 @@ int main() {
   GB gb;
   Frontend fe(&gb);
 
-  gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/ax6/rtc3test-1.gb"));
-  // gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/ax6/rtc3test-2.gb"));
+  // gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/ax6/rtc3test-1.gb"));
+  gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/ax6/rtc3test-2.gb"));
+  // gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/ax6/rtc3test-3.gb"));
   
   // gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/MBC3_Test.gbc"));
   // gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/mooneye/emulator-only/mbc1/bits_bank1.gb"));

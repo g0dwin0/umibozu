@@ -31,6 +31,7 @@ class MBC3 : public Mapper {
       } else {
         ext_ram_enabled = false;
         rtc_enabled     = false;
+        // rtc_internal_clock = 0;
         fmt::println("[MBC3] EXT RAM/RTC DISABLED"); 
       }
       return;
@@ -55,7 +56,7 @@ class MBC3 : public Mapper {
       }
       if (value >= 0x08 && value <= 0x0C) {
         register_mode       = WRITING_MODE::RTC;
-        active_rtc_register = (RTC_REGISTER)value;
+        active_rtc_register = (RTC_REGISTERS)value;
       }
 
       // if (value >= 0x08 && value <= 0x0C) {
@@ -91,8 +92,8 @@ class MBC3 : public Mapper {
       if (register_mode == WRITING_MODE::RTC && rtc_enabled) {
         fmt::println("writing to RTC register: {:#08x}", (u8)active_rtc_register);
 
-        latched.write_to_active_reg(active_rtc_register, value, internal_clock);
-        actual.write_to_active_reg(active_rtc_register, value, internal_clock);
+        latched.write_to_active_reg(active_rtc_register, value, rtc_internal_clock);
+        actual.write_to_active_reg(active_rtc_register, value, rtc_internal_clock);
       }
       return;
     }
