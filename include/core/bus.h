@@ -5,7 +5,7 @@
 
 using namespace Umibozu;
 
-enum class InterruptType : u8 {
+enum class InterruptType {
   VBLANK,
   LCD,
   TIMER,
@@ -13,10 +13,7 @@ enum class InterruptType : u8 {
   JOYPAD,
 };
 
-enum class SYSTEM_MODE : u8 {
-  DMG,
-  CGB = 0xC0
-};
+enum class SYSTEM_MODE { DMG, CGB = 0xC0 };
 
 struct PaletteSpecification {
   u8 address : 6      = 0x0;
@@ -33,7 +30,7 @@ struct Bus {
   u8 svbk = 0;
 
   // VRAM Bank
-  u8 vbk  = 0;
+  u8 vbk = 0;
 
   // BCPS
   PaletteSpecification bcps;

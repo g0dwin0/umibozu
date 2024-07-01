@@ -99,9 +99,11 @@ class ROM_ONLY : public Mapper {
 };
 
 Mapper* get_mapper_by_id(u8 mapper_id) {
+  
   fmt::println("[MAPPER] MAPPER ID: {:#04x} ({})", mapper_id,
                cart_types.at(mapper_id));
   Mapper* mapper;
+  
   switch (mapper_id) {
     case 0x0:
     case 0x8: {
@@ -138,5 +140,6 @@ Mapper* get_mapper_by_id(u8 mapper_id) {
                       mapper_id, cart_types.at(mapper_id)));
     }
   }
+  mapper->id = mapper_id;
   return mapper;
 }
