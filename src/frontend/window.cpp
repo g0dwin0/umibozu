@@ -2,6 +2,7 @@
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_events.h>
+#include <SDL2/SDL_gamecontroller.h>
 #include <SDL2/SDL_joystick.h>
 #include <SDL2/SDL_keyboard.h>
 #include <SDL2/SDL_pixels.h>
@@ -146,6 +147,8 @@ void Frontend::show_controls_menu(bool* p_open) {
   ImGui::Text("Remap your controls here.");
   ImGui::Separator();
 
+  bool invalid_keybind = false;
+
   for (SDL_Scancode start = SDL_SCANCODE_A;
        start < SDL_SCANCODE_AUDIOFASTFORWARD;
        start = (SDL_Scancode)(start + 1)) {
@@ -153,17 +156,20 @@ void Frontend::show_controls_menu(bool* p_open) {
     ImGui::SameLine();
 
     for (auto& entry : settings.keybinds.control_map) {
-      if (entry.second.second) {  // If button is set to be remapped, remap
-                                  // with next key input
+      // If button is set to be remapped, remap with next key input
+      if (entry.second.second) {
+        entry.second.second = false;
         for (auto& diff_entry : settings.keybinds.control_map) {
           if (diff_entry.first != entry.first &&
               diff_entry.second.first == start) {
-            diff_entry.second.first = SDL_SCANCODE_F2;
-            // continue;
+            invalid_keybind = true;
           }
         }
-        entry.second.first  = start;
-        entry.second.second = false;  // unset remap flag
+
+        if (!invalid_keybind) {
+          entry.second.first  = start;
+          entry.second.second = false;  // unset remap flag
+        }
       }
     }
   }
@@ -173,17 +179,19 @@ void Frontend::show_controls_menu(bool* p_open) {
 
   ImGui::SameLine();
 
+  // unsigned i = 0;
   for (auto& entry : settings.keybinds.control_map) {
+    ImGui::PushID(&entry);
+    // PushID
     ImGui::Text("%s: ", get_button_name_from_enum(entry.first).c_str());
     ImGui::SameLine();
     if (ImGui::Button(entry.second.second
                           ? "Waiting for input..."
                           : SDL_GetScancodeName(entry.second.first))) {
       entry.second.second = true;  // Being remapped
-      // settings.keybinds.button_to_remap = entry.first;
     };
+    ImGui::PopID();
   }
-
   ImGui::End();
 }
 void Frontend::show_menubar() {
@@ -389,8 +397,8 @@ Frontend::Frontend(GB* gb) {
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
   (void)io;
-  io.ConfigFlags |=
-      ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
+  // io.ConfigFlags |=
+  //     ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
   io.ConfigFlags |=
       ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Controls
   this->state.io = &io;

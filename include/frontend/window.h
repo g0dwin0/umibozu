@@ -20,19 +20,10 @@ struct State {
   bool ppu_info_open        = true;
   bool controls_window_open = false;
 
-  
-  
-
   ImGuiIO* io = nullptr;
 };
 struct Settings {
   struct Keybinds {
-    // bool waiting_for_rebind   = false;
-    std::vector<std::pair<BUTTONS, bool>> waiting_for_rebinds;
-
-    
-    BUTTONS button_to_remap = NONE;
-
     std::unordered_map<BUTTONS, std::pair<SDL_Scancode, bool>> control_map = 
     {
       {BUTTONS::A, {SDL_SCANCODE_Z, false}},
