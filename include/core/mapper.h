@@ -112,7 +112,7 @@ class Mapper {
 
 
   void tick_rtc() {
-    fmt::println("[RTC] RTC_SECOND_TIME: {}", (u8)actual.RTC_SECOND_TIME);
+    // fmt::println("[RTC] RTC_SECOND_TIME: {}", (u8)actual.RTC_SECOND_TIME);
     actual.RTC_SECOND_TIME += 1;
 
     if (actual.RTC_SECOND_TIME == 60) {

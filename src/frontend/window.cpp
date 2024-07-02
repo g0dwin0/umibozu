@@ -3,10 +3,11 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_joystick.h>
+#include <SDL2/SDL_keyboard.h>
 #include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_render.h>
+#include <SDL2/SDL_scancode.h>
 #include <SDL2/SDL_video.h>
-
 
 #include "bus.h"
 #include "common.h"
@@ -15,6 +16,7 @@
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
 #include "io.hpp"
+#include "joypad.h"
 #include "tinyfiledialogs.h"
 
 void Frontend::handle_events() {
@@ -30,30 +32,32 @@ void Frontend::handle_events() {
       }
 
       case SDL_KEYDOWN: {
-        const u8* keyboardState = SDL_GetKeyboardState(nullptr);
-        if (keyboardState[SDL_SCANCODE_RIGHT]) {
+        if (state
+                .keyboardState[settings.keybinds.control_map.at(RIGHT).first]) {
           gb->bus.joypad.RIGHT = 0;
         }
-        if (keyboardState[SDL_SCANCODE_LEFT]) {
+        if (state.keyboardState[settings.keybinds.control_map.at(LEFT).first]) {
           gb->bus.joypad.LEFT = 0;
         }
-        if (keyboardState[SDL_SCANCODE_UP]) {
+        if (state.keyboardState[settings.keybinds.control_map.at(UP).first]) {
           gb->bus.joypad.UP = 0;
         }
-        if (keyboardState[SDL_SCANCODE_DOWN]) {
+        if (state.keyboardState[settings.keybinds.control_map.at(DOWN).first]) {
           gb->bus.joypad.DOWN = 0;
         }
 
-        if (keyboardState[SDL_SCANCODE_Z]) {
+        if (state.keyboardState[settings.keybinds.control_map.at(A).first]) {
           gb->bus.joypad.A = 0;
         }
-        if (keyboardState[SDL_SCANCODE_X]) {
+        if (state.keyboardState[settings.keybinds.control_map.at(B).first]) {
           gb->bus.joypad.B = 0;
         }
-        if (keyboardState[SDL_SCANCODE_RETURN]) {
+        if (state
+                .keyboardState[settings.keybinds.control_map.at(START).first]) {
           gb->bus.joypad.START = 0;
         }
-        if (keyboardState[SDL_SCANCODE_BACKSPACE]) {
+        if (state.keyboardState[settings.keybinds.control_map.at(SELECT)
+                                    .first]) {
           gb->bus.joypad.SELECT = 0;
         }
 
@@ -61,31 +65,36 @@ void Frontend::handle_events() {
       }
 
       case SDL_KEYUP: {
-        const u8* keyboardState = SDL_GetKeyboardState(nullptr);
-
-        if (!keyboardState[SDL_SCANCODE_RIGHT]) {
+        // fmt::println("Triggered UP");
+        if (!state.keyboardState[settings.keybinds.control_map.at(RIGHT)
+                                     .first]) {
+          // fmt::println("Triggered R UP");
           gb->bus.joypad.RIGHT = 1;
         }
-        if (!keyboardState[SDL_SCANCODE_LEFT]) {
+        if (!state
+                 .keyboardState[settings.keybinds.control_map.at(LEFT).first]) {
           gb->bus.joypad.LEFT = 1;
         }
-        if (!keyboardState[SDL_SCANCODE_UP]) {
+        if (!state.keyboardState[settings.keybinds.control_map.at(UP).first]) {
           gb->bus.joypad.UP = 1;
         }
-        if (!keyboardState[SDL_SCANCODE_DOWN]) {
+        if (!state
+                 .keyboardState[settings.keybinds.control_map.at(DOWN).first]) {
           gb->bus.joypad.DOWN = 1;
         }
 
-        if (!keyboardState[SDL_SCANCODE_Z]) {
+        if (!state.keyboardState[settings.keybinds.control_map.at(A).first]) {
           gb->bus.joypad.A = 1;
         }
-        if (!keyboardState[SDL_SCANCODE_X]) {
+        if (!state.keyboardState[settings.keybinds.control_map.at(B).first]) {
           gb->bus.joypad.B = 1;
         }
-        if (!keyboardState[SDL_SCANCODE_RETURN]) {
+        if (!state.keyboardState[settings.keybinds.control_map.at(START)
+                                     .first]) {
           gb->bus.joypad.START = 1;
         }
-        if (!keyboardState[SDL_SCANCODE_BACKSPACE]) {
+        if (!state.keyboardState[settings.keybinds.control_map.at(SELECT)
+                                     .first]) {
           gb->bus.joypad.SELECT = 1;
         }
 
@@ -131,6 +140,52 @@ void Frontend::show_io_info() {
 
   ImGui::End();
 }
+
+void Frontend::show_controls_menu(bool* p_open) {
+  ImGui::Begin("Controls", p_open);
+  ImGui::Text("Remap your controls here.");
+  ImGui::Separator();
+
+  for (SDL_Scancode start = SDL_SCANCODE_A;
+       start < SDL_SCANCODE_AUDIOFASTFORWARD;
+       start = (SDL_Scancode)(start + 1)) {
+    if (!state.keyboardState[start]) continue;
+    ImGui::SameLine();
+
+    for (auto& entry : settings.keybinds.control_map) {
+      if (entry.second.second) {  // If button is set to be remapped, remap
+                                  // with next key input
+        for (auto& diff_entry : settings.keybinds.control_map) {
+          if (diff_entry.first != entry.first &&
+              diff_entry.second.first == start) {
+            diff_entry.second.first = SDL_SCANCODE_F2;
+            // continue;
+          }
+        }
+        entry.second.first  = start;
+        entry.second.second = false;  // unset remap flag
+      }
+    }
+  }
+
+  ImGui::Separator();
+  ImGui::Spacing();
+
+  ImGui::SameLine();
+
+  for (auto& entry : settings.keybinds.control_map) {
+    ImGui::Text("%s: ", get_button_name_from_enum(entry.first).c_str());
+    ImGui::SameLine();
+    if (ImGui::Button(entry.second.second
+                          ? "Waiting for input..."
+                          : SDL_GetScancodeName(entry.second.first))) {
+      entry.second.second = true;  // Being remapped
+      // settings.keybinds.button_to_remap = entry.first;
+    };
+  }
+
+  ImGui::End();
+}
 void Frontend::show_menubar() {
   if (ImGui::BeginMainMenuBar()) {
     ImGui::Separator();
@@ -138,9 +193,7 @@ void Frontend::show_menubar() {
       if (ImGui::MenuItem("Load ROM")) {
         auto path = tinyfd_openFileDialog("Load ROM", ".", 1, patterns,
                                           "Gameboy ROMs", 0);
-        if (path != nullptr) {
-          this->gb->load_cart(read_file(path));
-        }
+        if (path != nullptr) { this->gb->load_cart(read_file(path)); }
       }
 
       if (ImGui::MenuItem("Reset")) {
@@ -150,6 +203,14 @@ void Frontend::show_menubar() {
       }
       ImGui::EndMenu();
     }
+    if (ImGui::BeginMenu("Settings")) {
+      if (ImGui::MenuItem("Controls")) {
+        this->state.controls_window_open = !this->state.controls_window_open;
+      }
+
+      ImGui::EndMenu();
+    }
+
     ImGui::EndMainMenuBar();
   }
 }
@@ -178,12 +239,8 @@ void Frontend::show_ppu_info() {
               fmt::format("STAT = {:08b}", gb->bus.io.data[STAT]).c_str());
 
   ImGui::Separator();
-  if (ImGui::Button("Enable VSYNC")) {
-    SDL_GL_SetSwapInterval(1);
-  }
-  if (ImGui::Button("Disable VSYNC")) {
-    SDL_GL_SetSwapInterval(0);
-  }
+  if (ImGui::Button("Enable VSYNC")) { SDL_GL_SetSwapInterval(1); }
+  if (ImGui::Button("Disable VSYNC")) { SDL_GL_SetSwapInterval(0); }
   ImGui::Separator();
 
   ImGui::Text("%s",
@@ -219,9 +276,7 @@ void Frontend::show_ppu_info() {
     gb->bus.request_interrupt(InterruptType::TIMER);
   }
 
-  if (ImGui::Button("STEP")) {
-    gb->cpu.run_instruction();
-  }
+  if (ImGui::Button("STEP")) { gb->cpu.run_instruction(); }
   ImGui::End();
 }
 
@@ -263,15 +318,9 @@ void Frontend::show_cpu_info() {
   ImGui::Text("%s", fmt::format("IF:  {:08b}", gb->bus.io.data[IF]).c_str());
   ImGui::Text("%s", fmt::format("IE:  {:08b}", gb->bus.io.data[IE]).c_str());
 
-  if (ImGui::Button("STEP")) {
-    gb->cpu.run_instruction();
-  }
-  if (ImGui::Button("START")) {
-    gb->cpu.status = SM83::STATUS::ACTIVE;
-  }
-  if (ImGui::Button("PAUSE")) {
-    gb->cpu.status = SM83::STATUS::PAUSED;
-  }
+  if (ImGui::Button("STEP")) { gb->cpu.run_instruction(); }
+  if (ImGui::Button("START")) { gb->cpu.status = SM83::STATUS::ACTIVE; }
+  if (ImGui::Button("PAUSE")) { gb->cpu.status = SM83::STATUS::PAUSED; }
 
   ImGui::End();
 }
@@ -281,6 +330,10 @@ void Frontend::render_frame() {
   ImGui_ImplSDL2_NewFrame();
   ImGui::NewFrame();
   show_menubar();
+  if (state.controls_window_open) {
+    show_controls_menu(&state.controls_window_open);
+  }
+
 #ifdef DEBUG_MODE_H
   show_viewport();
   show_cpu_info();
@@ -328,7 +381,7 @@ Frontend::Frontend(GB* gb) {
 
   this->window =
       SDL_CreateWindow("umibozu", SDL_WINDOWPOS_CENTERED,
-                       SDL_WINDOWPOS_CENTERED, 160*3, 144*3, window_flags);
+                       SDL_WINDOWPOS_CENTERED, 160 * 3, 144 * 3, window_flags);
   this->renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
   // Setup Dear ImGui context
@@ -346,11 +399,11 @@ Frontend::Frontend(GB* gb) {
 
   this->state.ppu_texture = SDL_CreateTexture(
       renderer, SDL_PIXELFORMAT_BGR555, SDL_TEXTUREACCESS_TARGET, 256, 256);
-  
-  this->state.viewport = SDL_CreateTexture(
-      renderer, SDL_PIXELFORMAT_BGR555, SDL_TEXTUREACCESS_TARGET, 256, 256);
-  
-    gb->ppu.set_renderer(this->renderer);
+
+  this->state.viewport = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_BGR555,
+                                           SDL_TEXTUREACCESS_TARGET, 256, 256);
+
+  gb->ppu.set_renderer(this->renderer);
   gb->ppu.set_frame_texture(this->state.ppu_texture);
 
   ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);

@@ -84,7 +84,7 @@ class MBC3 : public Mapper {
     }
 
     if (address >= 0xA000 && address <= 0xBFFF) {
-      fmt::println("CATCH!");
+      // fmt::println("CATCH!");
       // fmt::println("RAM BANK: {:#08x}");
 
       if (register_mode == WRITING_MODE::RAM && ext_ram_enabled) {
@@ -95,7 +95,7 @@ class MBC3 : public Mapper {
                                  value);
       }
       if (register_mode == WRITING_MODE::RTC && rtc_enabled) {
-        fmt::println("writing to RTC register: {:#08x}", (u8)active_rtc_register);
+        // fmt::println("writing to RTC register: {:#08x}", (u8)active_rtc_register);
 
         latched.write_to_active_reg(active_rtc_register, value, this->rtc_internal_clock);
         actual.write_to_active_reg(active_rtc_register, value, this->rtc_internal_clock);
