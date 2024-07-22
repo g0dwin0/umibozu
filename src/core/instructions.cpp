@@ -133,7 +133,8 @@ void LD_HL_SP_E8(SM83 *c) {
 }
 void LD_R_R(u8 &r_1, u8 r_2) { r_1 = r_2; }
 
-void STOP() { return; }
+void STOP() { 
+  return; }
 void ADD_SP_E8(SM83 *c) {
   u8 op = c->read8(c->PC++);
   i8 val = op;
@@ -158,7 +159,8 @@ void ADD_SP_E8(SM83 *c) {
 }
 
 // write value to memory address
-void LD_M_R(SM83 *c, const u16 address, u8 val) { c->write8(address, val); }
+void LD_M_R(SM83 *c, const u16 address, u8 val) { 
+  c->write8(address, val); }
 
 void LD_SP_U16(SM83 *c, u16 val) { c->SP = val; }
 void LD_R16_U16(SM83 *, Umibozu::SM83::REG_16 &r_1, u16 val) { r_1 = val; }

@@ -2,7 +2,7 @@
 #include "cart.h"
 #include "common.h"
 #include "joypad.h"
-
+#include "apu.h"
 using namespace Umibozu;
 
 enum class InterruptType {
@@ -21,10 +21,11 @@ struct PaletteSpecification {
 };
 
 struct Bus {
+  SYSTEM_MODE mode; // refactor: shouldn't be on bus right? should be in gb.h!
+  
   Cartridge cart;
   Joypad joypad;
-
-  SYSTEM_MODE mode;
+  APU* apu = nullptr;
 
   // WRAM Bank
   u8 svbk = 0;
@@ -40,7 +41,7 @@ struct Bus {
   std::array<RAM, 8> wram_banks = {RAM(0x1000), RAM(0x1000), RAM(0x1000),
                                    RAM(0x1000), RAM(0x1000), RAM(0x1000),
                                    RAM(0x1000), RAM(0x1000)};
-
+  
   RAM* vram = &vram_banks[0];
   RAM* wram = &wram_banks[1];
 
@@ -49,7 +50,8 @@ struct Bus {
   RAM hram{0x80};
   RAM bg_palette_ram{0x40};
   RAM obj_palette_ram{0x40};
-
+  RAM wave_ram{0x40};
+  
   void request_interrupt(InterruptType);
   [[nodiscard]] bool interrupt_pending() const;
   [[nodiscard]] std::string get_mode_string() const;

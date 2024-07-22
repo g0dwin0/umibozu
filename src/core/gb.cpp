@@ -30,7 +30,7 @@ void GB::init_hw_regs(SYSTEM_MODE mode) {
       bus.io.data[OBP1]        = 0xFF;
       bus.io.data[WY]          = 0x00;
       bus.io.data[WX]          = 0x00;
-      // bus.io.data[KEY0]        = 0x80;
+
       bus.io.data[KEY1]  = 0x7E;
       bus.io.data[VBK]   = 0xFE;
       bus.io.data[HDMA1] = 0xFF;
@@ -49,6 +49,7 @@ void GB::init_hw_regs(SYSTEM_MODE mode) {
       cpu.AF = 0x01B0;
       cpu.BC = 0x0013;
       cpu.DE = 0x00D8;
+      // bus.io.data[KEY0]        = 0x80;
       cpu.HL = 0x014D;
       break;
     }
@@ -62,28 +63,6 @@ void GB::init_hw_regs(SYSTEM_MODE mode) {
       bus.io.data[TMA]         = 0x00;
       bus.io.data[TAC]         = 0xF8;
       bus.io.data[IF]          = 0xE1;
-
-      bus.io.data[NR10] = 0x80;
-      bus.io.data[NR11] = 0xBF;
-      bus.io.data[NR12] = 0xF3;
-      bus.io.data[NR13] = 0xFF;
-      bus.io.data[NR14] = 0xBF;
-      bus.io.data[NR21] = 0x3F;
-      bus.io.data[NR22] = 0x00;
-      bus.io.data[NR23] = 0xFF;
-      bus.io.data[NR24] = 0xBF;
-      bus.io.data[NR30] = 0x7F;
-      bus.io.data[NR31] = 0xFF;
-      bus.io.data[NR32] = 0x9F;
-      bus.io.data[NR33] = 0xFF;
-      bus.io.data[NR34] = 0xBF;
-      bus.io.data[NR41] = 0xFF;
-      bus.io.data[NR42] = 0x00;
-      bus.io.data[NR43] = 0x00;
-      bus.io.data[NR44] = 0xBF;
-      bus.io.data[NR50] = 0x77;
-      bus.io.data[NR51] = 0xF3;
-      bus.io.data[NR52] = 0xF1;
 
       bus.io.data[LCDC] = 0x91;
       bus.io.data[STAT] = 0x81;
@@ -122,14 +101,18 @@ void GB::init_hw_regs(SYSTEM_MODE mode) {
   }
   cpu.PC    = 0x0100;
   cpu.SP    = 0xFFFE;
-  cpu.timer = {};
 }
 
 GB::GB() {
   Mapper::bus = &bus;
+  bus.apu     = &apu;
   cpu.ppu     = &ppu;
+  cpu.timer = &timer;
+  // apu.timer = &timer;
+  timer.apu = &apu;
   cpu.bus     = &bus;
   ppu.bus     = &bus;
+  
 }
 GB::~GB() {
   if (bus.cart.info.title.empty()) { return; }
@@ -145,8 +128,9 @@ GB::~GB() {
     std::filesystem::create_directory("saves");
   }
 
+  // TODO: hash some unique bytes in ROM, save on that instead of ROM name
   // Open save file, truncate all content
-  std::ofstream save(fmt::format("saves/{}.sav", bus.cart.info.title),
+  std::ofstream save(fmt::format("saves/{}.sav", bus.cart.info.title), 
                      std::ios::binary | std::ios::trunc);
 
   // Save SRAM to .sav file
@@ -172,15 +156,16 @@ void GB::load_cart(const File &rom) {
   } else {
     this->bus.mode = SYSTEM_MODE::DMG;
   }
-
   // initialize io registers depending system mode
   init_hw_regs(this->bus.mode);
 
   bus.cart.set_cart_info();
+  fmt::println("HI");
   bus.cart.print_cart_info();
+  fmt::println("HI2");
   Mapper *mapper_ptr = get_mapper_by_id(bus.cart.info.mapper_id);
   cpu.mapper         = mapper_ptr;
-
+fmt::println("HI3");
   // ppu.mapper = mapper_ptr;
 
   // Load Save Game

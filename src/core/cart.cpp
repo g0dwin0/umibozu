@@ -73,6 +73,7 @@ void Cartridge::set_cart_info() {
   u8 destination_code      = memory[0x14A];
   u8 old_manufacturer_code = memory[0x14B];
 
+  fmt::println("mapper id: {:#4x}", mapper_id);
   info.title        = get_title(std::span<u8>(memory.begin() + 0x134, 16));
   info.manufacturer = get_manufacturer(
       old_manufacturer_code, std::span<u8>(memory.begin() + 0x144, 2));

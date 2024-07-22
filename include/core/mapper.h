@@ -18,7 +18,7 @@ class Mapper {
   // RTC
   u64 rtc_internal_clock = 0;  // RTC only
 
-  enum class RTC_REGISTERS : u8 {
+  enum class RTC_REGISTER {
     RTC_SECOND_TIME = 0x08,
     RTC_MINUTE_TIME = 0x09,
     RTC_HOUR_TIME   = 0x0A,
@@ -34,26 +34,26 @@ class Mapper {
     // void print_rtc_regs() {
     //   fmt::println("[RTC] SECONDS: ")
     // }
-    void write_to_active_reg(RTC_REGISTERS r, u8 v, u64& internal_clock) {
+    void write_to_active_reg(RTC_REGISTER r, u8 v, u64& internal_clock) {
       switch (r) {
-        case RTC_REGISTERS::RTC_SECOND_TIME: {
+        case RTC_REGISTER::RTC_SECOND_TIME: {
           RTC_SECOND_TIME = v & 0b00111111;
           // fmt::println("wrote {:#08x} to RTC_SECOND_TIME {:#08x}", v,
           // (u8)RTC_SECOND_TIME);
           internal_clock = 0;
           break;
         }
-        case RTC_REGISTERS::RTC_MINUTE_TIME: {
+        case RTC_REGISTER::RTC_MINUTE_TIME: {
           RTC_MINUTE_TIME = v & 0b00111111;
           // fmt::println("wrote {:#08x} to RTC_SECOND_TIME {:#08x}", v,
           // (u8)RTC_SECOND_TIME);
           break;
         }
-        case RTC_REGISTERS::RTC_HOUR_TIME: {
+        case RTC_REGISTER::RTC_HOUR_TIME: {
           RTC_HOUR_TIME = v & 0b00011111;
           break;
         }
-        case RTC_REGISTERS::RTC_DAY_LOW: {
+        case RTC_REGISTER::RTC_DAY_LOW: {
           // fmt::println("LOW OLD: {:08b}", RTC_DAY & 0xFF);
           // fmt::println("WRITING VAL TO LOW: {:08b}", v);
           RTC_DAY &= 0b1111111100000000;
@@ -61,7 +61,7 @@ class Mapper {
           // fmt::println("LOW NEW: {:08b}", RTC_DAY & 0xFF);
           break;
         }
-        case RTC_REGISTERS::RTC_DAY_HIGH: {
+        case RTC_REGISTER::RTC_DAY_HIGH: {
           // fmt::println("high OLD: {:08b}", RTC_DAY >> 8);
           // fmt::println("RTC DAY FULL: {:016b}", RTC_DAY);
           // print_rtc_regs();
@@ -82,24 +82,21 @@ class Mapper {
       }
     }
 
-    u16 read_from_active_reg(RTC_REGISTERS r) {
+    [[nodiscard]] u16 read_from_active_reg(RTC_REGISTER r) {
       switch (r) {
-        case RTC_REGISTERS::RTC_SECOND_TIME: {
+        case RTC_REGISTER::RTC_SECOND_TIME: {
           return RTC_SECOND_TIME;
         }
-        case RTC_REGISTERS::RTC_MINUTE_TIME: {
+        case RTC_REGISTER::RTC_MINUTE_TIME: {
           return RTC_MINUTE_TIME;
-          break;
         }
-        case RTC_REGISTERS::RTC_HOUR_TIME: {
+        case RTC_REGISTER::RTC_HOUR_TIME: {
           return RTC_HOUR_TIME;
-          break;
         }
-        case RTC_REGISTERS::RTC_DAY_LOW: {
+        case RTC_REGISTER::RTC_DAY_LOW: {
           return (RTC_DAY & 0xFF);
-          break;
         }
-        case RTC_REGISTERS::RTC_DAY_HIGH: {
+        case RTC_REGISTER::RTC_DAY_HIGH: {
           return (RTC_DAY >> 8);
         }
         default: {
@@ -155,7 +152,7 @@ class Mapper {
     }
   }
 
-  RTC_REGISTERS active_rtc_register = RTC_REGISTERS::RTC_SECOND_TIME;
+  RTC_REGISTER active_rtc_register = RTC_REGISTER::RTC_SECOND_TIME;
   u8 last_rtc_value                 = 0xFF;
   bool latched_occured              = false;
   RTC_INSTANCE latched, actual;

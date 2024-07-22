@@ -58,12 +58,13 @@ void run_tests() {
   // get all test files
   auto dir_it = std::filesystem::directory_iterator(test_directory);
   for (auto& entry : dir_it) {
+    fmt::println("{}", entry.path().c_str());
     test_dirs.push_back(entry.path());
   }
 
   // run all the test cases per opcode
   for (auto& test_dir : test_dirs) {
-    if(test_dir.filename().string() == "76.json") continue; // cannot be tested, as interrupts are disabled
+    if(test_dir.filename().string() == "76.json") continue; // cannot be tested because interrupts are disabled
     std::string path = fmt::format(
         "{}", test_dir.string());
     fmt::print("opcode: {} ", test_dir.filename().replace_extension("").c_str());
@@ -71,9 +72,8 @@ void run_tests() {
     json data = json::parse(f);
 
     for (u32 testIdx = 0; auto& test : data.items()) {
-      CPU_Test_State cpu_initial_test_state;    // The initial test state (Our CPU state)
-      CPU_Test_State cpu_result_state;  // The correct result of the test (What our CPU /should/
-                        // be after running the test)
+      CPU_Test_State cpu_initial_test_state;    // our initial test state
+      CPU_Test_State cpu_result_state;  // the desired state
 
       cpu_initial_test_state.name = test.value()["name"];
       cpu_initial_test_state.PC   = std::stoi(

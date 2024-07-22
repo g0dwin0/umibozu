@@ -61,7 +61,7 @@ class MBC3 : public Mapper {
       }
       if (value >= 0x08 && value <= 0x0C) {
         register_mode       = WRITING_MODE::RTC;
-        active_rtc_register = (RTC_REGISTERS)value;
+        active_rtc_register = (RTC_REGISTER)value;
       }
 
       // if (value >= 0x08 && value <= 0x0C) {

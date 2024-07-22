@@ -23,7 +23,7 @@ enum class PRIORITY_MODE {
   DMG
 };
 
-enum HARDWARE_IO_REG : u8 {
+enum IO_REG {
   JOYPAD      = 0x00,
   SB          = 0x01,
   SC          = 0x02,

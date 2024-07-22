@@ -154,7 +154,8 @@ void Frontend::show_controls_menu(bool* p_open) {
        start = (SDL_Scancode)(start + 1)) {
     if (!state.keyboardState[start]) continue;
     ImGui::SameLine();
-
+    
+    // refactor: hard to read; use structured bindings
     for (auto& entry : settings.keybinds.control_map) {
       // If button is set to be remapped, remap with next key input
       if (entry.second.second) {
@@ -181,8 +182,9 @@ void Frontend::show_controls_menu(bool* p_open) {
 
   // unsigned i = 0;
   for (auto& entry : settings.keybinds.control_map) {
+    
     ImGui::PushID(&entry);
-    // PushID
+    
     ImGui::Text("%s: ", get_button_name_from_enum(entry.first).c_str());
     ImGui::SameLine();
     if (ImGui::Button(entry.second.second
@@ -306,12 +308,12 @@ void Frontend::show_cpu_info() {
   ImGui::Text("pointer to cpu = %p", (void*)&gb->cpu);
   ImGui::Text("pc = 0x%x", gb->cpu.PC);
   ImGui::Text("opcode: 0x%x", gb->cpu.peek(gb->cpu.PC));
-  ImGui::Text("status: %s", gb->cpu.get_cpu_mode().c_str());
+  ImGui::Text("status: %s", gb->cpu.get_cpu_mode_string().c_str());
   ImGui::Separator();
-  ImGui::Text("DIV = 0x%x", gb->cpu.timer.get_div());
-  ImGui::Text("TIMA = 0x%x", gb->cpu.timer.counter);
-  ImGui::Text("TMA = 0x%x", gb->cpu.timer.modulo);
-  ImGui::Text("timer enabled = %d", gb->cpu.timer.ticking_enabled);
+  ImGui::Text("DIV = 0x%x", gb->cpu.timer->get_div());
+  ImGui::Text("TIMA = 0x%x", gb->cpu.timer->counter);
+  ImGui::Text("TMA = 0x%x", gb->cpu.timer->modulo);
+  ImGui::Text("timer enabled = %d", gb->cpu.timer->ticking_enabled);
   ImGui::Separator();
   ImGui::Text("mode = %s", gb->bus.get_mode_string().c_str());
   ImGui::Separator();
@@ -342,7 +344,7 @@ void Frontend::render_frame() {
     show_controls_menu(&state.controls_window_open);
   }
 
-#ifdef DEBUG_MODE_H
+#ifdef DEBUG_MODE_H // TODO: should be in every build use parameter instead
   show_viewport();
   show_cpu_info();
   show_ppu_info();
@@ -397,10 +399,12 @@ Frontend::Frontend(GB* gb) {
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
   (void)io;
+
   // io.ConfigFlags |=
   //     ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
   io.ConfigFlags |=
       ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Controls
+
   this->state.io = &io;
 
   ImGui::StyleColorsDark();

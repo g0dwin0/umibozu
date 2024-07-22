@@ -22,7 +22,7 @@ struct Joypad {
 };
 enum BUTTONS { B, A, SELECT, START, RIGHT, LEFT, UP, DOWN, NONE = 0xFF };
 
-inline std::string get_button_name_from_enum(BUTTONS b) {
+[[nodiscard]] inline std::string get_button_name_from_enum(BUTTONS b) {
   switch (b) {
     case A: {
       return "A";
