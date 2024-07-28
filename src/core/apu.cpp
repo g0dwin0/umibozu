@@ -28,9 +28,9 @@ void APU::handle_write(u8 v, IO_REG r) {
       regs.CHANNEL_1.NR11.value = v & 0b11000000;
 
       regs.CHANNEL_1.length_timer = (v & 0x3f);
-      fmt::println("length timer 1: {}", regs.CHANNEL_1.length_timer);
+      // fmt::println("length timer 1: {}", regs.CHANNEL_1.length_timer);
       if (regs.CHANNEL_1.length_timer == 0) {
-        fmt::println("length timer 1n: {}", regs.CHANNEL_1.length_timer);
+        // fmt::println("length timer 1n: {}", regs.CHANNEL_1.length_timer);
       }
       return;
     }
@@ -52,7 +52,6 @@ void APU::handle_write(u8 v, IO_REG r) {
 
       regs.CHANNEL_1.period &= ~0b11100000000;
       regs.CHANNEL_1.period |= ((v & 0b111) << 8);
-
 
       u8 old_enable_bit         = regs.CHANNEL_1.NR14.registers.LENGTH_ENABLE;
       u8 p                      = (v | 0b10111111);
@@ -85,6 +84,37 @@ void APU::handle_write(u8 v, IO_REG r) {
         if (regs.CHANNEL_1.length_timer == 64) {
           regs.CHANNEL_1.length_timer = 0;
         }
+
+        if (regs.CHANNEL_1.NR10.SWEEP_PERIOD != 0 ||
+            regs.CHANNEL_1.NR10.SHIFT != 0) {
+          regs.CHANNEL_1.sweep_enabled = true;
+        } else {
+          regs.CHANNEL_1.sweep_enabled = false;
+        }
+
+        // sweep trigger logic
+        fmt::println("PERIOD: {:#04x}", regs.CHANNEL_1.period);
+        regs.CHANNEL_1.sweep_shadow_reg = regs.CHANNEL_1.period;
+
+        fmt::println("SHIFT [trigger]: {}", (u8)regs.CHANNEL_1.NR10.SHIFT);
+        if (regs.CHANNEL_1.NR10.SHIFT > 0) {
+          fmt::println("recalc");
+          u32 n_freq =
+              regs.CHANNEL_1.sweep_shadow_reg +
+              (regs.CHANNEL_1.sweep_shadow_reg >> regs.CHANNEL_1.NR10.SHIFT);
+
+          if (n_freq > 2047) { regs.CHANNEL_1.channel_enabled = false; }
+
+          if (n_freq <= 2047 && regs.CHANNEL_1.NR10.SHIFT != 0) {
+            regs.CHANNEL_1.sweep_shadow_reg = n_freq;
+            regs.CHANNEL_1.period           = n_freq;
+          }
+
+          n_freq =
+              regs.CHANNEL_1.sweep_shadow_reg +
+              (regs.CHANNEL_1.sweep_shadow_reg >> regs.CHANNEL_1.NR10.SHIFT);
+          // if (n_freq > 2047) { regs.CHANNEL_1.channel_enabled = false; }
+        }
       }
 
       return;
@@ -93,9 +123,9 @@ void APU::handle_write(u8 v, IO_REG r) {
       regs.CHANNEL_2.NR21.value = v & 0b11000000;
 
       regs.CHANNEL_2.length_timer = (v & 0x3f);
-      fmt::println("length timer 2: {}", regs.CHANNEL_2.length_timer);
+      // fmt::println("length timer 2: {}", regs.CHANNEL_2.length_timer);
       if (regs.CHANNEL_2.length_timer == 0) {
-        fmt::println("length timer 2n: {}", regs.CHANNEL_2.length_timer);
+        // fmt::println("length timer 2n: {}", regs.CHANNEL_2.length_timer);
       }
       // exit(0);
       return;
@@ -156,11 +186,11 @@ void APU::handle_write(u8 v, IO_REG r) {
     }
     case NR31: {
       //  regs.CHANNEL_3.NR11.value = v & 0b11000000;
-      fmt::println("chn 3 commited: {}", v);
+      // fmt::println("chn 3 commited: {}", v);
       regs.CHANNEL_3.length_timer = v;
-      fmt::println("length timer 3: {}", regs.CHANNEL_3.length_timer);
+      // fmt::println("length timer 3: {}", regs.CHANNEL_3.length_timer);
       if (regs.CHANNEL_3.length_timer == 0) {
-        fmt::println("length timer 3n: {}", regs.CHANNEL_3.length_timer);
+        // fmt::println("length timer 3n: {}", regs.CHANNEL_3.length_timer);
       }
       return;
     }
@@ -214,9 +244,9 @@ void APU::handle_write(u8 v, IO_REG r) {
       regs.CHANNEL_4.NR41.value = v & 0b11000000;
 
       regs.CHANNEL_4.length_timer = (v & 0x3f);
-      fmt::println("length timer 4: {}", regs.CHANNEL_4.length_timer);
+      // fmt::println("length timer 4: {}", regs.CHANNEL_4.length_timer);
       if (regs.CHANNEL_4.length_timer == 0) {
-        fmt::println("length timer 4n: {}", regs.CHANNEL_4.length_timer);
+        // fmt::println("length timer 4n: {}", regs.CHANNEL_4.length_timer);
       }
       return;
     }
@@ -326,7 +356,13 @@ void APU::clear_apu_registers() {
 
   regs.NR50.value = 0;
   regs.NR51.value = 0;
+  frame_sequencer.reset();
 };
+
+void FrameSequencer::reset() {
+  fmt::println("resetting frame sequencer");
+  nStep = 7;
+}
 
 u8 APU::handle_read(IO_REG r) {
   // fmt::println("[APU] reading {:#04x} to {:4X}", v, 0xFF00+(u8)r);
@@ -424,12 +460,20 @@ u8 APU::handle_read(IO_REG r) {
 }
 
 void FrameSequencer::step() {
+  // fmt::println("P");
+  if (regs->NR52.AUDIO_ON_OFF == 0) {
+    // fmt::println("audio disabled, not stepping frame sequencer from {}",
+    // nStep);
+    return;
+  }
+
   if ((nStep % 2) == 0) {  // Sound length
     // fmt::println("step frame sequencer");
     if (regs->CHANNEL_1.NR14.registers.LENGTH_ENABLE &&
         regs->CHANNEL_1.length_timer != 64) {
       regs->CHANNEL_1.length_timer++;
-      fmt::println("CHANNEL 1 LENGTH TIMER: {}", regs->CHANNEL_1.length_timer);
+      // fmt::println("CHANNEL 1 LENGTH TIMER: {}",
+      // regs->CHANNEL_1.length_timer);
       if (regs->CHANNEL_1.length_timer == 64) {
         fmt::println("[APU] disabled channel 1");
         regs->CHANNEL_1.channel_enabled = false;
@@ -464,7 +508,8 @@ void FrameSequencer::step() {
     if (regs->CHANNEL_4.NR44.registers.LENGTH_ENABLE &&
         regs->CHANNEL_4.length_timer != 64) {
       regs->CHANNEL_4.length_timer++;
-      fmt::println("CHANNEL 4 LENGTH TIMER: {}", regs->CHANNEL_4.length_timer);
+      // fmt::println("CHANNEL 4 LENGTH TIMER: {}",
+      // regs->CHANNEL_4.length_timer);
       if (regs->CHANNEL_4.length_timer == 64) {
         fmt::println("[APU] disabled channel 4");
         regs->CHANNEL_4.channel_enabled = false;
@@ -472,29 +517,45 @@ void FrameSequencer::step() {
     }
   }
 
-  if ((nStep == 2 || nStep == 4)) {  // CH1 freq sweep
+  if ((nStep == 2 || nStep == 6)) {  // CH1 freq sweep
+    // The internal enabled flag is set if either the sweep period or shift are
+    // non-zero, cleared otherwise.
+    // fmt::println("HELLLLLLLLLLLLLLLOOOOOOOOOOOOOOOOOOOOOOOO");
+    // regs->CHANNEL_1.sweep_timer++;
 
-  }
+    if (regs->CHANNEL_1.sweep_enabled &&
+        regs->CHANNEL_1.NR10.SWEEP_PERIOD != 0) {
+      // for (size_t i = 0; i < regs->CHANNEL_1.NR10.SWEEP_PERIOD; i++) {
+      fmt::println("negate: {}",
+                   regs->CHANNEL_1.NR10.NEGATE ? "subtraction" : "addition");
+      u32 n_freq =
+          regs->CHANNEL_1.sweep_shadow_reg +
+          (regs->CHANNEL_1.sweep_shadow_reg >> regs->CHANNEL_1.NR10.SHIFT);
 
-  // The volume envelope and sweep timers treat a period of 0 as 8.
+      // if (regs->CHANNEL_1.NR10.registers.NEGATE != 0) n_freq++;
+
+      if (n_freq > 2047) { regs->CHANNEL_1.channel_enabled = false; }
+
+      if (n_freq <= 2047 && regs->CHANNEL_1.NR10.SHIFT != 0) {
+        regs->CHANNEL_1.sweep_shadow_reg = n_freq;
+        regs->CHANNEL_1.period           = n_freq;
+      }
+      // }
+
+      n_freq = regs->CHANNEL_1.sweep_shadow_reg +
+               (regs->CHANNEL_1.sweep_shadow_reg >>
+                regs->CHANNEL_1.NR10.SHIFT);
+      if (n_freq > 2047) { regs->CHANNEL_1.channel_enabled = false; }
+      
+    }
+
+    // The volume envelope and sweep timers treat a period of 0 as 8.
+  };
   if (nStep == 7) {  // Vol env
   }
 
   nStep++;
   if (nStep == 8) nStep = 0;
-};
+}
 
 u8 FrameSequencer::get_step() { return nStep; }
-
-/*
-
-> 07-len sweep period sync: #5 "Powering up APU MODs next frame time with 8192"
-
-blargg's code was a bit misleading, but I was able to decipher it from observing
-the same bit-twiddling in gambatte.
-
-You want to clear the sequencer phase (0-7) back to zero only on a 0->1
-transition of NR52.d7 If you clear it regardless (eg 0->0 or 1->1), the test
-fails.
-
-*/

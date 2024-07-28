@@ -50,20 +50,22 @@ struct Registers {
     bool channel_enabled = false;
     u8 length_timer      = 63;
     u8 duty_step_counter;
-
-    u8 sweep_shadow_reg;
-    u16 period; // 11 bit value; cover edge cases later
+    
     u8 volume_ctr;
+
+    u32 sweep_shadow_reg;
+    u16 period;  // 11 bit value; cover edge cases later
+    u32 sweep_timer;
+    bool sweep_enabled;
 
     union {
       u8 value = 0x80;
       struct {
-        u8 INDIVIDUAL_STEP : 3;
-        u8 DIRECTION       : 1;
-        u8 PACE            : 3;
-        u8                 : 1;
-
-      } registers;
+        u8 SHIFT        : 3;
+        u8 NEGATE       : 1;
+        u8 SWEEP_PERIOD : 3;
+        u8              : 1;
+      };
     } NR10;  // Channel 1 sweep
 
     union {
@@ -144,7 +146,7 @@ struct Registers {
   // Channel 3 - Wave output
   struct {
     bool channel_enabled = false;
-    u16 length_timer      = 63;
+    u16 length_timer     = 63;
     u8 duty_step_counter;
     u8 sample_index;
 
@@ -227,18 +229,19 @@ struct Registers {
 };
 struct FrameSequencer {
  private:
-  u8 nStep = 0;
+  u8 nStep        = 0;
   Registers* regs = nullptr;
-
 
  public:
   FrameSequencer(Registers* ptr) : regs(ptr) {
-    if(regs == nullptr) { fmt::println("bad pointer to APU registers");
-    exit(-1);
-     }
-  }; 
+    if (regs == nullptr) {
+      fmt::println("bad pointer to APU registers");
+      exit(-1);
+    }
+  };
 
   void step();
+  void reset();
   [[nodiscard]] u8 get_step();
 };
 
@@ -248,7 +251,7 @@ class APU {
 
  public:
   void handle_write(u8 v, IO_REG r);
-  FrameSequencer frame_sequencer = { &regs };
+  FrameSequencer frame_sequencer = {&regs};
   void clear_apu_registers();
   bool is_allowed_reg(IO_REG r);
   [[nodiscard]] u8 handle_read(IO_REG r);

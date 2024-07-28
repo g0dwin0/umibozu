@@ -16,9 +16,9 @@
 #define BLACK 0x0000
 #define VRAM_ADDRESS_OFFSET 0x8000
 
-struct LCDC_R {
-  // REFACTOR: use unions
-
+struct LCDC_R { 
+  // this doesn't need to be a struct, this could just a be union, 
+  // besides this should be on the bus as it's a memory mapped io register
   union {
     u8 value;
     struct {
@@ -48,19 +48,14 @@ union Attribute_Data {
   u8 y_flip        : 1 = 0;
   bool priority: 1        = false;
   };
-  // void set_from_byte(u8 idx) {
-  //   color_palette = (idx & 0b00000111);
-  //   bank          = (idx & 0b00001000) >> 3;
-  //   x_flip        = (idx & 0b00100000) >> 5;
-  //   y_flip        = (idx & 0b01000000) >> 6;
-  //   priority      = ((idx & 0b10000000) >> 7) == 1;
-  // }
 };
 struct Tile {
   std::array<std::array<Pixel, 8>, 8> pixel_data;
   Attribute_Data attr_data;
 };
+
 enum class RENDERING_MODE { HBLANK = 0, VBLANK, OAM_SCAN, PIXEL_DRAW };
+
 struct Sprite {
   u8 y_pos   = 0;
   u8 x_pos   = 0;
@@ -153,7 +148,6 @@ class PPU {
   u16 remaining_length = 0;
   u16 hdma_index       = 0;
 
-  PPU()           = default;
   u8 x_pos_offset = 0;
   void tick(u16 inc);
   [[nodiscard]] std::string get_mode_string();
