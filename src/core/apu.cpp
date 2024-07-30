@@ -5,6 +5,7 @@
 #include "common.h"
 
 bool APU::is_allowed_reg(IO_REG r) {
+  if (r == NR41) return true;
   if (r == NR52) return true;
 
   return false;
@@ -22,6 +23,10 @@ void APU::handle_write(u8 v, IO_REG r) {
   switch (r) {
     case NR10: {
       regs.CHANNEL_1.NR10.value = v;
+
+      if (regs.CHANNEL_1.NR10.NEGATE == 0 && regs.CHANNEL_1.sweep_calc_in_negate) {
+        regs.CHANNEL_1.channel_enabled = false;
+      }
       return;
     }
     case NR11: {
@@ -36,8 +41,7 @@ void APU::handle_write(u8 v, IO_REG r) {
     }
     case NR12: {
       regs.CHANNEL_1.NR12.value = v;
-      if (!regs.CHANNEL_1.get_dac_enabled())
-        regs.CHANNEL_1.channel_enabled = false;
+      if (!regs.CHANNEL_1.get_dac_enabled()) regs.CHANNEL_1.channel_enabled = false;
       return;
     }
     case NR13: {
@@ -58,21 +62,16 @@ void APU::handle_write(u8 v, IO_REG r) {
       regs.CHANNEL_1.NR14.value = p;
 
       if ((frame_sequencer.get_step() & 1) == 1 &&
-          (old_enable_bit == 0 &&
-           regs.CHANNEL_1.NR14.registers.LENGTH_ENABLE) &&
+          (old_enable_bit == 0 && regs.CHANNEL_1.NR14.registers.LENGTH_ENABLE) &&
           regs.CHANNEL_1.length_timer != 64) {
         regs.CHANNEL_1.length_timer++;
-        fmt::println("ticked off rising edge ch 1: {}",
-                     regs.CHANNEL_1.length_timer);
-        if (regs.CHANNEL_1.length_timer == 64) {
-          regs.CHANNEL_1.channel_enabled = false;
-        }
+        fmt::println("ticked off rising edge ch 1: {}", regs.CHANNEL_1.length_timer);
+        if (regs.CHANNEL_1.length_timer == 64) { regs.CHANNEL_1.channel_enabled = false; }
       }
 
       if ((v & (1 << 7)) != 0) {  // trigger
         // Obscure behaviour
-        if ((frame_sequencer.get_step() & 1) == 1 &&
-            regs.CHANNEL_1.NR14.registers.LENGTH_ENABLE &&
+        if ((frame_sequencer.get_step() & 1) == 1 && regs.CHANNEL_1.NR14.registers.LENGTH_ENABLE &&
             regs.CHANNEL_1.length_timer == 64) {
           regs.CHANNEL_1.length_timer = 1;
         }
@@ -81,39 +80,54 @@ void APU::handle_write(u8 v, IO_REG r) {
           regs.CHANNEL_1.channel_enabled = true;
           fmt::println("[APU] triggered channel 1 (ON)");
         }
-        if (regs.CHANNEL_1.length_timer == 64) {
-          regs.CHANNEL_1.length_timer = 0;
-        }
+        if (regs.CHANNEL_1.length_timer == 64) { regs.CHANNEL_1.length_timer = 0; }
 
-        if (regs.CHANNEL_1.NR10.SWEEP_PERIOD != 0 ||
-            regs.CHANNEL_1.NR10.SHIFT != 0) {
+        // Reset check negate flag
+        regs.CHANNEL_1.sweep_calc_in_negate = false;
+
+        // Set Sweep Enabled Flag
+        if (regs.CHANNEL_1.NR10.SWEEP_PERIOD != 0 || regs.CHANNEL_1.NR10.SHIFT != 0) {
           regs.CHANNEL_1.sweep_enabled = true;
         } else {
           regs.CHANNEL_1.sweep_enabled = false;
         }
 
-        // sweep trigger logic
-        fmt::println("PERIOD: {:#04x}", regs.CHANNEL_1.period);
+        // Reload Sweep Timer
+        regs.CHANNEL_1.sweep_timer =
+            regs.CHANNEL_1.NR10.SWEEP_PERIOD != 0 ? regs.CHANNEL_1.NR10.SWEEP_PERIOD : 8;
+
+        fmt::println("reloaded sweep timer with: {}", regs.CHANNEL_1.sweep_timer);
+
+        // Load Shadow Reg with the period
         regs.CHANNEL_1.sweep_shadow_reg = regs.CHANNEL_1.period;
 
-        fmt::println("SHIFT [trigger]: {}", (u8)regs.CHANNEL_1.NR10.SHIFT);
+        // Sweep Trigger Logic
         if (regs.CHANNEL_1.NR10.SHIFT > 0) {
           fmt::println("recalc");
-          u32 n_freq =
-              regs.CHANNEL_1.sweep_shadow_reg +
-              (regs.CHANNEL_1.sweep_shadow_reg >> regs.CHANNEL_1.NR10.SHIFT);
 
-          if (n_freq > 2047) { regs.CHANNEL_1.channel_enabled = false; }
+          if (regs.CHANNEL_1.NR10.NEGATE == 1) regs.CHANNEL_1.sweep_calc_in_negate = true;
 
-          if (n_freq <= 2047 && regs.CHANNEL_1.NR10.SHIFT != 0) {
-            regs.CHANNEL_1.sweep_shadow_reg = n_freq;
-            regs.CHANNEL_1.period           = n_freq;
+          u32 n_freq = 0;
+
+          switch (regs.CHANNEL_1.NR10.NEGATE) {
+            case ADDITION: {
+              n_freq = regs.CHANNEL_1.sweep_shadow_reg +
+                       (regs.CHANNEL_1.sweep_shadow_reg >> regs.CHANNEL_1.NR10.SHIFT);
+              break;
+            }
+            case SUBTRACTION: {
+              n_freq = regs.CHANNEL_1.sweep_shadow_reg -
+                       (regs.CHANNEL_1.sweep_shadow_reg >> regs.CHANNEL_1.NR10.SHIFT);
+              break;
+            }
+            default: {
+              fmt::println("should be unreachable :{}", (u8)regs.CHANNEL_1.NR10.NEGATE);
+              exit(-1);
+            }
           }
 
-          n_freq =
-              regs.CHANNEL_1.sweep_shadow_reg +
-              (regs.CHANNEL_1.sweep_shadow_reg >> regs.CHANNEL_1.NR10.SHIFT);
-          // if (n_freq > 2047) { regs.CHANNEL_1.channel_enabled = false; }
+          fmt::println("sweep calc 1 (trigger): {:#x}", n_freq);
+          if (n_freq > 2047) { regs.CHANNEL_1.channel_enabled = false; }
         }
       }
 
@@ -132,8 +146,7 @@ void APU::handle_write(u8 v, IO_REG r) {
     }
     case NR22: {
       regs.CHANNEL_2.NR22.value = v;
-      if (!regs.CHANNEL_2.get_dac_enabled())
-        regs.CHANNEL_2.channel_enabled = false;
+      if (!regs.CHANNEL_2.get_dac_enabled()) regs.CHANNEL_2.channel_enabled = false;
       return;
     }
     case NR23: {
@@ -147,21 +160,16 @@ void APU::handle_write(u8 v, IO_REG r) {
       regs.CHANNEL_2.NR24.value = p;
 
       if ((frame_sequencer.get_step() & 1) == 1 &&
-          (old_enable_bit == 0 &&
-           regs.CHANNEL_2.NR24.registers.LENGTH_ENABLE) &&
+          (old_enable_bit == 0 && regs.CHANNEL_2.NR24.registers.LENGTH_ENABLE) &&
           regs.CHANNEL_2.length_timer != 64) {
         regs.CHANNEL_2.length_timer++;
-        fmt::println("ticked off rising edge ch 2: {}",
-                     regs.CHANNEL_2.length_timer);
-        if (regs.CHANNEL_2.length_timer == 64) {
-          regs.CHANNEL_2.channel_enabled = false;
-        }
+        fmt::println("ticked off rising edge ch 2: {}", regs.CHANNEL_2.length_timer);
+        if (regs.CHANNEL_2.length_timer == 64) { regs.CHANNEL_2.channel_enabled = false; }
       }
 
       if ((v & (1 << 7)) != 0) {  // trigger
         // Obscure behaviour
-        if ((frame_sequencer.get_step() & 1) == 1 &&
-            regs.CHANNEL_2.NR24.registers.LENGTH_ENABLE &&
+        if ((frame_sequencer.get_step() & 1) == 1 && regs.CHANNEL_2.NR24.registers.LENGTH_ENABLE &&
             regs.CHANNEL_2.length_timer == 64) {
           regs.CHANNEL_2.length_timer = 1;
         }
@@ -170,17 +178,14 @@ void APU::handle_write(u8 v, IO_REG r) {
           regs.CHANNEL_2.channel_enabled = true;
           fmt::println("[APU] triggered channel 2 (ON)");
         }
-        if (regs.CHANNEL_2.length_timer == 64) {
-          regs.CHANNEL_2.length_timer = 0;
-        }
+        if (regs.CHANNEL_2.length_timer == 64) { regs.CHANNEL_2.length_timer = 0; }
       }
 
       return;
     }
     case NR30: {
       regs.CHANNEL_3.NR30.value = (v | 0b01111111);
-      if (!regs.CHANNEL_3.get_dac_enabled())
-        regs.CHANNEL_3.channel_enabled = false;
+      if (!regs.CHANNEL_3.get_dac_enabled()) regs.CHANNEL_3.channel_enabled = false;
 
       return;
     }
@@ -209,21 +214,16 @@ void APU::handle_write(u8 v, IO_REG r) {
       regs.CHANNEL_3.NR34.value = p;
 
       if ((frame_sequencer.get_step() & 1) == 1 &&
-          (old_enable_bit == 0 &&
-           regs.CHANNEL_3.NR34.registers.LENGTH_ENABLE) &&
+          (old_enable_bit == 0 && regs.CHANNEL_3.NR34.registers.LENGTH_ENABLE) &&
           regs.CHANNEL_3.length_timer != 256) {
         regs.CHANNEL_3.length_timer++;
-        fmt::println("ticked off rising edge ch 3: {}",
-                     regs.CHANNEL_3.length_timer);
-        if (regs.CHANNEL_3.length_timer == 256) {
-          regs.CHANNEL_3.channel_enabled = false;
-        }
+        fmt::println("ticked off rising edge ch 3: {}", regs.CHANNEL_3.length_timer);
+        if (regs.CHANNEL_3.length_timer == 256) { regs.CHANNEL_3.channel_enabled = false; }
       }
 
       if ((v & (1 << 7)) != 0) {  // trigger
         // Obscure behaviour
-        if ((frame_sequencer.get_step() & 1) == 1 &&
-            regs.CHANNEL_3.NR34.registers.LENGTH_ENABLE &&
+        if ((frame_sequencer.get_step() & 1) == 1 && regs.CHANNEL_3.NR34.registers.LENGTH_ENABLE &&
             regs.CHANNEL_3.length_timer == 256) {
           regs.CHANNEL_3.length_timer = 1;
         }
@@ -232,9 +232,7 @@ void APU::handle_write(u8 v, IO_REG r) {
           regs.CHANNEL_3.channel_enabled = true;
           fmt::println("[APU] triggered channel 3 (ON)");
         }
-        if (regs.CHANNEL_3.length_timer == 256) {
-          regs.CHANNEL_3.length_timer = 0;
-        }
+        if (regs.CHANNEL_3.length_timer == 256) { regs.CHANNEL_3.length_timer = 0; }
       }
 
       return;
@@ -252,9 +250,7 @@ void APU::handle_write(u8 v, IO_REG r) {
     }
     case NR42: {
       regs.CHANNEL_4.NR42.value = v;
-      if (!regs.CHANNEL_4.get_dac_enabled()) {
-        regs.CHANNEL_4.channel_enabled = false;
-      }
+      if (!regs.CHANNEL_4.get_dac_enabled()) { regs.CHANNEL_4.channel_enabled = false; }
       return;
     }
     case NR43: {
@@ -268,21 +264,16 @@ void APU::handle_write(u8 v, IO_REG r) {
       regs.CHANNEL_4.NR44.value = p;
 
       if ((frame_sequencer.get_step() & 1) == 1 &&
-          (old_enable_bit == 0 &&
-           regs.CHANNEL_4.NR44.registers.LENGTH_ENABLE) &&
+          (old_enable_bit == 0 && regs.CHANNEL_4.NR44.registers.LENGTH_ENABLE) &&
           regs.CHANNEL_4.length_timer != 64) {
         regs.CHANNEL_4.length_timer++;
-        fmt::println("ticked off rising edge ch 4: {}",
-                     regs.CHANNEL_4.length_timer);
-        if (regs.CHANNEL_4.length_timer == 64) {
-          regs.CHANNEL_4.channel_enabled = false;
-        }
+        fmt::println("ticked off rising edge ch 4: {}", regs.CHANNEL_4.length_timer);
+        if (regs.CHANNEL_4.length_timer == 64) { regs.CHANNEL_4.channel_enabled = false; }
       }
 
       if ((v & (1 << 7)) != 0) {  // trigger
         // Obscure behaviour
-        if ((frame_sequencer.get_step() & 1) == 1 &&
-            regs.CHANNEL_4.NR44.registers.LENGTH_ENABLE &&
+        if ((frame_sequencer.get_step() & 1) == 1 && regs.CHANNEL_4.NR44.registers.LENGTH_ENABLE &&
             regs.CHANNEL_4.length_timer == 64) {
           regs.CHANNEL_4.length_timer = 1;
         }
@@ -290,9 +281,7 @@ void APU::handle_write(u8 v, IO_REG r) {
         if (regs.CHANNEL_4.get_dac_enabled()) {
           regs.CHANNEL_4.channel_enabled = true;
           fmt::println("[APU] triggered channel 4 (ON)");
-          if (regs.CHANNEL_4.length_timer == 64) {
-            regs.CHANNEL_4.length_timer = 0;
-          }
+          if (regs.CHANNEL_4.length_timer == 64) { regs.CHANNEL_4.length_timer = 0; }
         }
       }
 
@@ -310,8 +299,13 @@ void APU::handle_write(u8 v, IO_REG r) {
       return;
     }
     case NR52: {
+      u8 old_bit7     = regs.NR52.value & (1 << 7) ? 1 : 0;
       regs.NR52.value = v & (1 << 7);
+      u8 new_bit7     = regs.NR52.value & (1 << 7) ? 1 : 0;
       if ((regs.NR52.value & (1 << 7)) == 0) { clear_apu_registers(); }
+
+      // APU on going from 0->1 sets frame sequencer step to 0 (obscure behaviour)
+      if (old_bit7 == 0 && new_bit7 == 1) { frame_sequencer.nStep = 0; }
 
       fmt::println("[APU] Audio value: {}", (u8)regs.NR52.value);
       fmt::println("[APU] Audio status: {}", regs.NR52.AUDIO_ON_OFF ? 1 : 0);
@@ -321,8 +315,6 @@ void APU::handle_write(u8 v, IO_REG r) {
     }
     default: {
       fmt::println("[APU] invalid register write: {:#08x}", (u8)r);
-      // if((u8)r == 0x15) return;
-      // exit(-1);
       return;
     }
   }
@@ -333,6 +325,7 @@ void APU::clear_apu_registers() {
   regs.CHANNEL_1.NR11.value      = 0;
   regs.CHANNEL_1.NR12.value      = 0;
   regs.CHANNEL_1.NR13.value      = 0;
+  regs.CHANNEL_1.period          = 0;
   regs.CHANNEL_1.NR14.value      = 0;
   regs.CHANNEL_1.channel_enabled = false;
 
@@ -381,8 +374,7 @@ u8 APU::handle_read(IO_REG r) {
       return 0xFF;
     }
     case NR14: {
-      fmt::println("READING FROM APU NR14: {}",
-                   regs.CHANNEL_1.NR14.value | 0b10111111);
+      fmt::println("READING FROM APU NR14: {}", regs.CHANNEL_1.NR14.value | 0b10111111);
       return regs.CHANNEL_1.NR14.value | 0b10111111;
     }
     case NR21: {
@@ -469,8 +461,7 @@ void FrameSequencer::step() {
 
   if ((nStep % 2) == 0) {  // Sound length
     // fmt::println("step frame sequencer");
-    if (regs->CHANNEL_1.NR14.registers.LENGTH_ENABLE &&
-        regs->CHANNEL_1.length_timer != 64) {
+    if (regs->CHANNEL_1.NR14.registers.LENGTH_ENABLE && regs->CHANNEL_1.length_timer != 64) {
       regs->CHANNEL_1.length_timer++;
       // fmt::println("CHANNEL 1 LENGTH TIMER: {}",
       // regs->CHANNEL_1.length_timer);
@@ -481,8 +472,7 @@ void FrameSequencer::step() {
       }
     }
 
-    if (regs->CHANNEL_2.NR24.registers.LENGTH_ENABLE &&
-        regs->CHANNEL_2.length_timer != 64) {
+    if (regs->CHANNEL_2.NR24.registers.LENGTH_ENABLE && regs->CHANNEL_2.length_timer != 64) {
       regs->CHANNEL_2.length_timer++;
       // fmt::println("CHANNEL 2 LENGTH TIMER: {}",
       // regs->CHANNEL_2.length_timer);
@@ -493,8 +483,7 @@ void FrameSequencer::step() {
       }
     }
 
-    if (regs->CHANNEL_3.NR34.registers.LENGTH_ENABLE &&
-        regs->CHANNEL_3.length_timer != 256) {
+    if (regs->CHANNEL_3.NR34.registers.LENGTH_ENABLE && regs->CHANNEL_3.length_timer != 256) {
       regs->CHANNEL_3.length_timer++;
       // fmt::println("CHANNEL 3 LENGTH TIMER: {}",
       // regs->CHANNEL_3.length_timer);
@@ -505,8 +494,7 @@ void FrameSequencer::step() {
     }
     // fmt::println("regs->CHANNEL_4.NR44.registers.LENGTH_ENABLE: {}",
     // regs->CHANNEL_4.NR44.registers.LENGTH_ENABLE != 0 ? "true" : "false");
-    if (regs->CHANNEL_4.NR44.registers.LENGTH_ENABLE &&
-        regs->CHANNEL_4.length_timer != 64) {
+    if (regs->CHANNEL_4.NR44.registers.LENGTH_ENABLE && regs->CHANNEL_4.length_timer != 64) {
       regs->CHANNEL_4.length_timer++;
       // fmt::println("CHANNEL 4 LENGTH TIMER: {}",
       // regs->CHANNEL_4.length_timer);
@@ -518,39 +506,66 @@ void FrameSequencer::step() {
   }
 
   if ((nStep == 2 || nStep == 6)) {  // CH1 freq sweep
-    // The internal enabled flag is set if either the sweep period or shift are
-    // non-zero, cleared otherwise.
-    // fmt::println("HELLLLLLLLLLLLLLLOOOOOOOOOOOOOOOOOOOOOOOO");
-    // regs->CHANNEL_1.sweep_timer++;
 
-    if (regs->CHANNEL_1.sweep_enabled &&
-        regs->CHANNEL_1.NR10.SWEEP_PERIOD != 0) {
-      // for (size_t i = 0; i < regs->CHANNEL_1.NR10.SWEEP_PERIOD; i++) {
-      fmt::println("negate: {}",
-                   regs->CHANNEL_1.NR10.NEGATE ? "subtraction" : "addition");
-      u32 n_freq =
-          regs->CHANNEL_1.sweep_shadow_reg +
-          (regs->CHANNEL_1.sweep_shadow_reg >> regs->CHANNEL_1.NR10.SHIFT);
+    if (regs->CHANNEL_1.sweep_timer > 0) regs->CHANNEL_1.sweep_timer -= 1;
 
-      // if (regs->CHANNEL_1.NR10.registers.NEGATE != 0) n_freq++;
+    if (regs->CHANNEL_1.sweep_timer == 0) {
+      regs->CHANNEL_1.sweep_timer =
+          (regs->CHANNEL_1.NR10.SWEEP_PERIOD ? regs->CHANNEL_1.NR10.SWEEP_PERIOD : 8);
 
-      if (n_freq > 2047) { regs->CHANNEL_1.channel_enabled = false; }
+      if (regs->CHANNEL_1.sweep_enabled && regs->CHANNEL_1.NR10.SWEEP_PERIOD != 0) {
+        if (regs->CHANNEL_1.NR10.NEGATE == 1) regs->CHANNEL_1.sweep_calc_in_negate = true;
 
-      if (n_freq <= 2047 && regs->CHANNEL_1.NR10.SHIFT != 0) {
-        regs->CHANNEL_1.sweep_shadow_reg = n_freq;
-        regs->CHANNEL_1.period           = n_freq;
+        u32 n_freq = 0;
+
+        switch (regs->CHANNEL_1.NR10.NEGATE) {
+          case ADDITION: {
+            n_freq = regs->CHANNEL_1.sweep_shadow_reg +
+                     (regs->CHANNEL_1.sweep_shadow_reg >> regs->CHANNEL_1.NR10.SHIFT);
+            break;
+          }
+          case SUBTRACTION: {
+            n_freq = regs->CHANNEL_1.sweep_shadow_reg -
+                     (regs->CHANNEL_1.sweep_shadow_reg >> regs->CHANNEL_1.NR10.SHIFT);
+            break;
+          }
+          default: {
+            fmt::println("should be unreachable :{}", (u8)regs->CHANNEL_1.NR10.NEGATE);
+            exit(-1);
+          }
+        }
+
+        fmt::println("sweep calc 1: {:#x}", n_freq);
+        if (n_freq > 2047) { regs->CHANNEL_1.channel_enabled = false; }
+
+        if (n_freq <= 2047 && regs->CHANNEL_1.NR10.SHIFT > 0) {
+          regs->CHANNEL_1.sweep_shadow_reg = n_freq;
+          regs->CHANNEL_1.period           = n_freq;
+        }
+
+        switch (regs->CHANNEL_1.NR10.NEGATE) {
+          case ADDITION: {
+            n_freq = regs->CHANNEL_1.sweep_shadow_reg +
+                     (regs->CHANNEL_1.sweep_shadow_reg >> regs->CHANNEL_1.NR10.SHIFT);
+            break;
+          }
+          case SUBTRACTION: {
+            n_freq = regs->CHANNEL_1.sweep_shadow_reg -
+                     (regs->CHANNEL_1.sweep_shadow_reg >> regs->CHANNEL_1.NR10.SHIFT);
+            break;
+          }
+          default: {
+            fmt::println("should be unreachable :{}", (u8)regs->CHANNEL_1.NR10.NEGATE);
+            exit(-1);
+          }
+        }
+
+        fmt::println("sweep calc 2: {:#x}", n_freq);
+        if (n_freq > 2047) { regs->CHANNEL_1.channel_enabled = false; }
       }
-      // }
-
-      n_freq = regs->CHANNEL_1.sweep_shadow_reg +
-               (regs->CHANNEL_1.sweep_shadow_reg >>
-                regs->CHANNEL_1.NR10.SHIFT);
-      if (n_freq > 2047) { regs->CHANNEL_1.channel_enabled = false; }
-      
     }
-
-    // The volume envelope and sweep timers treat a period of 0 as 8.
   };
+
   if (nStep == 7) {  // Vol env
   }
 

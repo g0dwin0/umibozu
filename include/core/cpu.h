@@ -104,7 +104,6 @@ namespace Umibozu {
     bool IME      = false;
     SPEED speed   = SPEED::NORMAL;
 
-    // REFACTOR: make reads go through bus
     PPU *ppu       = nullptr;
     Mapper *mapper = nullptr;
     Timer *timer   = nullptr;

@@ -21,7 +21,7 @@ struct PaletteSpecification {
 };
 
 struct Bus {
-  SYSTEM_MODE mode; // refactor: shouldn't be on bus right? should be in gb.h!
+  SYSTEM_MODE mode;
   
   Cartridge cart;
   Joypad joypad;
@@ -50,7 +50,10 @@ struct Bus {
   RAM hram{0x80};
   RAM bg_palette_ram{0x40};
   RAM obj_palette_ram{0x40};
+  
+  // WAVE RAM
   RAM wave_ram{0x40};
+  u8 wave_last_written_value = 0xFF;
   
   void request_interrupt(InterruptType);
   [[nodiscard]] bool interrupt_pending() const;

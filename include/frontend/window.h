@@ -2,23 +2,25 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_keyboard.h>
 #include <SDL2/SDL_scancode.h>
+
 #include <unordered_map>
 
 #include "core/gb.h"
 #include "imgui.h"
 #include "joypad.h"
 
-
 struct State {
   SDL_Texture* ppu_texture = nullptr;
   SDL_Texture* viewport    = nullptr;
-  const u8* keyboardState = SDL_GetKeyboardState(nullptr);
+  const u8* keyboardState  = SDL_GetKeyboardState(nullptr);
 
   bool running              = true;
   bool texture_window_open  = true;
   bool cpu_info_open        = true;
   bool ppu_info_open        = true;
   bool controls_window_open = false;
+
+  size_t menu_bar_size = 0;
 
   ImGuiIO* io = nullptr;
 };
@@ -36,9 +38,7 @@ struct Settings {
       {BUTTONS::DOWN, {SDL_SCANCODE_DOWN, false}},
     };
 
-
   } keybinds;
-
 };
 
 struct Frontend {
@@ -61,8 +61,6 @@ struct Frontend {
   void show_tile_maps();
   void show_controls_menu(bool* p_open);
   void shutdown();
-
-
 
   explicit Frontend(GB*);
 };

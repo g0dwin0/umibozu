@@ -9,6 +9,7 @@
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_scancode.h>
 #include <SDL2/SDL_video.h>
+#include <tuple>
 
 #include "bus.h"
 #include "common.h"
@@ -69,12 +70,7 @@ void Frontend::handle_events() {
         // fmt::println("Triggered UP");
         if (!state.keyboardState[settings.keybinds.control_map.at(RIGHT)
                                      .first]) {
-          // fmt::println("Triggered R UP");
-          gb->bus.joypad.RIGHT = 1;
-        }
-        if (!state
-                 .keyboardState[settings.keybinds.control_map.at(LEFT).first]) {
-          gb->bus.joypad.LEFT = 1;
+          // fmt::println("Triggered R UP");#include <tuple>
         }
         if (!state.keyboardState[settings.keybinds.control_map.at(UP).first]) {
           gb->bus.joypad.UP = 1;
@@ -166,7 +162,6 @@ void Frontend::show_controls_menu(bool* p_open) {
             invalid_keybind = true;
           }
         }
-
         if (!invalid_keybind) {
           entry.second.first  = start;
           entry.second.second = false;  // unset remap flag
@@ -180,7 +175,6 @@ void Frontend::show_controls_menu(bool* p_open) {
 
   ImGui::SameLine();
 
-  // unsigned i = 0;
   for (auto& entry : settings.keybinds.control_map) {
     
     ImGui::PushID(&entry);
@@ -220,7 +214,7 @@ void Frontend::show_menubar() {
 
       ImGui::EndMenu();
     }
-
+    state.menu_bar_size = ImGui::GetWindowSize().y; // TODO: move frame down under
     ImGui::EndMainMenuBar();
   }
 }
@@ -344,7 +338,7 @@ void Frontend::render_frame() {
     show_controls_menu(&state.controls_window_open);
   }
 
-#ifdef DEBUG_MODE_H // TODO: should be in every build use parameter instead
+#ifdef DEBUG_MODE_H
   show_viewport();
   show_cpu_info();
   show_ppu_info();

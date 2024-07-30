@@ -15,9 +15,7 @@
 
 // TODO: implement stat blocking
 
-Frame::Frame() {
-  data.fill(0);
-}
+Frame::Frame() { data.fill(0); }
 
 void PPU::set_renderer(SDL_Renderer* renderer) { this->renderer = renderer; }
 void PPU::set_frame_texture(SDL_Texture* texture) {
@@ -44,8 +42,7 @@ void PPU::add_sprite_to_buffer(u8 spriteIndex) {
   Sprite current_sprite = Sprite(sprite_y, sprite_x, tile_number, sprite_flags);
 
   // DMG sprite prio
-  if (bus->mode == SYSTEM_MODE::DMG) {  // refactor: this can be made into a
-                                        // function, and then inlined
+  if (bus->mode == SYSTEM_MODE::DMG) {
     for (const auto& sprite : sprite_buf) {
       if (sprite.x_pos == current_sprite.x_pos) { return; }
     }

@@ -58,6 +58,12 @@ struct Registers {
     u32 sweep_timer;
     bool sweep_enabled;
 
+
+    // Clearing the sweep negate mode bit in NR10 after at least one sweep calculation has been made using the negate mode since the last trigger causes the channel to be immediately disabled. 
+    // https://gbdev.gg8.se/wiki/articles/Gameboy_sound_hardware#Obscure_Behavior
+    bool sweep_calc_in_negate = false;
+    
+
     union {
       u8 value = 0x80;
       struct {
@@ -228,8 +234,8 @@ struct Registers {
   } CHANNEL_4;
 };
 struct FrameSequencer {
- private:
   u8 nStep        = 0;
+ private:
   Registers* regs = nullptr;
 
  public:
@@ -247,12 +253,13 @@ struct FrameSequencer {
 
 class APU {
  private:
-  Registers regs;
 
  public:
+  Registers regs;
   void handle_write(u8 v, IO_REG r);
   FrameSequencer frame_sequencer = {&regs};
   void clear_apu_registers();
   bool is_allowed_reg(IO_REG r);
+  u16 calculate_new_freq();
   [[nodiscard]] u8 handle_read(IO_REG r);
 };

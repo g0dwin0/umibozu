@@ -18,13 +18,11 @@ SM83::~SM83() = default;
 void SM83::m_cycle() {
 #ifndef CPU_TEST_MODE_H
   if (speed == SPEED::DOUBLE) {
-    // timer->div += 2; // TODO: make an increment function
     timer->increment_div(2);
     mapper->increment_internal_clock(2, mapper->actual.RTC_DAY);
     ppu->tick(2);
   } else {
     timer->increment_div(4);
-    // timer->div += 4; // TODO: make an increment function
     mapper->increment_internal_clock(4, mapper->actual.RTC_DAY); // refactor: this is not elegant
     ppu->tick(4);
   }
@@ -668,7 +666,7 @@ void SM83::run_instruction() {
       E = read8(PC++);
       break;
     }
-    case 0x1F: {  // TODO: make func
+    case 0x1F: {
       Instructions::RRA(this);
       break;
     }
