@@ -1,6 +1,12 @@
 # [Umibōzu](https://en.wikipedia.org/wiki/Umib%C5%8Dzu) (海坊主)
+a rudimentary gameboy emulator 
 
-a rudimentary gameboy emulator
+# NOTE
+
+pending re-write. 
+
+This was the first project I wrote in C++. I wrote this a long time ago, a lot of it does not have comments, and in my opinion is designed quite poorly. I'll come back to this project later.
+
 
 ## why?
 
