@@ -1,7 +1,5 @@
 #pragma once
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_keyboard.h>
-#include <SDL2/SDL_scancode.h>
+#include <SDL3/SDL.h>
 
 #include <unordered_map>
 
@@ -12,7 +10,7 @@
 struct State {
   SDL_Texture* ppu_texture = nullptr;
   SDL_Texture* viewport    = nullptr;
-  const u8* keyboardState  = SDL_GetKeyboardState(nullptr);
+  const bool* keyboardState  = SDL_GetKeyboardState(nullptr);
 
   bool running              = true;
   bool texture_window_open  = true;

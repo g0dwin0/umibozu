@@ -9,11 +9,7 @@ int main() {
   GB gb;
   Frontend fe(&gb);
 
-  // gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/blarg/dmg_sound/08-len_ctr_during_power.gb"));
-  // gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/blarg/dmg_sound/09-wave_read_while_on.gb"));
-  // gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/blarg/dmg_sound/10-wave_trigger_while_on.gb"));
-  // gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/blarg/dmg_sound/dmg_sound.gb"));
-  // gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/dmg_sound.gb"));
+  gb.load_cart(read_file("/home/bass/Projects/umibozu/roms/acid/dmg-acid2.gb"));
   
 
   while (fe.state.running) {

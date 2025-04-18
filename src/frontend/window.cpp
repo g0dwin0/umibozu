@@ -1,39 +1,29 @@
 #include "frontend/window.h"
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_events.h>
-#include <SDL2/SDL_gamecontroller.h>
-#include <SDL2/SDL_joystick.h>
-#include <SDL2/SDL_keyboard.h>
-#include <SDL2/SDL_pixels.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_scancode.h>
-#include <SDL2/SDL_video.h>
-#include <tuple>
+#include <SDL3/SDL.h>
 
 #include "bus.h"
 #include "common.h"
 #include "cpu.h"
 #include "imgui.h"
-#include "imgui_impl_sdl2.h"
-#include "imgui_impl_sdlrenderer2.h"
+#include "imgui_impl_sdl3.h"
+#include "imgui_impl_sdlrenderer3.h"
 #include "io.hpp"
 #include "joypad.h"
-#include "tinyfiledialogs.h"
 
 void Frontend::handle_events() {
   SDL_Event event;
 
   while (SDL_PollEvent(&event)) {
-    ImGui_ImplSDL2_ProcessEvent(&event);
+    ImGui_ImplSDL3_ProcessEvent(&event);
 
     switch (event.type) {
-      case SDL_QUIT: {
+      case SDL_EVENT_QUIT: {
         state.running = false;
         break;
       }
 
-      case SDL_KEYDOWN: {
+      case SDL_EVENT_KEY_DOWN: {
         if (state
                 .keyboardState[settings.keybinds.control_map.at(RIGHT).first]) {
           gb->bus.joypad.RIGHT = 0;
@@ -66,7 +56,7 @@ void Frontend::handle_events() {
         break;
       }
 
-      case SDL_KEYUP: {
+      case SDL_EVENT_KEY_UP: {
         // fmt::println("Triggered UP");
         if (!state.keyboardState[settings.keybinds.control_map.at(RIGHT)
                                      .first]) {
@@ -102,8 +92,8 @@ void Frontend::handle_events() {
 }
 
 void Frontend::shutdown() {
-  ImGui_ImplSDLRenderer2_Shutdown();
-  ImGui_ImplSDL2_Shutdown();
+  ImGui_ImplSDLRenderer3_Shutdown();
+  ImGui_ImplSDL3_Shutdown();
   ImGui::DestroyContext();
 
   SDL_Quit();
@@ -146,7 +136,7 @@ void Frontend::show_controls_menu(bool* p_open) {
   bool invalid_keybind = false;
 
   for (SDL_Scancode start = SDL_SCANCODE_A;
-       start < SDL_SCANCODE_AUDIOFASTFORWARD;
+       start < SDL_SCANCODE_MEDIA_FAST_FORWARD;
        start = (SDL_Scancode)(start + 1)) {
     if (!state.keyboardState[start]) continue;
     ImGui::SameLine();
@@ -195,9 +185,9 @@ void Frontend::show_menubar() {
     ImGui::Separator();
     if (ImGui::BeginMenu("File")) {
       if (ImGui::MenuItem("Load ROM")) {
-        auto path = tinyfd_openFileDialog("Load ROM", ".", 1, patterns,
-                                          "Gameboy ROMs", 0);
-        if (path != nullptr) { this->gb->load_cart(read_file(path)); }
+        // auto path = tinyfd_openFileDialog("Load ROM", ".", 1, patterns,
+        //                                   "Gameboy ROMs", 0);
+        // if (path != nullptr) { this->gb->load_cart(read_file(path)); }
       }
 
       if (ImGui::MenuItem("Reset")) {
@@ -330,8 +320,8 @@ void Frontend::show_cpu_info() {
 }
 
 void Frontend::render_frame() {
-  ImGui_ImplSDLRenderer2_NewFrame();
-  ImGui_ImplSDL2_NewFrame();
+  ImGui_ImplSDLRenderer3_NewFrame();
+  ImGui_ImplSDL3_NewFrame();
   ImGui::NewFrame();
   show_menubar();
   if (state.controls_window_open) {
@@ -347,15 +337,15 @@ void Frontend::render_frame() {
 #endif
   // Rendering
   ImGui::Render();
-  SDL_RenderSetScale(renderer, state.io->DisplayFramebufferScale.x,
+  SDL_SetRenderScale(renderer, state.io->DisplayFramebufferScale.x,
                      state.io->DisplayFramebufferScale.y);
 
   SDL_SetRenderTarget(renderer, NULL);
   SDL_RenderClear(renderer);
-  SDL_Rect rect{0, 0, 160, 151};
-  SDL_RenderCopy(renderer, state.ppu_texture, &rect, NULL);
+  SDL_FRect rect{0, 0, 160, 151};
+  SDL_RenderTexture(renderer, state.ppu_texture, &rect, NULL);
 
-  ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
+  ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
   SDL_RenderPresent(renderer);
   // SDL_Delay(16);
 }
@@ -365,7 +355,7 @@ void Frontend::show_viewport() {
   ImGui::Text("pointer to gb instance = %p", (void*)&gb);
   ImGui::Text("fps = %f", state.io->Framerate);
 
-  ImGui::Image((void*)state.ppu_texture, ImVec2(256 * 2, 256 * 2));
+  ImGui::Image((ImTextureID)state.ppu_texture, ImVec2(256 * 2, 256 * 2));
 
   ImGui::End();
 }
@@ -373,20 +363,18 @@ Frontend::Frontend(GB* gb) {
   this->gb = gb;
   assert(this->gb != nullptr);
 
-  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_GAMECONTROLLER) !=
-      0) {
+  if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_GAMEPAD)) {
     fmt::println("ERROR: failed initialize SDL");
     exit(-1);
   }
 
   auto window_flags =
       (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE |
-                        SDL_WINDOW_ALLOW_HIGHDPI);
+        SDL_WINDOW_HIGH_PIXEL_DENSITY);
 
   this->window =
-      SDL_CreateWindow("umibozu", SDL_WINDOWPOS_CENTERED,
-                       SDL_WINDOWPOS_CENTERED, 160 * 3, 144 * 3, window_flags);
-  this->renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+      SDL_CreateWindow("umibozu", 160 * 3, 144 * 3, window_flags);
+  this->renderer = SDL_CreateRenderer(window, NULL);
 
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION();
@@ -404,14 +392,14 @@ Frontend::Frontend(GB* gb) {
   ImGui::StyleColorsDark();
 
   this->state.ppu_texture = SDL_CreateTexture(
-      renderer, SDL_PIXELFORMAT_BGR555, SDL_TEXTUREACCESS_TARGET, 256, 256);
+      renderer, SDL_PIXELFORMAT_XBGR1555, SDL_TEXTUREACCESS_TARGET, 256, 256);
 
-  this->state.viewport = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_BGR555,
+  this->state.viewport = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_XBGR1555,
                                            SDL_TEXTUREACCESS_TARGET, 256, 256);
 
   gb->ppu.set_renderer(this->renderer);
   gb->ppu.set_frame_texture(this->state.ppu_texture);
 
-  ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
-  ImGui_ImplSDLRenderer2_Init(renderer);
+  ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
+  ImGui_ImplSDLRenderer3_Init(renderer);
 }

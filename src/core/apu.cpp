@@ -1,6 +1,6 @@
 #include "apu.h"
 
-#include <SDL2/SDL_audio.h>
+#include <SDL3/SDL_audio.h>
 
 #include "common.h"
 

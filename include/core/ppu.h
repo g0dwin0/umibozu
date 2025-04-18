@@ -1,9 +1,5 @@
 #pragma once
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_audio.h>
-#include <SDL2/SDL_pixels.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_surface.h>
+#include <SDL3/SDL.h>
 
 #include <array>
 

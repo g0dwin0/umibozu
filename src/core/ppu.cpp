@@ -1,6 +1,6 @@
 #include "core/ppu.h"
 
-#include <SDL2/SDL_render.h>
+#include <SDL3/SDL_render.h>
 
 #include <algorithm>
 #include <array>
@@ -9,9 +9,6 @@
 
 #include "bus.h"
 #include "common.h"
-
-// https://github.com/ocornut/imgui/issues/252
-#define TOP_PADDING 7  // TODO: get rid this
 
 // TODO: implement stat blocking
 
@@ -338,7 +335,7 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
               color = sys_palettes
                           .BGP[0][active_tile.pixel_data[y % 8][(7 - x)].color];
             }
-            u32 line_base = ((bus->io.data[LY] + TOP_PADDING) * 256);
+            u32 line_base = ((bus->io.data[LY]) * 256);
 
             i32 line_x;
 
@@ -415,7 +412,7 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
               if (current_x < 0) { continue; }
 
               u32 buf_pos =
-                  (current_x) + ((bus->io.data[LY] + TOP_PADDING) * 256);
+                  (current_x) + ((bus->io.data[LY]) * 256);
 
               // if(top_tile.pixel_data[current_y % 8][x].color == 0) continue;
 
