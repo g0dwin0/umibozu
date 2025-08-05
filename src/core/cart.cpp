@@ -1,15 +1,10 @@
-#include "cart.h"
+#include "cart.hpp"
 
 #include <span>
 #include <sstream>
 #include <vector>
 
 #include "cart_constants.hpp"
-#include "fmt/core.h"
-using namespace Umibozu;
-
-Cartridge::Cartridge()  = default;
-Cartridge::~Cartridge() = default;
 
 std::string Cartridge::get_title(std::span<const u8> title_bytes) {
   std::stringstream ss;
@@ -23,32 +18,24 @@ std::string Cartridge::get_title(std::span<const u8> title_bytes) {
 
   return ss.str();
 }
-std::string Cartridge::get_manufacturer(u8 index,
-                                        std::span<const u8> new_vendor_bytes) {
-  std::stringstream ss;
-  ss << new_vendor_bytes[0] << new_vendor_bytes[1];
-  
-  return index == 0x33 ? NEW_MANUFACTURER_MAP.at(atoi(ss.str().c_str()))
-                       : OLD_MANUFACTURER_MAP.at(index);
-}
 
 void Cartridge::print_cart_info() {
-  fmt::println("[CART] title: {}", info.title.empty() ? "UNKNOWN" : info.title);
-  fmt::println("[CART] manufacturer: {}", info.manufacturer);
-  fmt::println("[CART] mapper string: {}", info.mapper_string);
-  fmt::println("[CART] rom banks: {:d}", info.rom_banks);
-  fmt::println("[CART] ram banks: {:d}", info.ram_banks);
-  fmt::println("[CART] region: {}",
-               info.destination_code ? "japan" : "overseas");
-  fmt::println("[CART] mem vec size: {}", memory.size());
+  #ifndef CPU_TEST_MODE
+  cartridge_logger->info("title: {}", info.title.empty() ? "UNKNOWN" : info.title);
+  cartridge_logger->info("mapper string: {}", info.mapper_string);
+  cartridge_logger->info("rom banks: {:d}", info.rom_banks);
+  cartridge_logger->info("ram banks: {:d}", info.ram_banks);
+  cartridge_logger->info("region: {}", info.destination_code ? "japan" : "overseas");
+  cartridge_logger->info("mem vec size: {}", data.size());
+  #endif
 }
 
 void Cartridge::set_cart_info() {
-  u8 mapper_id  = this->memory[0x147];
-  u16 rom_banks = 2 * (1 << memory[0x148]);
-  u8 ram_banks = 0;
-  
-  switch (memory[0x149]) {
+  u8 mapper_id  = this->data[0x147];
+  u16 rom_banks = 2 * (1 << data[0x148]);
+  u8 ram_banks  = 0;
+
+  switch (data[0x149]) {
     case 2: {
       ram_banks = 1;
       break;
@@ -70,18 +57,14 @@ void Cartridge::set_cart_info() {
     }
   }
 
-  u8 destination_code      = memory[0x14A];
-  u8 old_manufacturer_code = memory[0x14B];
+  u8 destination_code = data[0x14A];
 
-  fmt::println("mapper id: {:#4x}", mapper_id);
-  info.title        = get_title(std::span<u8>(memory.begin() + 0x134, 16));
-  info.manufacturer = get_manufacturer(
-      old_manufacturer_code, std::span<u8>(memory.begin() + 0x144, 2));
+
+  cartridge_logger->info("mapper id: {:#4x}", mapper_id);
+  info.title            = get_title(std::span<u8>(data.begin() + 0x134, 16));
   info.mapper_string    = cart_types.at(mapper_id);
   info.mapper_id        = mapper_id;
   info.rom_banks        = rom_banks;
   info.ram_banks        = ram_banks;
   info.destination_code = destination_code;
 }
-
-u8 Cartridge::read8(const u64 address) { return memory[address]; }

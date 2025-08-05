@@ -1,486 +1,11 @@
-#include "cpu.h"
+#include "cpu.hpp"
 
 #include <bitset>
 #include <cassert>
-#include <stdexcept>
-#include "apu.h"
-#include "bus.h"
-#include "common.h"
-#include "fmt/core.h"
-#include "instructions.h"
-#include "ppu.h"
-
-using namespace Umibozu;
-
-SM83::SM83()  = default;
-SM83::~SM83() = default;
-
-void SM83::m_cycle() {
-#ifndef CPU_TEST_MODE_H
-  if (speed == SPEED::DOUBLE) {
-    timer->increment_div(2);
-    mapper->increment_internal_clock(2, mapper->actual.RTC_DAY);
-    ppu->tick(2);
-  } else {
-    timer->increment_div(4);
-    mapper->increment_internal_clock(4, mapper->actual.RTC_DAY); // refactor: this is not elegant
-    ppu->tick(4);
-  }
-
-  if (timer->overflow_update_queued) {
-    timer->overflow_update_queued = false;
-    timer->counter                = timer->modulo;
-    bus->request_interrupt(InterruptType::TIMER);
-  }
-  if (timer->ticking_enabled) {
-    // u16 div_bits = (timer->div & (1 << TIMER_BIT[bus->io.data[TAC] & 0x3]))
-    // >>
-    //                TIMER_BIT[bus->io.data[TAC] & 0x3];
-
-    u16 div_bits =
-        (timer->get_full_div() & (1 << TIMER_BIT[bus->io.data[TAC] & 0x3])) >>
-        TIMER_BIT[bus->io.data[TAC] & 0x3];
-
-    u8 te_bit = (bus->io.data[TAC] & (1 << 2)) >> 2;
-
-    u8 n_val = div_bits & te_bit;
-
-    if (n_val == 0 && timer->prev_and_result == 1) {
-      if (timer->counter == 0xFF) { timer->overflow_update_queued = true; }
-      timer->counter++;
-    }
-    timer->prev_and_result = n_val;
-  }
-
-#endif
-}
-u8 SM83::handle_system_io_read(const u16 address) {
-  if (address != (0xFF00 + SB) && address != (0xFF00 + SC) &&
-      address != (0xFF00 + LY) && address != (0xFF00 + LCDC) &&
-      address != (0xFF00 + JOYPAD)) {
-    // fmt::println("[R] register address: {:#04x}, value: {:#04x}", address,
-    //              bus->io.data[address - 0xFF00]);
-  }
-
-  switch (address - 0xFF00) {
-    case 0x30 ... 0x3F: {  // Wave RAM
-      fmt::println("[APU] reading from Wave RAM: {:#16x} - {:#08x}", address,
-                   bus->wave_ram.read8((address - 0xFF30)));
-      return bus->wave_ram.read8((address - 0xFF30));
-    }
-    case JOYPAD: {
-
-      switch ((bus->io.data[JOYPAD] & 0x30) >> 4) {
-        case 0x1: {
-          return bus->joypad.get_buttons();
-        }
-        case 0x2: {
-          return bus->joypad.get_dpad();
-        }
-        case 0x3: {
-          return 0xF;
-        }
-        default: {
-          fmt::println("[JOYPAD] bad method bits");
-          assert(false);
-        }
-      }
-
-      break;
-    }
-    case DIV: {
-      return timer->get_div();
-    }
-    case TIMA: {
-      return timer->counter;
-    }
-    case TMA: {
-      return timer->modulo;
-    }
-    case LY: {
-      if (ppu->lcdc.lcd_ppu_enable == 0) { return 0; }
-      break;
-    }
-
-    case NR10 ... NR52: {
-      u8 retval = 0;
-      retval = bus->apu->handle_read((IO_REG)(address - 0xFF00));
-      fmt::println("A: {}", A);
-      fmt::println("B: {}", B);
-      fmt::println("[APU] reading {:#4x} from {:#4x}", retval, (address));
-      return retval;
-      // break;
-    }
-    case 0x27 ... 0x2f: {  // Audio is 0xFF10 to 0xFF30 however everything after
-                           // FF26 is not mapped to any register.
-      return 0xFF;
-    }
-    case STAT: {
-      if (ppu->lcdc.lcd_ppu_enable == 0) { return 0; }
-      break;
-    }
-    case SVBK: {
-      fmt::println("SVBK: {:#04x}", bus->io.data[SVBK]);
-      break;
-    }
-    case VBK: {
-      fmt::println("VBK: {:#04x}", bus->io.data[VBK]);
-      break;
-    }
-    case KEY1: {
-      fmt::println("returning key1: {:#04x}", (u8)speed);
-      return (u8)speed;
-    }
-    case HDMA5: {
-      fmt::println("HDMA5 read while active: {:08b}", bus->io.data[HDMA5]);
-      break;
-    }
-  }
-  return bus->io.read8(address - 0xFF00);
-}
-u8 SM83::read8(const u16 address) {
-#ifdef CPU_TEST_MODE_H
-  return test_memory[address];
-#endif
-  m_cycle();
-  // fmt::println("[R] {:#04x}", address);
-  if (address >= 0xFE00 && address <= 0xFE9F && (u8)ppu->get_mode() >= 2) {
-    return 0xFF;
-  }
-
-  if ((address >= 0xFF00 && address <= 0xFF7F) || address == 0xFFFF) {
-    // fmt::println("io write");
-    return handle_system_io_read(address);
-  };
-  return mapper->read8(address);
-};
-
-u16 SM83::read16(const u16 address) {
-  u8 low  = read8(address);
-  u8 high = read8(address + 1);
-  PC++;
-  return (high << 8) + low;
-}
-// debug only!
-u8 SM83::peek(const u16 address) const { return mapper->read8(address); }
-void SM83::init_hdma(u16 length) {
-  ppu->hdma_index     = 0;
-  bus->io.data[HDMA5] = (length / 0x10) - 1;
-};
-void SM83::terminate_hdma() {
-  fmt::println("HDMA terminated early.");
-  bus->io.data[HDMA5] &= ~(1 << 7);
-
-  fmt::println("HDMA5: {:08b}", bus->io.data[HDMA5]);
-};
-
-void SM83::handle_system_io_write(const u16 address, const u8 value) {
-  if (address != (0xFF00 + SB) && address != (0xFF00 + SC) &&
-      address != (0xFF00 + LY) && address != (0xFF00 + LCDC) &&
-      address != (0xFF00 + JOYPAD)) {
-    // fmt::println("[W] register address: {:#04x}, value: {:#04x}", address,
-    //              value);
-  }
-  switch (address - 0xFF00) {
-    case 0x30 ... 0x3F: {  // Wave RAM
-      fmt::println("[APU] writing to Wave RAM: {:#04x} - {:#04x}", address,
-                   value);
-      return bus->wave_ram.write8((address - 0xFF30), value);
-    }
-    case JOYPAD: {
-      if (value == 0x30) {  // BUTTONS NOR D-PAD SELECTED
-        bus->io.data[JOYPAD] = 0xFF;
-        return;
-      }
-      break;
-    }
-    case SC: {
-      // DEPRECATED: doesn't have much use except for logging; remove when color
-      // is implemented & working
-      if (value == 0x81) {
-        // bus->serial_port_buffer[bus->serial_port_index++] =
-        // bus->wram.data[SB]; std::string str_data(bus->serial_port_buffer,
-        // SERIAL_PORT_BUFFER_SIZE); fmt::println("serial data: {}", str_data);
-      }
-      if (value == 0x01) {
-        fmt::println("transfer completed");
-        bus->request_interrupt(InterruptType::SERIAL);
-      }
-      break;
-    }
-    case DIV: {
-      timer->reset_div();
-      break;
-    }
-    case TIMA: {
-      timer->counter = value;
-      break;
-    }
-    case TMA: {
-      timer->modulo = value;
-      break;
-    }
-    case TAC: {
-      timer->set_tac(value);
-      // fmt::println("TAC: {:08b}", value);
-      break;
-    }
-    case LCDC: {
-      if ((bus->io.data[LCDC] & 0x80) == 0 && (value & 0x80)) {
-        ppu->frame_skip = true;
-        ppu->frame.clear();
-        bus->io.data[LY] = 0;
-      }
-      ppu->lcdc.value = value;
-      break;
-    }
-    case STAT: {
-      fmt::println("STAT: {:08b}", value);
-      u8 read_only_bits  = value & 0x78;
-      bus->io.data[STAT] = (1 << 7) + read_only_bits + (u8)ppu->get_mode();
-      return;
-    }
-    case LY: {  // read only
-      return;
-    }
-    case LYC: {
-      bus->io.data[LYC] = value;
-      bus->io.data[STAT] &= 0xfb;
-      bus->io.data[STAT] |=
-          (bus->io.data[LY] == bus->io.data[LYC]) ? (1 << 2) : 0;
-
-      if ((bus->io.data[STAT] & 1 << 6) && (bus->io.data[STAT] & 1 << 2)) {
-        bus->request_interrupt(InterruptType::LCD);
-      }
-
-      break;
-    }
-    case DMA: {
-      u16 address = (value << 8);
-
-      for (size_t i = 0; i < 0xA0; i++) {
-        bus->oam.data[i] = read8(address + i);
-      }
-      break;
-    }
-    case BGP: {
-      // fmt::println("OBP0 write: {:08b}", value);
-      u8 id_0 = 0;
-      u8 id_1 = (value & 0b00001100) >> 2;
-      u8 id_2 = (value & 0b00110000) >> 4;
-      u8 id_3 = (value & 0b11000000) >> 6;
-
-      ppu->sys_palettes.BGP[0][0] = ppu->shade_table[id_0];
-      ppu->sys_palettes.BGP[0][1] = ppu->shade_table[id_1];
-      ppu->sys_palettes.BGP[0][2] = ppu->shade_table[id_2];
-      ppu->sys_palettes.BGP[0][3] = ppu->shade_table[id_3];
-
-      //      fmt::println("BGP0[0] = {:#16x}", ppu->sys_palettes.BGP[0][0]);
-      //      fmt::println("BGP0[1] = {:#16x}", ppu->sys_palettes.BGP[0][1]);
-      //      fmt::println("BGP0[2] = {:#16x}", ppu->sys_palettes.BGP[0][2]);
-      //      fmt::println("BGP0[3] = {:#16x}", ppu->sys_palettes.BGP[0][3]);
-      break;
-    }
-    case OBP0: {
-      // fmt::println("OBP0 write: {:08b}", value);
-      u8 id_0 = 0;
-      u8 id_1 = (value & 0b00001100) >> 2;
-      u8 id_2 = (value & 0b00110000) >> 4;
-      u8 id_3 = (value & 0b11000000) >> 6;
-
-      ppu->sys_palettes.OBP[0][0] = ppu->shade_table[id_0];
-      ppu->sys_palettes.OBP[0][1] = ppu->shade_table[id_1];
-      ppu->sys_palettes.OBP[0][2] = ppu->shade_table[id_2];
-      ppu->sys_palettes.OBP[0][3] = ppu->shade_table[id_3];
-      break;
-    }
-    case OBP1: {
-      u8 id_0 = 0;
-      u8 id_1 = (value & 0b00001100) >> 2;
-      u8 id_2 = (value & 0b00110000) >> 4;
-      u8 id_3 = (value & 0b11000000) >> 6;
-
-      ppu->sys_palettes.OBP[1][0] = ppu->shade_table[id_0];
-      ppu->sys_palettes.OBP[1][1] = ppu->shade_table[id_1];
-      ppu->sys_palettes.OBP[1][2] = ppu->shade_table[id_2];
-      ppu->sys_palettes.OBP[1][3] = ppu->shade_table[id_3];
-      break;
-    }
-
-    case NR10 ... NR52: {
-      bus->apu->handle_write(value, (IO_REG)(address - 0xFF00));
-
-      break;
-    }
-
-    // GBC-only IO
-    case VBK: {
-      if (bus->mode != SYSTEM_MODE::CGB) { return; }
-
-      bus->vbk  = (value & 0x1);
-      bus->vram = &bus->vram_banks[bus->vbk];
-
-      bus->io.data[VBK] = 0xFE + bus->vbk;
-      return;
-    }
-    case SVBK: {
-      if (bus->mode != SYSTEM_MODE::CGB) { return; }
-
-      bus->svbk = (value & 0x7);
-      if (bus->svbk == 0) { bus->svbk = 1; }
-
-      bus->wram = &bus->wram_banks[bus->svbk];
-
-      bus->io.data[SVBK] = 0xF8 + bus->svbk;
-      return;
-    }
-    case KEY1: {
-      if (bus->mode != SYSTEM_MODE::CGB) { return; }
-      fmt::println("[CPU] value: {:#04x}", value);
-      fmt::println("[CPU] desired speed: {:#04x}", value & 0x80);
-      fmt::println("[CPU] current speed: {:#04x}", bus->io.data[KEY1] & 0x80);
-
-      u8 current_speed = (bus->io.data[KEY1] & 0x80);
-      u8 desired_speed = (value & 0x80);
-
-      if (current_speed != desired_speed) {
-        bus->io.data[KEY1] = desired_speed;
-        speed              = (SPEED)desired_speed;
-        timer->reset_div();
-        // timer->div          = 0; // TODO: make a reset function
-        fmt::println("[CPU] speed switched");
-        return;
-      }
-
-      return;
-    }
-    case HDMA1:
-    case HDMA2:
-    case HDMA3:
-    case HDMA4: {
-      break;
-    }
-
-    case HDMA5: {
-      if (bus->mode != SYSTEM_MODE::CGB) { return; }
-      fmt::println("[HDMA] entered HDMA5, value: {:#08b}", value);
-
-      if ((bus->io.data[HDMA5] & 0x80) == 0 && (value & 0x80) == 0x80) {
-        fmt::println("[HDMA] terminated HDMA");
-        return terminate_hdma();
-      }
-
-      u16 length = (1 + (value & 0x7f)) * 0x10;
-      u16 src    = ((bus->io.data[HDMA1] << 8) + bus->io.data[HDMA2]) & 0xfff0;
-      u16 dst    = ((bus->io.data[HDMA3] << 8) + bus->io.data[HDMA4]) & 0x1ff0;
-
-      fmt::println("[HDMA] src:     {:#16x}", src);
-      fmt::println("[HDMA] dst:     {:#16x} ({:#04x})", dst,
-                   VRAM_ADDRESS_OFFSET + dst);
-      fmt::println("[HDMA] length:  {:#16x}", length);
-
-      if ((value & 0x80) == 0) {  // GDMA
-        for (size_t index = 0; index < length; index++) {
-          u16 src_address = (src + index);
-          u8 src_data     = mapper->read8(src_address);
-
-          u16 vram_address = ((dst + index));
-
-          if (vram_address > 0x1FFF) {
-            fmt::println("[GDMA] skipped GDMA");
-            bus->io.data[HDMA5] = 0xFF;
-            exit(-1);
-            return;
-          }
-          fmt::println(
-              "[GDMA] addr: {:#16x} data: {:#04x} -> VRAM ADDRESS: {:#16x} ",
-              src_address, src_data, 0x8000 + vram_address);
-
-          bus->vram->write8(vram_address, src_data);
-        }
-        bus->io.data[HDMA5] = 0xFF;
-        return;
-      } else {  // hblank dma
-        if ((bus->io.data[HDMA5] & 0x80) == 0x80) { init_hdma(length); }
-        return;
-      }
-      break;
-    }
-
-    case BCPS: {
-      if (bus->mode != SYSTEM_MODE::CGB) { return; }
-
-      bus->bcps.address        = value & 0b111111;
-      bus->bcps.auto_increment = (value & (1 << 7)) >> 7;
-
-      break;
-    }
-    case BCPD: {
-      if (bus->mode != SYSTEM_MODE::CGB) { return; }
-      bus->bg_palette_ram.data[bus->bcps.address] = value;
-      if (bus->bcps.auto_increment) { bus->bcps.address++; }
-
-      for (size_t palette_id = 0; palette_id < 8; palette_id++) {
-        for (size_t color = 0; color < 4; color++) {
-          u8 p_low =
-              bus->bg_palette_ram.data.at((palette_id * 8) + (color * 2) + 0);
-          u8 p_high =
-              (bus->bg_palette_ram.data.at((palette_id * 8) + (color * 2) + 1));
-
-          u16 f_color = (p_high << 8) + p_low;
-
-          ppu->sys_palettes.BGP[palette_id][color] = f_color;
-        }
-      }
-      break;
-    }
-    case OCPS: {
-      if (bus->mode != SYSTEM_MODE::CGB) { return; }
-      bus->ocps.address        = value & 0x3f;
-      bus->ocps.auto_increment = (value & (1 << 7)) >> 7;
-
-      break;
-    }
-    case OCPD: {
-      if (bus->mode != SYSTEM_MODE::CGB) { return; }
-
-      bus->obj_palette_ram.data[bus->ocps.address] = value;
-      if (bus->ocps.auto_increment) { bus->ocps.address++; }
-
-      for (size_t palette_id = 0; palette_id < 8; palette_id++) {
-        for (size_t color = 0; color < 4; color++) {
-          u8 p_low =
-              bus->obj_palette_ram.data.at((palette_id * 8) + (color * 2) + 0);
-          u8 p_high = (bus->obj_palette_ram.data.at((palette_id * 8) +
-                                                    (color * 2) + 1));
-
-          ppu->sys_palettes.OBP[palette_id][color] = (p_high << 8) + p_low;
-        }
-      }
-      break;
-    }
-  }
-  return bus->io.write8(address - 0xFF00, value);
-};
-void SM83::write8(const u16 address, const u8 value) {
-#ifdef CPU_TEST_MODE_H
-  test_memory[address] = value;
-  return;
-#endif
-  m_cycle();
-  // fmt::println("write requested {:#04x}", address);
-  if (address >= 0xFE00 && address <= 0xFE9F && (u8)ppu->get_mode() >= 2) {
-    return;
-  };
-  if ((address >= 0xFF00 && address <= 0xFF7F) || address == 0xFFFF) {
-    // fmt::println("io write");
-    return handle_system_io_write(address, value);
-  };
-  mapper->write8(address, value);
-}
-void SM83::push_to_stack(const u8 value) { write8(--SP, value); }
-
-u8 SM83::pull_from_stack() { return read8(SP++); }
+#include "bus.hpp"
+#include "common.hpp"
+#include "instructions.hpp"
+#include "ppu.hpp"
 
 void SM83::set_flag(FLAG flag) { F |= (1 << (u8)flag); };
 
@@ -489,60 +14,60 @@ void SM83::unset_flag(FLAG flag) { F &= ~(1 << (u8)flag); };
 u8 SM83::get_flag(FLAG flag) const { return F & (1 << (u8)flag) ? 1 : 0; }
 
 void SM83::handle_interrupts() {
-  // fmt::println("[CPU] IF:   {:08b}", bus->wram.data[IF]);
-  // fmt::println("[CPU] IE:   {:08b}", bus->wram.data[IE]);
-  if (IME && bus->io.data[IE] && bus->io.data[IF]) {
-    // fmt::println("[CPU] IME:  {:08b}", IME);
+  // cpu_logger->info("IF:   {:08b}", bus->io[IF]);
+  // cpu_logger->info("IE:   {:08b}", bus->io[IE]);
+  if (IME && bus->io[IE] && bus->io[IF]) {
+    // ("[CPU] IME:  {:08b}", IME);
 
-    std::bitset<8> ie_set(bus->io.data[IE]);
-    std::bitset<8> if_set(bus->io.data[IF]);
+    std::bitset<8> ie_set(bus->io[IE]);
+    std::bitset<8> if_set(bus->io[IF]);
 
     for (size_t i = 0; i < 5; i++) {
       if (if_set[i] && ie_set[i]) {
         IME = false;
 
-        // fmt::println("[CPU] handling interrupt: {:#04x}", i);
-        // fmt::println("[CPU] PC: {:#04x}", PC);
+        // ("[CPU] handling interrupt: {:#04x}", i);
+        // ("[CPU] PC: {:#04x}", PC);
         if_set[i].flip();
-        // bus->io.data[IF] &= ~(1 << i);
-        m_cycle();
-        m_cycle();
+        // bus->io[IF] &= ~(1 << i);
+        bus->m_cycle();
+        bus->m_cycle();
         push_to_stack(((PC & 0xFF00) >> 8));
         push_to_stack((PC & 0xFF));
         PC = INTERRUPT_TABLE[i];
-        m_cycle();
-        // fmt::println("[CPU] AFTER PC: {:#04x}", PC);
+        bus->m_cycle();
+        // ("[CPU] AFTER PC: {:#04x}", PC);
       };
     }
 
-    bus->io.data[IE] = ie_set.to_ulong();
-    bus->io.data[IF] = if_set.to_ulong();
+    bus->io[IE] = ie_set.to_ulong();
+    bus->io[IF] = if_set.to_ulong();
     // Bit 0 (VBlank) has the highest priority, and Bit 4 (Joypad) has the
     // lowest priority.
   }
 };
-void SM83::run_instruction() {
-#ifndef CPU_TEST_MODE_H
-  if (mapper == nullptr) { throw std::runtime_error("mapper error"); }
+void SM83::step() {
+#ifndef CPU_TEST_MODE
 
   if (status == STATUS::PAUSED) { return; }
   handle_interrupts();
-  // fmt::println(
+  // (
   //     "A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} "
   //     "L: {:02X} SP: {:04X} PC: {:02X}:{:04X} ({:02X} {:02X} {:02X} {:02X}) "
   //     "TE: {}",
-  //     A, F, B, C, D, E, H, L, SP, mapper->rom_bank, PC, peek(PC), peek(PC + 1),
-  //     peek(PC + 2), peek(PC + 3), timer->ticking_enabled);
+  //     A, F, B, C, D, E, H, L, SP, mapper->rom_bank, PC, bus->peek(PC), bus->peek(PC + 1),
+  //     bus->peek(PC + 2), bus->peek(PC + 3), timer->ticking_enabled);
 #endif
 
-  u8 opcode = read8(PC++);
+  u8 opcode = bus->read8(PC++);
   switch (opcode) {
     case 0x0: {
       Instructions::NOP(this);
       break;
     }
     case 0x1: {
-      Instructions::LD_R16_U16(this, BC, read16(PC++));
+      Instructions::LD_R16_U16(this, BC, bus->read16(PC++));
+      PC++;
       break;
     }
     case 0x2: {
@@ -562,7 +87,7 @@ void SM83::run_instruction() {
       break;
     }
     case 0x6: {
-      Instructions::LD_R_R(B, read8(PC++));
+      Instructions::LD_R_R(B, bus->read8(PC++));
       break;
     }
     case 0x7: {
@@ -570,7 +95,8 @@ void SM83::run_instruction() {
       break;
     }
     case 0x8: {
-      Instructions::LD_U16_SP(this, read16(PC++), SP);
+      Instructions::LD_U16_SP(this, bus->read16(PC++), SP);
+      PC++;
       break;
     }
     case 0x9: {
@@ -578,12 +104,13 @@ void SM83::run_instruction() {
       break;
     }
     case 0xA: {
-      A = read8(BC);
+      A = bus->read8(BC);
       break;
     }
     case 0xB: {
+      
       Instructions::DEC_R16(this, BC);
-      m_cycle();
+      bus->m_cycle();
       break;
     }
     case 0xC: {
@@ -595,7 +122,7 @@ void SM83::run_instruction() {
       break;
     }
     case 0xE: {
-      Instructions::LD_R_R(C, read8(PC++));
+      Instructions::LD_R_R(C, bus->read8(PC++));
       break;
     }
     case 0xF: {
@@ -608,11 +135,12 @@ void SM83::run_instruction() {
       break;
     }
     case 0x11: {
-      Instructions::LD_R16_U16(this, DE, read16(PC++));
+      Instructions::LD_R16_U16(this, DE, bus->read16(PC++));
+      PC++;
       break;
     }
     case 0x12: {
-      write8(DE, A);
+      bus->write8(DE, A);
       break;
     }
     case 0x13: {
@@ -628,7 +156,7 @@ void SM83::run_instruction() {
       break;
     }
     case 0x16: {
-      Instructions::LD_R_R(D, read8(PC++));
+      Instructions::LD_R_R(D, bus->read8(PC++));
       break;
     }
     case 0x17: {
@@ -636,8 +164,8 @@ void SM83::run_instruction() {
       break;
     }
     case 0x18: {
-      i8 offset = read8(PC++);
-      m_cycle();
+      i8 offset = bus->read8(PC++);
+      bus->m_cycle();
       PC = PC + offset;
       break;
     }
@@ -646,12 +174,12 @@ void SM83::run_instruction() {
       break;
     }
     case 0x1A: {
-      A = read8(DE);
+      A = bus->read8(DE);
       break;
     }
     case 0x1B: {
       Instructions::DEC_R16(this, DE);
-      m_cycle();
+      bus->m_cycle();
       break;
     }
     case 0x1C: {
@@ -663,7 +191,7 @@ void SM83::run_instruction() {
       break;
     }
     case 0x1E: {
-      E = read8(PC++);
+      E = bus->read8(PC++);
       break;
     }
     case 0x1F: {
@@ -671,20 +199,20 @@ void SM83::run_instruction() {
       break;
     }
     case 0x20: {
-      i8 offset = (i8)read8(PC++);
+      i8 offset = (i8)bus->read8(PC++);
       if (!get_flag(FLAG::ZERO)) {
-        m_cycle();
+        bus->m_cycle();
         PC = PC + offset;
       }
       break;
     }
     case 0x21: {
-      Instructions::LD_R16_U16(this, HL, read16(PC++));
-
+      Instructions::LD_R16_U16(this, HL, bus->read16(PC++));
+PC++;
       break;
     }
     case 0x22: {
-      write8(HL++, A);
+      bus->write8(HL++, A);
       break;
     }
 
@@ -702,7 +230,7 @@ void SM83::run_instruction() {
     }
 
     case 0x26: {
-      Instructions::LD_R_R(H, read8(PC++));
+      Instructions::LD_R_R(H, bus->read8(PC++));
 
       break;
     }
@@ -713,9 +241,9 @@ void SM83::run_instruction() {
     }
 
     case 0x28: {
-      i8 offset = (i8)read8(PC++);
+      i8 offset = (i8)bus->read8(PC++);
       if (get_flag(FLAG::ZERO)) {
-        m_cycle();
+        bus->m_cycle();
         PC = PC + offset;
       }
       break;
@@ -726,25 +254,25 @@ void SM83::run_instruction() {
       } else {
         reset_carry();
       };
-      // fmt::println("2");
+      // ("2");
       if (((HL & 0xfff) + (HL & 0xfff)) & 0x1000) {
         set_half_carry();
       } else {
         reset_half_carry();
       }
-      m_cycle();
+      bus->m_cycle();
       HL += HL;
 
       reset_negative();
       break;
     }
     case 0x2A: {
-      A = read8(HL++);
+      A = bus->read8(HL++);
       break;
     }
     case 0x2B: {
       Instructions::DEC_R16(this, HL);
-      m_cycle();
+      bus->m_cycle();
       break;
     }
     case 0x2D: {
@@ -756,7 +284,7 @@ void SM83::run_instruction() {
       break;
     }
     case 0x2E: {
-      L = read8(PC++);
+      L = bus->read8(PC++);
 
       break;
     }
@@ -767,42 +295,43 @@ void SM83::run_instruction() {
       break;
     }
     case 0x30: {
-      i8 offset = (i8)read8(PC++);
+      i8 offset = (i8)bus->read8(PC++);
       if (!get_flag(FLAG::CARRY)) {
-        m_cycle();
+        bus->m_cycle();
         PC = PC + offset;
       }
       break;
     }
     case 0x31: {
-      Instructions::LD_SP_U16(this, read16(PC++));
+      Instructions::LD_SP_U16(this, bus->read16(PC++));
+      PC++;
       break;
     }
     case 0x32: {
-      write8(HL, A);
+      bus->write8(HL, A);
       HL = HL - 1;
       break;
     }
     case 0x33: {
-      m_cycle();
+      bus->m_cycle();
       SP++;
       break;
     }
     case 0x34: {
-      u8 hl = read8(HL);
+      u8 hl = bus->read8(HL);
       Instructions::INC(this, hl);
-      write8(HL, hl);
+      bus->write8(HL, hl);
       break;
     }
     case 0x35: {
-      u8 value = read8(HL);
+      u8 value = bus->read8(HL);
       if (((value & 0xf) - (1 & 0xf)) & 0x10) {
         set_half_carry();
       } else {
         reset_half_carry();
       }
 
-      write8(HL, --value);
+      bus->write8(HL, --value);
       if (value == 0) {
         set_zero();
       } else {
@@ -813,7 +342,7 @@ void SM83::run_instruction() {
       break;
     }
     case 0x36: {
-      Instructions::LD_M_R(this, HL, read8(PC++));
+      Instructions::LD_M_R(this, HL, bus->read8(PC++));
       break;
     }
     case 0x37: {
@@ -821,15 +350,15 @@ void SM83::run_instruction() {
       break;
     }
     case 0x38: {
-      i8 offset = (i8)read8(PC++);
+      i8 offset = (i8)bus->read8(PC++);
       if (get_flag(FLAG::CARRY)) {
-        m_cycle();
+        bus->m_cycle();
         PC = PC + offset;
       }
       break;
     }
     case 0x39: {
-      m_cycle();
+      bus->m_cycle();
 
       if (((HL & 0xfff) + ((SP) & 0xfff)) & 0x1000) {
         set_half_carry();
@@ -849,7 +378,7 @@ void SM83::run_instruction() {
       break;
     }
     case 0x3A: {
-      A = read8(HL--);
+      A = bus->read8(HL--);
       break;
     }
     case 0x3B: {
@@ -865,7 +394,7 @@ void SM83::run_instruction() {
       break;
     }
     case 0x3E: {
-      A = read8(PC++);
+      A = bus->read8(PC++);
 
       break;
     }
@@ -1134,7 +663,7 @@ void SM83::run_instruction() {
       break;
     }
     case 0x7E: {
-      Instructions::LD_R_R(A, read8(HL));
+      Instructions::LD_R_R(A, bus->read8(HL));
       break;
     }
     case 0x7F: {
@@ -1171,7 +700,7 @@ void SM83::run_instruction() {
     }
 
     case 0x86: {
-      Instructions::ADD(this, A, read8(HL));
+      Instructions::ADD(this, A, bus->read8(HL));
       break;
     }
     case 0x87: {
@@ -1208,7 +737,7 @@ void SM83::run_instruction() {
     }
 
     case 0x8E: {
-      Instructions::ADC(this, A, read8(HL));
+      Instructions::ADC(this, A, bus->read8(HL));
       break;
     }
 
@@ -1249,7 +778,7 @@ void SM83::run_instruction() {
       break;
     }
     case 0x96: {
-      Instructions::SUB(this, A, read8(HL));
+      Instructions::SUB(this, A, bus->read8(HL));
       break;
     }
     case 0x97: {
@@ -1283,7 +812,7 @@ void SM83::run_instruction() {
       break;
     }
     case 0x9E: {
-      Instructions::SBC(this, A, read8(HL));
+      Instructions::SBC(this, A, bus->read8(HL));
       break;
     }
 
@@ -1322,7 +851,7 @@ void SM83::run_instruction() {
       break;
     }
     case 0xA6: {
-      Instructions::AND(this, A, read8(HL));
+      Instructions::AND(this, A, bus->read8(HL));
       break;
     }
     case 0xA7: {
@@ -1355,7 +884,7 @@ void SM83::run_instruction() {
       break;
     }
     case 0xAE: {
-      Instructions::XOR(this, A, read8(HL));
+      Instructions::XOR(this, A, bus->read8(HL));
       break;
     }
     case 0xAF: {
@@ -1388,7 +917,7 @@ void SM83::run_instruction() {
       break;
     }
     case 0xB6: {
-      Instructions::OR(this, A, read8(HL));
+      Instructions::OR(this, A, bus->read8(HL));
       break;
     }
 
@@ -1424,7 +953,7 @@ void SM83::run_instruction() {
     }
 
     case 0xBE: {
-      Instructions::CP(this, A, read8(HL));
+      Instructions::CP(this, A, bus->read8(HL));
       break;
     }
 
@@ -1434,11 +963,11 @@ void SM83::run_instruction() {
     }
 
     case 0xC0: {
-      m_cycle();
+      bus->m_cycle();
       if (!get_flag(FLAG::ZERO)) {
         u8 low  = pull_from_stack();
         u8 high = pull_from_stack();
-        m_cycle();
+        bus->m_cycle();
         PC = (high << 8) + low;
       }
       break;
@@ -1448,31 +977,31 @@ void SM83::run_instruction() {
       break;
     }
     case 0xC2: {
-      u8 low  = read8(PC++);
-      u8 high = read8(PC++);
+      u8 low  = bus->read8(PC++);
+      u8 high = bus->read8(PC++);
       if (!get_flag(FLAG::ZERO)) {
-        m_cycle();
+        bus->m_cycle();
         PC = (high << 8) + low;
       }
       break;
     }
     case 0xC3: {
-      u8 low  = read8(PC++);
-      u8 high = read8(PC++);
+      u8 low  = bus->read8(PC++);
+      u8 high = bus->read8(PC++);
 
       PC = (high << 8) + low;
-      m_cycle();
+      bus->m_cycle();
       break;
     }
     case 0xC4: {
-      u8 low  = read8(PC++);
-      u8 high = read8(PC++);
+      u8 low  = bus->read8(PC++);
+      u8 high = bus->read8(PC++);
       if (!get_flag(FLAG::ZERO)) {
         push_to_stack(((PC & 0xFF00) >> 8));
         push_to_stack((PC & 0xFF));
 
         PC = (high << 8) + low;
-        m_cycle();
+        bus->m_cycle();
       }
       break;
     }
@@ -1481,7 +1010,7 @@ void SM83::run_instruction() {
       break;
     }
     case 0xC6: {
-      Instructions::ADD(this, A, read8(PC++));
+      Instructions::ADD(this, A, bus->read8(PC++));
       break;
     }
     case 0xC7: {
@@ -1489,11 +1018,11 @@ void SM83::run_instruction() {
       break;
     }
     case 0xC8: {
-      m_cycle();
+      bus->m_cycle();
       if (get_flag(FLAG::ZERO)) {
         u8 low  = pull_from_stack();
         u8 high = pull_from_stack();
-        m_cycle();
+        bus->m_cycle();
         PC = (high << 8) + low;
       }
       break;
@@ -1501,21 +1030,21 @@ void SM83::run_instruction() {
     case 0xC9: {
       u8 low  = pull_from_stack();
       u8 high = pull_from_stack();
-      m_cycle();
+      bus->m_cycle();
       PC = (high << 8) + low;
       break;
     }
     case 0xCA: {
-      u8 low  = read8(PC++);
-      u8 high = read8(PC++);
+      u8 low  = bus->read8(PC++);
+      u8 high = bus->read8(PC++);
       if (get_flag(FLAG::ZERO)) {
-        m_cycle();
+        bus->m_cycle();
         PC = (high << 8) + low;
       }
       break;
     }
     case 0xCB: {
-      switch (read8(PC++)) {
+      switch (bus->read8(PC++)) {
         case 0x0: {
           Instructions::RLC(this, B);
           break;
@@ -1817,7 +1346,7 @@ void SM83::run_instruction() {
           break;
         }
         case 0x46: {
-          Instructions::BIT(this, 0, read8(HL));
+          Instructions::BIT(this, 0, bus->read8(HL));
           break;
         }
         case 0x47: {
@@ -1850,7 +1379,7 @@ void SM83::run_instruction() {
           break;
         }
         case 0x4E: {
-          Instructions::BIT(this, 1, read8(HL));
+          Instructions::BIT(this, 1, bus->read8(HL));
           break;
         }
         case 0x4F: {
@@ -1883,7 +1412,7 @@ void SM83::run_instruction() {
           break;
         }
         case 0x56: {
-          Instructions::BIT(this, 2, read8(HL));
+          Instructions::BIT(this, 2, bus->read8(HL));
           break;
         }
         case 0x57: {
@@ -1915,7 +1444,7 @@ void SM83::run_instruction() {
           break;
         }
         case 0x5E: {
-          Instructions::BIT(this, 3, read8(HL));
+          Instructions::BIT(this, 3, bus->read8(HL));
           break;
         }
         case 0x5F: {
@@ -1948,7 +1477,7 @@ void SM83::run_instruction() {
           break;
         }
         case 0x66: {
-          Instructions::BIT(this, 4, read8(HL));
+          Instructions::BIT(this, 4, bus->read8(HL));
           break;
         }
         case 0x67: {
@@ -1981,7 +1510,7 @@ void SM83::run_instruction() {
           break;
         }
         case 0x6E: {
-          Instructions::BIT(this, 5, read8(HL));
+          Instructions::BIT(this, 5, bus->read8(HL));
           break;
         }
         case 0x6F: {
@@ -2014,7 +1543,7 @@ void SM83::run_instruction() {
           break;
         }
         case 0x76: {
-          Instructions::BIT(this, 6, read8(HL));
+          Instructions::BIT(this, 6, bus->read8(HL));
           break;
         }
         case 0x77: {
@@ -2047,7 +1576,7 @@ void SM83::run_instruction() {
           break;
         }
         case 0x7E: {
-          Instructions::BIT(this, 7, read8(HL));
+          Instructions::BIT(this, 7, bus->read8(HL));
           break;
         }
         case 0x7F: {
@@ -2080,9 +1609,9 @@ void SM83::run_instruction() {
           break;
         }
         case 0x86: {
-          u8 _hl = read8(HL);
+          u8 _hl = bus->read8(HL);
           Instructions::RES(this, 0, _hl);
-          write8(HL, _hl);
+          bus->write8(HL, _hl);
           break;
         }
         case 0x87: {
@@ -2115,9 +1644,9 @@ void SM83::run_instruction() {
           break;
         }
         case 0x8E: {
-          u8 _hl = read8(HL);
+          u8 _hl = bus->read8(HL);
           Instructions::RES(this, 1, _hl);
-          write8(HL, _hl);
+          bus->write8(HL, _hl);
           break;
         }
         case 0x8F: {
@@ -2150,9 +1679,9 @@ void SM83::run_instruction() {
           break;
         }
         case 0x96: {
-          u8 _hl = read8(HL);
+          u8 _hl = bus->read8(HL);
           Instructions::RES(this, 2, _hl);
-          write8(HL, _hl);
+          bus->write8(HL, _hl);
           break;
         }
         case 0x97: {
@@ -2185,9 +1714,9 @@ void SM83::run_instruction() {
           break;
         }
         case 0x9E: {
-          u8 _hl = read8(HL);
+          u8 _hl = bus->read8(HL);
           Instructions::RES(this, 3, _hl);
-          write8(HL, _hl);
+          bus->write8(HL, _hl);
           break;
         }
         case 0x9F: {
@@ -2220,9 +1749,9 @@ void SM83::run_instruction() {
           break;
         }
         case 0xA6: {
-          u8 _hl = read8(HL);
+          u8 _hl = bus->read8(HL);
           Instructions::RES(this, 4, _hl);
-          write8(HL, _hl);
+          bus->write8(HL, _hl);
           break;
         }
         case 0xA7: {
@@ -2255,9 +1784,9 @@ void SM83::run_instruction() {
           break;
         }
         case 0xAE: {
-          u8 _hl = read8(HL);
+          u8 _hl = bus->read8(HL);
           Instructions::RES(this, 5, _hl);
-          write8(HL, _hl);
+          bus->write8(HL, _hl);
           break;
         }
         case 0xAF: {
@@ -2290,9 +1819,9 @@ void SM83::run_instruction() {
           break;
         }
         case 0xB6: {
-          u8 _hl = read8(HL);
+          u8 _hl = bus->read8(HL);
           Instructions::RES(this, 6, _hl);
-          write8(HL, _hl);
+          bus->write8(HL, _hl);
           break;
         }
         case 0xB7: {
@@ -2325,9 +1854,9 @@ void SM83::run_instruction() {
           break;
         }
         case 0xBE: {
-          u8 _hl = read8(HL);
+          u8 _hl = bus->read8(HL);
           Instructions::RES(this, 7, _hl);
-          write8(HL, _hl);
+          bus->write8(HL, _hl);
           break;
         }
         case 0xBF: {
@@ -2360,9 +1889,9 @@ void SM83::run_instruction() {
           break;
         }
         case 0xC6: {
-          u8 _hl = read8(HL);
+          u8 _hl = bus->read8(HL);
           Instructions::SET(this, 0, _hl);
-          write8(HL, _hl);
+          bus->write8(HL, _hl);
           break;
         }
         case 0xC7: {
@@ -2395,9 +1924,9 @@ void SM83::run_instruction() {
           break;
         }
         case 0xCE: {
-          u8 _hl = read8(HL);
+          u8 _hl = bus->read8(HL);
           Instructions::SET(this, 1, _hl);
-          write8(HL, _hl);
+          bus->write8(HL, _hl);
           break;
         }
         case 0xCF: {
@@ -2430,9 +1959,9 @@ void SM83::run_instruction() {
           break;
         }
         case 0xD6: {
-          u8 _hl = read8(HL);
+          u8 _hl = bus->read8(HL);
           Instructions::SET(this, 2, _hl);
-          write8(HL, _hl);
+          bus->write8(HL, _hl);
           break;
         }
         case 0xD7: {
@@ -2465,9 +1994,9 @@ void SM83::run_instruction() {
           break;
         }
         case 0xDE: {
-          u8 _hl = read8(HL);
+          u8 _hl = bus->read8(HL);
           Instructions::SET(this, 3, _hl);
-          write8(HL, _hl);
+          bus->write8(HL, _hl);
           break;
         }
         case 0xDF: {
@@ -2500,9 +2029,9 @@ void SM83::run_instruction() {
           break;
         }
         case 0xE6: {
-          u8 _hl = read8(HL);
+          u8 _hl = bus->read8(HL);
           Instructions::SET(this, 4, _hl);
-          write8(HL, _hl);
+          bus->write8(HL, _hl);
           break;
         }
         case 0xE7: {
@@ -2535,9 +2064,9 @@ void SM83::run_instruction() {
           break;
         }
         case 0xEE: {
-          u8 _hl = read8(HL);
+          u8 _hl = bus->read8(HL);
           Instructions::SET(this, 5, _hl);
-          write8(HL, _hl);
+          bus->write8(HL, _hl);
           break;
         }
         case 0xEF: {
@@ -2570,9 +2099,9 @@ void SM83::run_instruction() {
           break;
         }
         case 0xF6: {
-          u8 _hl = read8(HL);
+          u8 _hl = bus->read8(HL);
           Instructions::SET(this, 6, _hl);
-          write8(HL, _hl);
+          bus->write8(HL, _hl);
           break;
         }
         case 0xF7: {
@@ -2605,9 +2134,9 @@ void SM83::run_instruction() {
           break;
         }
         case 0xFE: {
-          u8 _hl = read8(HL);
+          u8 _hl = bus->read8(HL);
           Instructions::SET(this, 7, _hl);
-          write8(HL, _hl);
+          bus->write8(HL, _hl);
           break;
         }
         case 0xFF: {
@@ -2616,33 +2145,34 @@ void SM83::run_instruction() {
         }
 
         default: {
-          fmt::println("[CPU] unimplemented CB op: {:#04x}", peek(PC - 1));
+          // cpu_logger->info("unimplemented CB op: {:#04x}", bus->peek(PC - 1));
+          assert(0);
           // exit(-1);
         }
       }
       break;
     }
     case 0xCC: {
-      u8 low  = read8(PC++);
-      u8 high = read8(PC++);
+      u8 low  = bus->read8(PC++);
+      u8 high = bus->read8(PC++);
       if (get_flag(FLAG::ZERO)) {
         push_to_stack(((PC & 0xFF00) >> 8));
         push_to_stack((PC & 0xFF));
 
         PC = (high << 8) + low;
-        m_cycle();
+        bus->m_cycle();
       }
       break;
     }
     case 0xCD: {
-      u8 low  = read8(PC++);
-      u8 high = read8(PC++);
+      u8 low  = bus->read8(PC++);
+      u8 high = bus->read8(PC++);
 
       push_to_stack(((PC & 0xFF00) >> 8));
       push_to_stack((PC & 0xFF));
 
       PC = (high << 8) + low;
-      m_cycle();
+      bus->m_cycle();
 
       break;
     }
@@ -2651,15 +2181,15 @@ void SM83::run_instruction() {
       break;
     }
     case 0xCE: {
-      Instructions::ADC(this, A, read8(PC++));
+      Instructions::ADC(this, A, bus->read8(PC++));
       break;
     }
     case 0xD0: {
-      m_cycle();
+      bus->m_cycle();
       if (!get_flag(FLAG::CARRY)) {
         u8 low  = pull_from_stack();
         u8 high = pull_from_stack();
-        m_cycle();
+        bus->m_cycle();
         PC = (high << 8) + low;
       }
       break;
@@ -2669,23 +2199,23 @@ void SM83::run_instruction() {
       break;
     }
     case 0xD2: {
-      u8 low  = read8(PC++);
-      u8 high = read8(PC++);
+      u8 low  = bus->read8(PC++);
+      u8 high = bus->read8(PC++);
       if (!get_flag(FLAG::CARRY)) {
-        m_cycle();
+        bus->m_cycle();
         PC = (high << 8) + low;
       }
       break;
     }
     case 0xD4: {
-      u8 low  = read8(PC++);
-      u8 high = read8(PC++);
+      u8 low  = bus->read8(PC++);
+      u8 high = bus->read8(PC++);
       if (!get_flag(FLAG::CARRY)) {
         push_to_stack(((PC & 0xFF00) >> 8));
         push_to_stack((PC & 0xFF));
 
         PC = (high << 8) + low;
-        m_cycle();
+        bus->m_cycle();
       }
       break;
     }
@@ -2694,7 +2224,7 @@ void SM83::run_instruction() {
       break;
     }
     case 0xD6: {
-      u8 val = read8(PC++);
+      u8 val = bus->read8(PC++);
       if (((A & 0xf) - ((val) & 0xf)) & 0x10) {
         set_half_carry();
       } else {
@@ -2721,11 +2251,11 @@ void SM83::run_instruction() {
       break;
     }
     case 0xD8: {
-      m_cycle();
+      bus->m_cycle();
       if (get_flag(FLAG::CARRY)) {
         u8 low  = pull_from_stack();
         u8 high = pull_from_stack();
-        m_cycle();
+        bus->m_cycle();
         PC = (high << 8) + low;
       }
       break;
@@ -2733,30 +2263,30 @@ void SM83::run_instruction() {
     case 0xD9: {  // RETI
       u8 low  = pull_from_stack();
       u8 high = pull_from_stack();
-      m_cycle();
+      bus->m_cycle();
       IME = true;
       PC  = (high << 8) + low;
       break;
     }
     case 0xDA: {
-      m_cycle();
-      u8 low  = read8(PC++);
-      u8 high = read8(PC++);
+      bus->m_cycle();
+      u8 low  = bus->read8(PC++);
+      u8 high = bus->read8(PC++);
       if (get_flag(FLAG::CARRY)) {
-        m_cycle();
+        bus->m_cycle();
         PC = (high << 8) + low;
       }
       break;
     }
     case 0xDC: {
-      u8 low  = read8(PC++);
-      u8 high = read8(PC++);
+      u8 low  = bus->read8(PC++);
+      u8 high = bus->read8(PC++);
       if (get_flag(FLAG::CARRY)) {
         push_to_stack(((PC & 0xFF00) >> 8));
         push_to_stack((PC & 0xFF));
 
         PC = (high << 8) + low;
-        m_cycle();
+        bus->m_cycle();
       }
       break;
     }
@@ -2765,11 +2295,11 @@ void SM83::run_instruction() {
       break;
     }
     case 0xDE: {
-      Instructions::SBC(this, A, read8(PC++));
+      Instructions::SBC(this, A, bus->read8(PC++));
       break;
     }
     case 0xE0: {
-      Instructions::LD_M_R(this, 0xFF00 + read8(PC++), A);
+      Instructions::LD_M_R(this, 0xFF00 + bus->read8(PC++), A);
       break;
     }
 
@@ -2786,7 +2316,7 @@ void SM83::run_instruction() {
       break;
     }
     case 0xE6: {
-      Instructions::AND(this, A, read8(PC++));
+      Instructions::AND(this, A, bus->read8(PC++));
       break;
     }
     case 0xE7: {
@@ -2802,11 +2332,12 @@ void SM83::run_instruction() {
       break;
     }
     case 0xEA: {
-      Instructions::LD_M_R(this, read16(PC++), A);
+      Instructions::LD_M_R(this, bus->read16(PC++), A);
+      PC++;
       break;
     }
     case 0xEE: {
-      Instructions::XOR(this, A, read8(PC++));
+      Instructions::XOR(this, A, bus->read8(PC++));
       break;
     }
     case 0xEF: {
@@ -2814,7 +2345,7 @@ void SM83::run_instruction() {
       break;
     }
     case 0xF0: {
-      Instructions::LD_R_R(A, read8(0xFF00 + read8(PC++)));
+      Instructions::LD_R_R(A, bus->read8(0xFF00 + bus->read8(PC++)));
       break;
     }
     case 0xF1: {
@@ -2823,7 +2354,7 @@ void SM83::run_instruction() {
       break;
     }
     case 0xF2: {
-      Instructions::LD_R_R(A, read8(0xFF00 + C));
+      Instructions::LD_R_R(A, bus->read8(0xFF00 + C));
       break;
     }
     case 0xF3: {
@@ -2835,7 +2366,7 @@ void SM83::run_instruction() {
       break;
     }
     case 0xF6: {
-      Instructions::OR(this, A, read8(PC++));
+      Instructions::OR(this, A, bus->read8(PC++));
       break;
     }
     case 0xF7: {
@@ -2848,23 +2379,24 @@ void SM83::run_instruction() {
     }
     case 0xF9: {
       SP = HL;
-      m_cycle();
+      bus->m_cycle();
       break;
     }
     case 0xFA: {
-      u16 address = read16(PC++);
-      Instructions::LD_R_R(A, read8(address));
+      u16 address = bus->read16(PC++);
+      Instructions::LD_R_R(A, bus->read8(address));
+      PC++;
       break;
     }
 
     case 0xFB: {
       // set_ime();
       IME = true;
-      // fmt::println("[CPU] EI");
+      // ("[CPU] EI");
       break;
     }
     case 0xFE: {
-      Instructions::CP(this, A, read8(PC++));
+      Instructions::CP(this, A, bus->read8(PC++));
       break;
     }
     case 0xFF: {
@@ -2872,8 +2404,7 @@ void SM83::run_instruction() {
       break;
     }
     default: {
-      throw std::runtime_error(
-          fmt::format("[CPU] unimplemented opcode: {:#04x}", opcode));
+      assert(0);
     }
   }
 }

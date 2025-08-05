@@ -1,17 +1,21 @@
-#include "mapper.h"
-class MBC5 : public Mapper {
- public:
-  MBC5() { rom_bank = 1; }
+#include "mapper.hpp"
+struct MBC5 : public Mapper {
+  MBC5() = delete;
+
+  MBC5(Bus* b) {
+    assert(b != nullptr);
+    bus      = b;
+    rom_bank = 1;
+  }
 
  private:
   u8 read8(const u16 address) override {
     if (address >= 0x4000 && address <= 0x7FFF) {
-      return bus->cart.read8((0x4000 * rom_bank) + (address - 0x4000));
+      return bus->cart.data.at((0x4000 * rom_bank) + (address - 0x4000));
     }
     if (address >= 0xA000 && address <= 0xBFFF) {
       if (ext_ram_enabled) {
-        return bus->cart.ext_ram.read8((0x2000 * ram_bank) +
-                                       (address - 0xA000));
+        return bus->cart.ext_ram.at((0x2000 * ram_bank) + (address - 0xA000));
       }
       return 0xFF;
     }
@@ -43,14 +47,15 @@ class MBC5 : public Mapper {
     }
 
     if (address >= 0x4000 && address <= 0x5FFF) {
-      if (value < 0xF) { ram_bank = value; }
+      if (value < 0xF) {
+        ram_bank = value;
+      }
       return;
     }
 
     if (address >= 0xA000 && address <= 0xBFFF) {
       if (ext_ram_enabled) {
-        bus->cart.ext_ram.write8((0x2000 * ram_bank) + (address - 0xA000),
-                                 value);
+        bus->cart.ext_ram.at((0x2000 * ram_bank) + (address - 0xA000)) = value;
       }
       return;
     }

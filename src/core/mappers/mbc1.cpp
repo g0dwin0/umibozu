@@ -1,24 +1,29 @@
-#include "mapper.h"
-class MBC1 : public Mapper {
+#include "mapper.hpp"
+struct MBC1 : public Mapper {
+  MBC1() = delete;
+
+  MBC1(Bus* b) {
+    assert(b != nullptr);
+    bus = b;
+  }
+
   u8 read8(const u16 address) override {
-    if (address >= 0x4000 && address <= 0x7FFF) {
-      return bus->cart.read8((0x4000 * (rom_bank == 0 ? 1 : rom_bank)) +
-                             address - 0x4000);
+    if (address >= 0x4000 && address <= 0x7FFF) {  // TODO: convert to switch
+      return bus->cart.data.at((0x4000 * (rom_bank == 0 ? 1 : rom_bank)) + address - 0x4000);
     }
-    if (address >= 0xA000 && address <= 0xBFFF) {
+    if (address >= 0xA000 && address <= 0xBFFF) {  // TODO: convert to switch
       if (ext_ram_enabled) {
         if (banking_mode == 0) {
-          return bus->cart.ext_ram.read8((0x2000 * 0) + (address - 0xA000));
+          return bus->cart.ext_ram.at((0x2000 * 0) + (address - 0xA000));
         } else {
-          return bus->cart.ext_ram.read8((0x2000 * ram_bank) +
-                                         (address - 0xA000));
+          return bus->cart.ext_ram.at((0x2000 * ram_bank) + (address - 0xA000));
         }
       }
       return 0xFF;
     }
     return handle_system_memory_read(address);
   }
-  void write8(const u16 address, const u8 value) override {
+  void write8(const u16 address, const u8 value) override {  // TODO: convert to switch
     if (address <= 0x1FFF) {
       if ((value & 0xF) == 0xA) {
         ext_ram_enabled = true;
@@ -34,7 +39,9 @@ class MBC1 : public Mapper {
       return;
     }
     if (address >= 0x4000 && address <= 0x5FFF) {
-      if (bus->cart.info.ram_banks >= 4) { ram_bank = value & 0x3; }
+      if (bus->cart.info.ram_banks >= 4) {
+        ram_bank = value & 0x3;
+      }
       return;
     }
     if (address >= 0x6000 && address <= 0x7FFF) {
@@ -46,10 +53,9 @@ class MBC1 : public Mapper {
       if (ext_ram_enabled) {
         assert(ram_bank <= 3);
         if (banking_mode == 0) {
-          bus->cart.ext_ram.write8((0x2000 * 0) + (address - 0xA000), value);
+          bus->cart.ext_ram.at((0x2000 * 0) + (address - 0xA000)) = value;
         } else {
-          bus->cart.ext_ram.write8((0x2000 * ram_bank) + (address - 0xA000),
-                                   value);
+          bus->cart.ext_ram.at((0x2000 * ram_bank) + (address - 0xA000)) = value;
         }
       }
       return;

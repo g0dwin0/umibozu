@@ -1,26 +1,40 @@
-// #include "CLI11.hpp"
-#include "cpu.h"
-#include "frontend/window.h"
-#include "gb.h"
+#include "cli11/CLI11.hpp"
+#include "cpu.hpp"
+#include "frontend/window.hpp"
+#include "gb.hpp"
 
-using namespace Umibozu;
+int handle_args(int& argc, char** argv, std::string& filename) {
+  CLI::App app{"a rudimentary gameboy emulator", "umibozu"};
+  app.add_option("-f,--file", filename, "path to ROM")->required();
 
-int main() {
-  GB gb;
+  CLI11_PARSE(app, argc, argv);
+  return 0;
+}
+
+
+
+
+int main(int argc, char** argv) {
+  GB gb = {};
   Frontend fe(&gb);
 
-  gb.load_cart(read_file("/home/bass/Projects/umibozu/roms/acid/dmg-acid2.gb"));
+  std::string filename = {};
+  handle_args(argc, argv, filename); 
+
+  File rom = read_file(filename);
+  
+  gb.load_cart(rom);
   
 
   while (fe.state.running) {
-    if (gb.cpu.status == Umibozu::SM83::STATUS::ACTIVE) {
-      gb.cpu.run_instruction();
-    }
-    if (gb.ppu.frame_queued || gb.cpu.status == Umibozu::SM83::STATUS::PAUSED) {
-      fe.handle_events();
-      fe.render_frame();
-      gb.ppu.frame_queued = false;
-    }
+    // if (gb.cpu.status == SM83::STATUS::ACTIVE) {
+    // }
+    gb.cpu.step();
+    fe.handle_events();
+    fe.render_frame();
+    // if (gb.ppu.frame_queued || gb.cpu.status == SM83::STATUS::PAUSED) {
+    //   gb.ppu.frame_queued = false;
+    // }
   }
 
   fe.shutdown();
