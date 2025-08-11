@@ -1,7 +1,7 @@
 #include <array>
 
-#include "apu.h"
-#include "common.h"
+#include "apu.hpp"
+#include "common.hpp"
 
 const std::array<u8, 4> TIMER_BIT          = {9, 3, 5, 7};
 
@@ -24,6 +24,7 @@ struct Timer {
   void reset_div();
   
   [[nodiscard]] u8 get_div() const { return div >> 8; }
+  
   [[nodiscard]] u16 get_full_div() const { return div; }
   
 
@@ -31,5 +32,4 @@ struct Timer {
   private:
     // DIV
     u16 div = 0xAB << 8;
-    // Bus* bus = nullptr;
 };

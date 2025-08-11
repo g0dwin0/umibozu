@@ -1,4 +1,4 @@
-#include "cpu.h"
+#include "cpu.hpp"
 
 namespace Instructions {
 using Umibozu::SM83;
@@ -9,25 +9,25 @@ void LD_R_R(u8 &r_1, u8 r_2);
 void ADD_SP_E8(SM83 *c);
 void LD_M_R(SM83 *c,const u16 address, u8 val);
 void LD_SP_U16(SM83 *c, u16 val);
-void LD_R16_U16(SM83 *c,Umibozu::SM83::REG_16 &r_1, u16 val);
+void LD_R16_U16(SM83 *c,u16 &r_1, u16 val);
 void LD_U16_SP(SM83 *c,u16 address, u16 sp_val);
-void LD_R_AMV(SM83 *c,u8 &r_1, Umibozu::SM83::REG_16 &r_16);
+void LD_R_AMV(SM83 *c,u8 &r_1, u16 &r_16);
 void DEC(SM83 *c,u8 &r);
 void SCF(SM83 *c);
-void NOP(SM83 *c);
-void DEC_R16(SM83 *c, Umibozu::SM83::REG_16 &r); // FIXME: nonsensical
+void NOP();
+void DEC_R16(SM83 *c, u16 &r);
 void DEC_SP(SM83 *c);
 void CCF(SM83 *c);
 void ADD_HL_BC(SM83 *c);
 void ADD_HL_DE(SM83 *c);
 void DAA(SM83 *c);
 void INC(SM83 *c, u8 &r);
-void INC_16(SM83 *c,Umibozu::SM83::REG_16 &r);
+void INC_16(SM83 *c,u16 &r);
 void ADD(SM83 *c,u8 &r, u8 r_2);
 void CP(SM83 *c,const u8 &r, const u8 &r_2);
 void OR(SM83 *c,u8 &r, u8 r_2);
-void POP(SM83 *c,Umibozu::SM83::REG_16 &r);
-void PUSH(SM83 *c,Umibozu::SM83::REG_16 &r);
+void POP(SM83 *c,u16 &r);
+void PUSH(SM83 *c,u16 &r);
 void RRCA(SM83 *c);
 void RLCA(SM83 *c);
 void RLA(SM83 *c);

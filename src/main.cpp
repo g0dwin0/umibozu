@@ -1,31 +1,41 @@
-// #include "CLI11.hpp"
-#include "cpu.h"
-#include "frontend/window.h"
-#include "gb.h"
+#include <thread>
+
+#include "CLI11.hpp"
+#include "cpu.hpp"
+#include "frontend/window.hpp"
+#include "gb.hpp"
+#include "io.hpp"
+
+int handle_args(int& argc, char** argv, std::string& filename) {
+  CLI::App app{"", "bass"};
+  app.add_option("-f,--file", filename, "path to ROM")->required();
+
+  CLI11_PARSE(app, argc, argv);
+  return 0;
+}
 
 using namespace Umibozu;
 
-int main() {
+int main(int argc, char** argv) {
   GB gb;
   Frontend fe(&gb);
 
-  // gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/blarg/dmg_sound/08-len_ctr_during_power.gb"));
-  // gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/blarg/dmg_sound/09-wave_read_while_on.gb"));
-  // gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/blarg/dmg_sound/10-wave_trigger_while_on.gb"));
-  // gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/blarg/dmg_sound/dmg_sound.gb"));
-  // gb.load_cart(read_file("/home/toast/Projects/umibozu/roms/dmg_sound.gb"));
-  
+  std::string filename = {};
+  handle_args(argc, argv, filename);
+
+  auto f = read_file(filename);
+
+  gb.load_cart(f);
+
+  std::thread system = std::thread(&GB::system_loop, &gb);
 
   while (fe.state.running) {
-    if (gb.cpu.status == Umibozu::SM83::STATUS::ACTIVE) {
-      gb.cpu.run_instruction();
-    }
-    if (gb.ppu.frame_queued || gb.cpu.status == Umibozu::SM83::STATUS::PAUSED) {
-      fe.handle_events();
-      fe.render_frame();
-      gb.ppu.frame_queued = false;
-    }
+    fe.render_frame();
+    fe.handle_events();
   }
+
+  gb.active = false;
+  system.join();
 
   fe.shutdown();
 }

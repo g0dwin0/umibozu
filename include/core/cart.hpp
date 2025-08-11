@@ -1,17 +1,15 @@
 #pragma once
 #include <span>
 #include <string>
-
-#include "common.h"
+#include <vector>
+#include "common.hpp"
 namespace Umibozu {
   class Cartridge {
    private:
     static std::string get_title(std::span<const u8>);
-    static std::string get_manufacturer(u8, std::span<const u8>);
     
     struct Info {
       std::string title;
-      std::string manufacturer;
       std::string mapper_string;
       std::string path;
       u8 mapper_id;
@@ -24,11 +22,11 @@ namespace Umibozu {
     void print_cart_info();
     void set_cart_info();
     std::vector<u8> memory;
-    RAM ext_ram = RAM(0x100000);
+    std::array<u8, 0x100000> ext_ram;
     Info info;
     Cartridge();
     ~Cartridge();
 
     u8 read8(u64);
   };
-}  // namespace Umibozu
+} 

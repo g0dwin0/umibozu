@@ -1,4 +1,4 @@
-#include "mapper.h"
+#include "mapper.hpp"
 class MBC5 : public Mapper {
  public:
   MBC5() { rom_bank = 1; }
@@ -10,7 +10,7 @@ class MBC5 : public Mapper {
     }
     if (address >= 0xA000 && address <= 0xBFFF) {
       if (ext_ram_enabled) {
-        return bus->cart.ext_ram.read8((0x2000 * ram_bank) +
+        return bus->cart.ext_ram.at((0x2000 * ram_bank) +
                                        (address - 0xA000));
       }
       return 0xFF;
@@ -49,8 +49,7 @@ class MBC5 : public Mapper {
 
     if (address >= 0xA000 && address <= 0xBFFF) {
       if (ext_ram_enabled) {
-        bus->cart.ext_ram.write8((0x2000 * ram_bank) + (address - 0xA000),
-                                 value);
+        bus->cart.ext_ram.at((0x2000 * ram_bank) + (address - 0xA000)) = value;
       }
       return;
     }

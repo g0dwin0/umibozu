@@ -7,46 +7,52 @@
 
 #include <array>
 
-#include "bus.h"
-#include "common.h"
-// #include "mapper.h"
-#define WHITE 0x6BFC
-#define LIGHTGREY 0x3B11
-#define DARKGREY 0x29A6
-#define BLACK 0x0000
-#define VRAM_ADDRESS_OFFSET 0x8000
+#include "stopwatch.hpp"
 
-struct LCDC_R { 
-  // this doesn't need to be a struct, this could just a be union, 
+struct Bus;
+#include "bus.hpp"
+#include "common.hpp"
+#include "double_buffer.hpp"
+
+struct Mapper;
+#include "mapper.hpp"
+
+static constexpr u16 WHITE     = 0x6BFC;
+static constexpr u16 LIGHTGREY = 0x3B11;
+static constexpr u16 DARKGREY  = 0x29A6;
+static constexpr u16 BLACK     = 0x0000;
+
+static constexpr u16 VRAM_ADDRESS_OFFSET = 0x8000;
+
+struct LCDC_R {
+  // this doesn't need to be a struct, this could just a be union,
   // besides this should be on the bus as it's a memory mapped io register
   union {
     u8 value;
     struct {
       u8 bg_and_window_enable_priority : 1;
-      u8 sprite_enable                 : 1;
+      bool sprite_enable               : 1;
       u8 sprite_size                   : 1;
       u8 bg_tile_map_select            : 1;
       u8 tiles_select_method           : 1;
 
-      u8 window_disp_enable            : 1;
+      bool window_disp_enable          : 1;
       u8 window_tile_map_select        : 1;
-      u8 lcd_ppu_enable                : 1;
+      bool lcd_ppu_enable              : 1;
     };
   };
 };
-struct Pixel {
-  u8 color = 0;
-};
 
+using Pixel = u8;
 
 union Attribute_Data {
-  u8 value;
+  u8 value = 0;
   struct {
-  u8 color_palette : 3 = 0;
-  u8 bank          : 1 = 0;
-  u8 x_flip        : 1 = 0;
-  u8 y_flip        : 1 = 0;
-  bool priority: 1        = false;
+    u8 color_palette : 3;
+    u8 bank          : 1;
+    u8 x_flip        : 1;
+    u8 y_flip        : 1;
+    bool priority    : 1;
   };
 };
 struct Tile {
@@ -80,13 +86,10 @@ struct Sprite {
   }
 };
 struct Frame {
-  
   Frame();
 
-  std::array<u16, 256 * 256>
-      data;  // refactor: what is data? give more descriptive name
-  std::array<u8, 256 * 256>
-      color_id;  // refactor: is this a cgb thing?  more descriptive
+  std::array<u16, 256 * 256> data;      // refactor: what is data? give more descriptive name
+  std::array<u8, 256 * 256> color_id;   // refactor: is this a cgb thing?  more descriptive
   std::array<bool, 256 * 256> bg_prio;  // refactor: ??? what does this mean?
                                         // does the bg have prio, or the obj?
 
@@ -110,15 +113,11 @@ struct SystemPalettes {
   [[nodiscard]] Palette get_palette_by_id(u8 index);
 };
 
-
-class PPU {
+struct PPU {
   RENDERING_MODE ppu_mode = RENDERING_MODE::VBLANK;
 
-  SDL_Renderer *renderer     = nullptr;
-  SDL_Texture *frame_texture = nullptr;
-
   std::vector<Sprite> sprite_buf;
-  u8 sprite_index = 0;
+  u16 sprite_index = 0;
   void set_ppu_mode(RENDERING_MODE mode);
   void add_sprite_to_buffer(u8 spriteIndex);
   u8 get_sprite_size() const;
@@ -133,13 +132,18 @@ class PPU {
  public:
   Frame frame;
 
+  u16 *disp_buf  = new u16[256 * 256];
+  u16 *write_buf = new u16[256 * 256];
+
+  DoubleBuffer db = DoubleBuffer(disp_buf, write_buf);
+
   SystemPalettes sys_palettes;
   RENDERING_MODE get_mode() { return ppu_mode; }
 
   struct LCDC_R lcdc{0x91};
-  u16 dots = 0;
-  Bus *bus = nullptr;
-  // Mapper* mapper               = nullptr;
+  u16 dots       = 0;
+  Bus *bus       = nullptr;
+  Mapper *mapper = nullptr;
 
   bool frame_queued = false;
   bool frame_skip   = false;
@@ -148,19 +152,21 @@ class PPU {
   u16 remaining_length = 0;
   u16 hdma_index       = 0;
 
+  bool stat_irq_fired_on_current_scanline = false;
+
   u8 x_pos_offset = 0;
   void tick(u16 inc);
   [[nodiscard]] std::string get_mode_string();
-  void set_renderer(SDL_Renderer *renderer);
-  void set_frame_texture(SDL_Texture *texture);
 
   void process_hdma_chunk();
   void increment_scanline() const;
   [[nodiscard]] Tile get_tile_data(u16 address, bool sprite = false) const;
-  [[nodiscard]] Tile get_tile_sprite_data(u16 index, bool sprite = false,
-                                          u8 bank = 0) const;
+  [[nodiscard]] Tile get_tile_sprite_data(u16 index, bool sprite = false, u8 bank = 0) const;
 
   const std::array<u16, 4> shade_table = {WHITE, LIGHTGREY, DARKGREY, BLACK};
   bool window_enabled                  = false;
   static std::array<Pixel, 8> decode_pixel_row(u8 high_byte, u8 low_byte);
+  
+  std::chrono::duration<double, std::milli> target_duration = std::chrono::duration<double, std::milli>(16.7);
+  Stopwatch stopwatch;
 };

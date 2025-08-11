@@ -1,4 +1,4 @@
-#include "mapper.h"
+#include "mapper.hpp"
 class MBC3 : public Mapper {
  public:
   MBC3() { rom_bank = 1; }
@@ -13,7 +13,7 @@ class MBC3 : public Mapper {
       if (ram_bank >= 8) { return 0xFF; } // TODO: 1 line rtc/ext check
       
       if (register_mode == WRITING_MODE::RAM && ext_ram_enabled) {
-        return bus->cart.ext_ram.read8((0x2000 * ram_bank) +
+        return bus->cart.ext_ram.at((0x2000 * ram_bank) +
                                        (address - 0xA000));
       }
 
@@ -55,7 +55,7 @@ class MBC3 : public Mapper {
     }
 
     if (address >= 0x4000 && address <= 0x5FFF) {
-      if (value >= 0x0 && value <= 0x7) {
+      if (value <= 0x7) {
         register_mode = WRITING_MODE::RAM;
         ram_bank      = value;
       }
@@ -89,10 +89,9 @@ class MBC3 : public Mapper {
 
       if (register_mode == WRITING_MODE::RAM && ext_ram_enabled) {
         if (ram_bank >= 8) { return; }
-        fmt::println("writing to ext ram loc: {:#08x}",
-                     (0x2000 * ram_bank) + (address - 0xA000));
-        bus->cart.ext_ram.write8((0x2000 * ram_bank) + (address - 0xA000),
-                                 value);
+        // fmt::println("writing to ext ram loc: {:#08x}",
+        //              (0x2000 * ram_bank) + (address - 0xA000));
+        bus->cart.ext_ram.at((0x2000 * ram_bank) + (address - 0xA000)) = value;
       }
       if (register_mode == WRITING_MODE::RTC && rtc_enabled) {
         // fmt::println("writing to RTC register: {:#08x}", (u8)active_rtc_register);

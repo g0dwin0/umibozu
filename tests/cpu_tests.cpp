@@ -1,8 +1,8 @@
 #include <filesystem>
 #include <stdexcept>
 
-#include "common.h"
-#include "cpu.h"
+#include "common.hpp"
+#include "cpu.hpp"
 #include "fmt/core.h"
 #include "fstream"
 #include "json/json.hpp"

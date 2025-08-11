@@ -235,12 +235,17 @@ void Frontend::show_ppu_info() {
   ImGui::Text("%s", fmt::format("STAT = {:08b}", gb->bus.io[STAT]).c_str());
 
   ImGui::Separator();
-  if (ImGui::Button("Enable VSYNC")) {
-    SDL_GL_SetSwapInterval(1);
+  if (ImGui::Button("Framelimit to 60")) {
+    gb->ppu.target_duration = std::chrono::duration<double, std::milli>(16.7);
   }
-  if (ImGui::Button("Disable VSYNC")) {
-    SDL_GL_SetSwapInterval(0);
+  if (ImGui::Button("Framelimit to 120")) {
+    gb->ppu.target_duration = std::chrono::duration<double, std::milli>((16.7 / 2));
+
   }
+  if (ImGui::Button("Uncap framerate")) {
+
+  }
+  
   ImGui::Separator();
 
   ImGui::Text("%s", fmt::format("LCDC =  {:08b}", gb->bus.io[LCDC]).c_str());
@@ -255,13 +260,13 @@ void Frontend::show_ppu_info() {
 
   if (ImGui::Button("Trigger VBLANK interrupt")) {
     fmt::println("VBLANK triggered");
-    gb->bus.request_interrupt(InterruptType::VBLANK);
+    gb->bus.request_interrupt(INTERRUPT_TYPE::VBLANK);
   }
   if (ImGui::Button("Trigger LCD interrupt")) {
-    gb->bus.request_interrupt(InterruptType::LCD);
+    gb->bus.request_interrupt(INTERRUPT_TYPE::LCD);
   }
   if (ImGui::Button("Trigger Timer interrupt")) {
-    gb->bus.request_interrupt(InterruptType::TIMER);
+    gb->bus.request_interrupt(INTERRUPT_TYPE::TIMER);
   }
 
   if (ImGui::Button("STEP")) {

@@ -1,4 +1,4 @@
-#include "timer.h"
+#include "timer.hpp"
 
 
 void Timer::set_tac(const u8 value) {

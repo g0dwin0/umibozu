@@ -1,7 +1,6 @@
 #pragma once
-#include "bus.h"
-#include "common.h"
-#pragma GCC diagnostic ignored "-Wtype-limits"
+#include "bus.hpp"
+#include "common.hpp"
 #define SERIAL_PORT_BUFFER_SIZE 2048
 
 enum class WRITING_MODE { RTC, RAM };
@@ -18,13 +17,7 @@ class Mapper {
   // RTC
   u64 rtc_internal_clock = 0;  // RTC only
 
-  enum class RTC_REGISTER {
-    RTC_SECOND_TIME = 0x08,
-    RTC_MINUTE_TIME = 0x09,
-    RTC_HOUR_TIME   = 0x0A,
-    RTC_DAY_LOW     = 0x0B,
-    RTC_DAY_HIGH    = 0x0C
-  };
+  enum class RTC_REGISTER { RTC_SECOND_TIME = 0x08, RTC_MINUTE_TIME = 0x09, RTC_HOUR_TIME = 0x0A, RTC_DAY_LOW = 0x0B, RTC_DAY_HIGH = 0x0C };
   struct RTC_INSTANCE {
     u8 RTC_SECOND_TIME : 6 = 0;
     u8 RTC_MINUTE_TIME : 6 = 0;
@@ -67,7 +60,7 @@ class Mapper {
           // print_rtc_regs();
           // fmt::println("WRITING VAL TO HIGH: {:08b}", v);
           RTC_DAY &= 0b0000000011111111;
-          
+
           // if((v & (1 << 6)) != 0) internal_clock -= 2;
 
           RTC_DAY |= ((v & 0b11000001) << 8);
@@ -107,7 +100,6 @@ class Mapper {
     }
   };
 
-
   void tick_rtc() {
     // fmt::println("[RTC] RTC_SECOND_TIME: {}", (u8)actual.RTC_SECOND_TIME);
     actual.RTC_SECOND_TIME += 1;
@@ -125,9 +117,9 @@ class Mapper {
         if (actual.RTC_HOUR_TIME == 24) {
           // fmt::println("[RTC] RTC_DAY_TIME: {}", (u16)actual.RTC_DAY >> 7);
           actual.RTC_HOUR_TIME = 0;
-          if (actual.RTC_DAY == 0b111111111) {
-            actual.RTC_DAY &= ~0b111111111;
-            actual.RTC_DAY |= 1 << 15;
+          if (actual.RTC_DAY == 0x1ff) {
+            actual.RTC_DAY &= ~0x1ff;
+            actual.RTC_DAY |= (1 << 15);
           } else {
             actual.RTC_DAY += 1;
           }
@@ -153,9 +145,9 @@ class Mapper {
   }
 
   RTC_REGISTER active_rtc_register = RTC_REGISTER::RTC_SECOND_TIME;
-  u8 last_rtc_value                 = 0xFF;
-  bool latched_occured              = false;
-  RTC_INSTANCE latched, actual;
+  u8 last_rtc_value                = 0xFF;
+  bool latched_occured             = false;
+  RTC_INSTANCE latched, actual = {};
   bool ext_ram_enabled = false;
   bool rtc_enabled     = false;
 

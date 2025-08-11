@@ -1,11 +1,12 @@
 #pragma once
-#include "common.h"
+#include "common.hpp"
 
-#define SOUND_LENGTH_RATE 2
-#define ENVELOPE_SWEEP_RATE 8
-#define CH1_FREQ_SWEEP 4
+static constexpr u8 SOUND_LENGTH_RATE   = 2;
+static constexpr u8 ENVELOPE_SWEEP_RATE = 8;
+static constexpr u8 CH1_FREQ_SWEEP      = 4;
 
 enum DIRECTION { ADDITION, SUBTRACTION };
+
 struct Registers {
   // Master
   union {
@@ -50,7 +51,7 @@ struct Registers {
     bool channel_enabled = false;
     u8 length_timer      = 63;
     u8 duty_step_counter;
-    
+
     u8 volume_ctr;
 
     u32 sweep_shadow_reg;
@@ -58,11 +59,9 @@ struct Registers {
     u32 sweep_timer;
     bool sweep_enabled;
 
-
-    // Clearing the sweep negate mode bit in NR10 after at least one sweep calculation has been made using the negate mode since the last trigger causes the channel to be immediately disabled. 
+    // Clearing the sweep negate mode bit in NR10 after at least one sweep calculation has been made using the negate mode since the last trigger causes the channel to be immediately disabled.
     // https://gbdev.gg8.se/wiki/articles/Gameboy_sound_hardware#Obscure_Behavior
     bool sweep_calc_in_negate = false;
-    
 
     union {
       u8 value = 0x80;
@@ -186,9 +185,7 @@ struct Registers {
         u8 TRIGGER       : 1;
       } registers;
     } NR34;  // Channel 3 period high & control
-    bool get_dac_enabled() {
-      return NR30.registers.DAC_ON_OFF == 1 ? true : false;
-    }
+    bool get_dac_enabled() { return NR30.registers.DAC_ON_OFF == 1 ? true : false; }
   } CHANNEL_3;
   // Channel 4 - Noise
   struct {
@@ -234,11 +231,14 @@ struct Registers {
   } CHANNEL_4;
 };
 struct FrameSequencer {
-  u8 nStep        = 0;
+  u8 nStep = 0;
+
  private:
   Registers* regs = nullptr;
 
  public:
+  FrameSequencer() = delete;
+
   FrameSequencer(Registers* ptr) : regs(ptr) {
     if (regs == nullptr) {
       fmt::println("bad pointer to APU registers");
@@ -253,7 +253,6 @@ struct FrameSequencer {
 
 class APU {
  private:
-
  public:
   Registers regs;
   void handle_write(u8 v, IO_REG r);

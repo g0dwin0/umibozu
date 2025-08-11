@@ -1,4 +1,4 @@
-#include "mapper.h"
+#include "mapper.hpp"
 class MBC1 : public Mapper {
   u8 read8(const u16 address) override {
     if (address >= 0x4000 && address <= 0x7FFF) {
@@ -8,9 +8,9 @@ class MBC1 : public Mapper {
     if (address >= 0xA000 && address <= 0xBFFF) {
       if (ext_ram_enabled) {
         if (banking_mode == 0) {
-          return bus->cart.ext_ram.read8((0x2000 * 0) + (address - 0xA000));
+          return bus->cart.ext_ram.at((0x2000 * 0) + (address - 0xA000));
         } else {
-          return bus->cart.ext_ram.read8((0x2000 * ram_bank) +
+          return bus->cart.ext_ram.at((0x2000 * ram_bank) +
                                          (address - 0xA000));
         }
       }
@@ -46,10 +46,9 @@ class MBC1 : public Mapper {
       if (ext_ram_enabled) {
         assert(ram_bank <= 3);
         if (banking_mode == 0) {
-          bus->cart.ext_ram.write8((0x2000 * 0) + (address - 0xA000), value);
+          bus->cart.ext_ram.at((0x2000 * 0) + (address - 0xA000)) = value;
         } else {
-          bus->cart.ext_ram.write8((0x2000 * ram_bank) + (address - 0xA000),
-                                   value);
+          bus->cart.ext_ram.at((0x2000 * ram_bank) + (address - 0xA000))= value;
         }
       }
       return;

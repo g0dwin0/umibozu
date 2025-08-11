@@ -1,5 +1,5 @@
 #pragma once
-#include "common.h"
+#include "common.hpp"
 
 struct Joypad {
   u8 A      : 1 = 1;

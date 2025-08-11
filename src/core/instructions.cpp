@@ -1,16 +1,20 @@
-#include "instructions.h"
-#include "cpu.h"
+#include "instructions.hpp"
+#include "cpu.hpp"
 
 namespace Instructions {
 using Umibozu::SM83;
 void HALT(SM83 *c) {
   c->status = SM83::STATUS::HALT_MODE;
+  c->bus->cpu_is_halted = true;
+  // fmt::println("halt entered");
   while (c->status == SM83::STATUS::HALT_MODE) {
-    if (c->bus->io.data[IE] & c->bus->io.data[IF]) {
+    if (c->bus->io[IE] & c->bus->io[IF]) {
       c->status = SM83::STATUS::ACTIVE;
+      c->bus->cpu_is_halted = false;
     }
     c->m_cycle();
   }
+  // fmt::println("halt exit");
 }
 void RRA(SM83 *c) {
   if (c->get_flag(Umibozu::SM83::FLAG::CARRY)) {
@@ -163,12 +167,12 @@ void LD_M_R(SM83 *c, const u16 address, u8 val) {
   c->write8(address, val); }
 
 void LD_SP_U16(SM83 *c, u16 val) { c->SP = val; }
-void LD_R16_U16(SM83 *, Umibozu::SM83::REG_16 &r_1, u16 val) { r_1 = val; }
+void LD_R16_U16(SM83 *, u16 &r_1, u16 val) { r_1 = val; }
 void LD_U16_SP(SM83 *c, u16 address, u16 sp_val) {
   c->write8(address, sp_val & 0xFF);
   c->write8(address + 1, (sp_val & 0xFF00) >> 8);
 }
-void LD_R_AMV(SM83 *c, u8 &r_1, Umibozu::SM83::REG_16 &r_16) {
+void LD_R_AMV(SM83 *c, u8 &r_1, u16 &r_16) {
   r_1 = c->read8(r_16);
 }
 void DEC(SM83 *c, u8 &r) {
@@ -190,8 +194,8 @@ void SCF(SM83 *c) {
   c->reset_half_carry();
   c->set_carry();
 }
-void NOP(SM83 *) { return; }
-void DEC_R16(SM83 *c, Umibozu::SM83::REG_16 &r) {
+void NOP() { return; }
+void DEC_R16(SM83 *c, u16 &r) {
   r--;
   c->m_cycle();
 }
@@ -222,7 +226,7 @@ void INC(SM83 *c, u8 &r) {
   }
   c->reset_negative();
 }
-void INC_16(SM83 *c, Umibozu::SM83::REG_16 &r) {
+void INC_16(SM83 *c, u16 &r) {
   c->m_cycle();
   r++;
 }
@@ -281,14 +285,21 @@ void OR(SM83 *c, u8 &r, u8 r_2) {
   c->reset_half_carry();
   c->reset_carry();
 }
-void POP(SM83 *c, Umibozu::SM83::REG_16 &r) {
-  r.low = c->pull_from_stack();
-  r.high = c->pull_from_stack();
+void POP(SM83 *c, u16 &r) {
+
+  r = 0;
+
+  r |= c->pull_from_stack();
+  r |= (c->pull_from_stack() << 8);
+  
+
+  // r.low = c->pull_from_stack();
+  // r.high = c->pull_from_stack();
 }
-void PUSH(SM83 *c, Umibozu::SM83::REG_16 &r) {
+void PUSH(SM83 *c, u16 &r) {
   c->m_cycle();
-  c->push_to_stack(r.high);
-  c->push_to_stack(r.low);
+  c->push_to_stack(r >> 8);
+  c->push_to_stack(r & 0xFF);
 }
 void RRCA(SM83 *c) {
   if (c->A & 0x1) {

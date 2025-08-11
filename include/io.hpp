@@ -1,6 +1,6 @@
 #pragma once
 #include <fstream>
-#include "common.h"
+#include "common.hpp"
 
 struct File {
   std::vector<u8> data;

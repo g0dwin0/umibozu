@@ -1,10 +1,10 @@
 #pragma once
 
-#include "bus.h"
-#include "cpu.h"
+#include "bus.hpp"
+#include "cpu.hpp"
 #include "io.hpp"
-#include "apu.h"
-
+#include "apu.hpp"
+#include <atomic>
 struct GB {
   SM83 cpu;
   Timer timer; // DIV etc....
@@ -18,5 +18,9 @@ struct GB {
   void load_cart(const File&);
   void init_hw_regs(SYSTEM_MODE);
   
+  std::atomic<bool> active = true;
+
+  void save_game();
   void load_save_game();
+  void system_loop();
 };

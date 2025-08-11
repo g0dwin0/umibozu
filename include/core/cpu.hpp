@@ -16,7 +16,7 @@ static constexpr u8 TIMER_INTERRUPT  = 0x50;
 static constexpr u8 SERIAL_INTERRUPT = 0x58;
 static constexpr u8 JOYPAD_INTERRUPT = 0x60;
 
-static constexpr std::array<u8, 5> INTERRUPT_TABLE = {VBLANK_INTERRUPT, STAT_INTERRUPT, TIMER_INTERRUPT, SERIAL_INTERRUPT, JOYPAD_INTERRUPT};
+static constexpr std::array<u8, 5> IRQ_VECTOR_TABLE = {VBLANK_INTERRUPT, STAT_INTERRUPT, TIMER_INTERRUPT, SERIAL_INTERRUPT, JOYPAD_INTERRUPT};
 
 namespace Umibozu {
 
@@ -72,8 +72,6 @@ namespace Umibozu {
       };
     };
 
-    
-
     u16 SP        = 0xFFFE;
     u16 PC        = 0x0100;
     STATUS status = STATUS::PAUSED;
@@ -94,8 +92,8 @@ namespace Umibozu {
     void write8(const u16 address, const u8 value);
     void push_to_stack(const u8 value);
     u8 pull_from_stack();
-    void handle_system_io_write(const u16 address, const u8 value);
-    u8 handle_system_io_read(const u16 address);
+    void io_write(const u16 address, const u8 value);
+    u8 io_read(const u16 address);
 
     // CPU Internals
     void run_instruction();
