@@ -14,7 +14,7 @@ struct Bus;
 #include "common.hpp"
 #include "double_buffer.hpp"
 
-struct Mapper;
+class Mapper;
 #include "mapper.hpp"
 
 static constexpr u16 WHITE     = 0x6BFC;
@@ -57,7 +57,7 @@ union Attribute_Data {
 };
 struct Tile {
   std::array<std::array<Pixel, 8>, 8> pixel_data;
-  Attribute_Data attr_data;
+  Attribute_Data cgb_attr_data;
 };
 
 enum class RENDERING_MODE { HBLANK = 0, VBLANK, OAM_SCAN, PIXEL_DRAW };
@@ -79,6 +79,7 @@ struct Sprite {
   };
 
   Sprite(u8 y_pos, u8 x_pos, u8 tile_no, u8 s_flags) {
+    // this->sprite_index = sprite_index;
     this->y_pos   = y_pos;
     this->x_pos   = x_pos;
     this->tile_no = tile_no;
@@ -121,7 +122,9 @@ struct PPU {
   void set_ppu_mode(RENDERING_MODE mode);
   void add_sprite_to_buffer(u8 spriteIndex);
   u8 get_sprite_size() const;
-  static void flip_sprite(Tile &, FLIP_AXIS);  // move to sprite class
+  static void flip(Tile &, FLIP_AXIS);  // move to sprite class
+  static void flip_cgb(Tile &, FLIP_AXIS);  // move to sprite class
+  
   Tile active_tile;
   u8 window_current_y    = 0;
   u8 window_line_count   = 0;
@@ -138,7 +141,7 @@ struct PPU {
   DoubleBuffer db = DoubleBuffer(disp_buf, write_buf);
 
   SystemPalettes sys_palettes;
-  RENDERING_MODE get_mode() { return ppu_mode; }
+  RENDERING_MODE get_mode() const { return ppu_mode; }
 
   struct LCDC_R lcdc{0x91};
   u16 dots       = 0;
@@ -156,7 +159,7 @@ struct PPU {
 
   u8 x_pos_offset = 0;
   void tick(u16 inc);
-  [[nodiscard]] std::string get_mode_string();
+  [[nodiscard]] std::string get_mode_string() const;
 
   void process_hdma_chunk();
   void increment_scanline() const;
@@ -169,4 +172,6 @@ struct PPU {
   
   std::chrono::duration<double, std::milli> target_duration = std::chrono::duration<double, std::milli>(16.7);
   Stopwatch stopwatch;
+
+  bool hdma_executed_on_scanline = false;
 };

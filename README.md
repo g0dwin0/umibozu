@@ -1,20 +1,44 @@
 # [Umibōzu](https://en.wikipedia.org/wiki/Umib%C5%8Dzu) (海坊主)
-a rudimentary gameboy emulator 
 
-# NOTE
+Gameboy Color emulator written in C++20.
+Supports both Game Boy and Game Boy Color games!
 
-pending re-write. 
+(audio soon™....)
 
-This was the first project I wrote in C++. I wrote this a long time ago, a lot of it does not have comments, and in my opinion is designed quite poorly. I'll come back to this project later.
+## Features
 
+Umibozu supports features such as, but not limited to:
+
+- [ ] 5 save states
+- [ ] Full RTC support
+- [ ] GBC-support
+
+| Column 1      | Column 2      |
+| ------------- | ------------- |
+| Cell 1, Row 1 | Cell 2, Row 1 |
+| Cell 1, Row 2 | Cell 1, Row 2 |
+
+## NOTE
+
+This emulator is far from cycle-accurate. It was not developed with accuracy in mind, nevertheless, most games are playable!
+
+## Mappers
+
+Support all mainline mappers:
+
+[x] MBC1
+[x] MBC3 (incl. MBC30 up to 512 banks!)
+[x] MBC5
 
 ## why?
+
+This is my first project I've ever written in C++.
 
 you might be asking: "there are so many gameboy emulators out there! why make *another one*?"
 
 the reason i'm making this is to **learn!**
 
-i've always been intrigued by how emulators work, this would be an awesome learning experience.
+i've always been intrigued by how emulators work, this would be an awesome learning experience. at the same time, this project will also be used to learn C++.
 
 ## Resources
 
@@ -26,28 +50,35 @@ I used the following resources to create this emulator:
 ### [sm83-test-data](https://github.com/adtennant/sm83-test-data)
 
 
-## Usage
+# Controls :video_game:
+| Original | Keyboard |
+|----------|---------------------|
+| Down     |  Down Key           |
+| Up       | Up Key              |
+| Left     | Left Key            |
+| Right    | Right Key           |
+| Start    | Enter               |
+| Select   | BACKSPACE           |
+| B        | A                   |
+| A        | Z                   |
 
-Run `make check` to run the CPU tests.
 
-## Controls
-```
-A       =>  Z
-B       =>  X
-
-SELECT  => BACKSPACE
-START   => ENTER
-
-DPAD    => Arrow Keys
-```
+Don't like the controls? You can rebind them in the settings.
 
 ## Binaries
 
 Binaries are available in the Releases tab.
 
+Want to build from source? Check out the build section.
+
+## Building 🔨
+
+
+## Known Issues
+
+- [ ] Pokemon Crystal seems to have graphical artifacts when interacting with NPCs -- not sure why (looking into it)
 
 ## Issues
-
 Did you run into a crash/bug? Feel free to open a ticket, and I'll have a look.
 
 ## Screenshots

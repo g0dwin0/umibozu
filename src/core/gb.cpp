@@ -108,7 +108,6 @@ GB::GB() {
   bus.apu     = &apu;
   cpu.ppu     = &ppu;
   cpu.timer   = &timer;
-  // apu.timer = &timer;
   timer.apu = &apu;
   cpu.bus   = &bus;
   ppu.bus   = &bus;
@@ -138,7 +137,7 @@ void GB::load_cart(const File &rom) {
 
   // check rom compat mode -- set hw regs on init
 
-  if (bus.io[KEY0] == (u8)SYSTEM_MODE::CGB) {
+  if (bus.io[KEY0] == (u8)SYSTEM_MODE::CGB || bus.io[KEY0] == 0x80) {
     bus.mode = SYSTEM_MODE::CGB;
   } else {
     bus.mode = SYSTEM_MODE::DMG;

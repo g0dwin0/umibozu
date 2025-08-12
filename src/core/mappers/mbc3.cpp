@@ -10,14 +10,14 @@ class MBC3 : public Mapper {
 
     if (address >= 0xA000 && address <= 0xBFFF) {
       
-      if (ram_bank >= 8) { return 0xFF; } // TODO: 1 line rtc/ext check
+      if (ram_bank >= 8) { return 0xFF; }
       
-      if (register_mode == WRITING_MODE::RAM && ext_ram_enabled) {
+      if (register_mode == WRITING_MODE::RAM && rtc_ext_ram_enabled) {
         return bus->cart.ext_ram.at((0x2000 * ram_bank) +
                                        (address - 0xA000));
       }
 
-      if (register_mode == WRITING_MODE::RTC && rtc_enabled) {
+      if (register_mode == WRITING_MODE::RTC && rtc_ext_ram_enabled) {
         if (!latched_occured) return 0xFF;
         return latched.read_from_active_reg(active_rtc_register);
       }
@@ -28,15 +28,12 @@ class MBC3 : public Mapper {
   }
   void write8(const u16 address, const u8 value) override {
     if (address <= 0x1FFF) { 
-      if ((value & 0xF) == 0xA) { // TODO: 1 variable ext/rtc
-        ext_ram_enabled = true;
-        rtc_enabled     = true;
-        fmt::println("[MBC3] EXT RAM/RTC ENABLED");
+      if ((value & 0xF) == 0xA) {
+        rtc_ext_ram_enabled = true;
       } else {
-        ext_ram_enabled = false;
-        rtc_enabled     = false;
+        rtc_ext_ram_enabled = false;
         // rtc_internal_clock = 0;
-        fmt::println("[MBC3] EXT RAM/RTC DISABLED"); 
+        // fmt::println("[MBC3] EXT RAM/RTC DISABLED"); 
       }
       
       return;
@@ -73,7 +70,7 @@ class MBC3 : public Mapper {
     }
 
     if (address >= 0x6000 && address <= 0x7FFF) {
-      if (value == 0x01 && last_rtc_value == 0x00 && rtc_enabled) {
+      if (value == 0x01 && last_rtc_value == 0x00 && rtc_ext_ram_enabled) {
         latched_occured = true;
         latched         = actual;
         // fmt::println("latching");
@@ -87,13 +84,13 @@ class MBC3 : public Mapper {
       // fmt::println("CATCH!");
       // fmt::println("RAM BANK: {:#08x}");
 
-      if (register_mode == WRITING_MODE::RAM && ext_ram_enabled) {
+      if (register_mode == WRITING_MODE::RAM && rtc_ext_ram_enabled) {
         if (ram_bank >= 8) { return; }
         // fmt::println("writing to ext ram loc: {:#08x}",
         //              (0x2000 * ram_bank) + (address - 0xA000));
         bus->cart.ext_ram.at((0x2000 * ram_bank) + (address - 0xA000)) = value;
       }
-      if (register_mode == WRITING_MODE::RTC && rtc_enabled) {
+      if (register_mode == WRITING_MODE::RTC && rtc_ext_ram_enabled) {
         // fmt::println("writing to RTC register: {:#08x}", (u8)active_rtc_register);
 
         latched.write_to_active_reg(active_rtc_register, value, this->rtc_internal_clock);

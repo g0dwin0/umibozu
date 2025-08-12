@@ -198,6 +198,7 @@ void run_tests() {
         if (val != cpu.test_memory[i]) {
           fmt::println("t: ram[{:#04x}] = {:d} a: ram[{:#04x}] = {:d}", i, val,
                        i, cpu.test_memory[i]);
+            assert(0);
         }
         i++;
       }

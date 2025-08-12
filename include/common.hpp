@@ -6,7 +6,6 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-
 #include "fmt/core.h"
 
 using u8  = uint8_t;

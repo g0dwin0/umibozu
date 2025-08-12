@@ -1,6 +1,7 @@
 #include "frontend/window.hpp"
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_audio.h>
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_gamecontroller.h>
 #include <SDL2/SDL_joystick.h>
@@ -240,12 +241,9 @@ void Frontend::show_ppu_info() {
   }
   if (ImGui::Button("Framelimit to 120")) {
     gb->ppu.target_duration = std::chrono::duration<double, std::milli>((16.7 / 2));
-
   }
-  if (ImGui::Button("Uncap framerate")) {
+  if (ImGui::Button("Uncap framerate")) {}
 
-  }
-  
   ImGui::Separator();
 
   ImGui::Text("%s", fmt::format("LCDC =  {:08b}", gb->bus.io[LCDC]).c_str());
@@ -352,7 +350,7 @@ void Frontend::render_frame() {
   SDL_UpdateTexture(state.ppu_texture, nullptr, gb->ppu.db.disp_buf, 256 * 2);
   SDL_RenderCopy(renderer, state.ppu_texture, NULL, NULL);
 
-  ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
+  ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
   SDL_RenderPresent(renderer);
 }
 void Frontend::show_viewport() {
@@ -378,7 +376,6 @@ Frontend::Frontend(GB* gb) {
 
   this->window   = SDL_CreateWindow("umibozu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, window_flags);
   this->renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-  
 
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION();

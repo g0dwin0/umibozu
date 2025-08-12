@@ -1,8 +1,8 @@
 #include "apu.hpp"
-
 #include <SDL2/SDL_audio.h>
-
 #include "common.hpp"
+
+// #include "frontend/window.hpp"
 
 bool APU::can_write_when_power_off(IO_REG r) {
   switch (r) {
@@ -124,7 +124,7 @@ void APU::write(u8 v, IO_REG r) {
               n_freq = regs.CHANNEL_1.sweep_shadow_reg - (regs.CHANNEL_1.sweep_shadow_reg >> regs.CHANNEL_1.NR10.SHIFT);
               break;
             }
-            default: {
+            default: { [[unlikely]]
               // fmt::println("should be unreachable :{}", (u8)regs.CHANNEL_1.NR10.NEGATE);
               exit(-1);
             }
@@ -475,6 +475,7 @@ void FrameSequencer::step() {
     // nStep);
     return;
   }
+
 
   if ((nStep % 2) == 0) {  // Sound length
     // // fmt::println("step frame sequencer");

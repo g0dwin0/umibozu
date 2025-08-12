@@ -23,10 +23,12 @@ void SM83::m_cycle() {
     timer->increment_div(2);
     mapper->increment_internal_clock(2, mapper->actual.RTC_DAY);
     ppu->tick(2);
+    // bus->apu->tick(2);
   } else {
     timer->increment_div(4);
     mapper->increment_internal_clock(4, mapper->actual.RTC_DAY);  // refactor: this is not elegant
     ppu->tick(4);
+    // bus->apu->tick(4);
   }
 
   // if (bus->dma_queued) {
@@ -119,7 +121,7 @@ u8 SM83::io_read(const u16 address) {
     }
     case NR10 ... NR52: {
       u8 retval = 0;
-      retval    = bus->apu->handle_read((IO_REG)(address - 0xFF00));
+      retval    = bus->apu->read((IO_REG)(address - 0xFF00));
       // fmt::println("A: {}", A);
       // fmt::println("B: {}", B);
       // fmt::println("[APU] reading {:#4x} from {:#4x}", retval, (address));
@@ -146,8 +148,10 @@ u8 SM83::io_read(const u16 address) {
       break;
     }
     case KEY1: {
-      fmt::println("returning key1: {:#04x}", (u8)speed);
-      return (u8)speed;
+      if (bus->mode == SYSTEM_MODE::DMG) return 0xFF;
+
+      // fmt::println("returning key1: {:#04x}", bus->io[KEY1]);
+      return bus->io[KEY1];
     }
     case HDMA5: {
       fmt::println("HDMA5 read while active: {:08b}", bus->io[HDMA5]);
@@ -161,7 +165,7 @@ u8 SM83::read8(const u16 address) {
   return test_memory[address];
 #endif
   m_cycle();
-  // fmt::println("[R] {:#04x}", address);
+
   if (address >= 0xFE00 && address <= 0xFE9F && (u8)ppu->get_mode() >= 2) {
     return 0xFF;
   }
@@ -176,16 +180,16 @@ u8 SM83::read8(const u16 address) {
 u16 SM83::read16(const u16 address) {
   u8 low  = read8(address);
   u8 high = read8(address + 1);
-  PC++;
+  PC++;  // TODO: read function should not progress the PC, just read, increase PC where it needs to be increased
   return (high << 8) + low;
 }
 // debug only!
 u8 SM83::peek(const u16 address) const { return mapper->read8(address); }
 void SM83::init_hdma(u16 length) {
   ppu->hdma_index = 0;
-  bus->io[HDMA5] |= 0x80;
 
   bus->io[HDMA5] = (length / 0x10) - 1;
+  fmt::println("HDMA initialized, remaining blocks: {:#010x}", bus->io[HDMA5]);
 };
 void SM83::terminate_hdma() {
   fmt::println("HDMA terminated early.");
@@ -341,7 +345,7 @@ void SM83::io_write(const u16 address, const u8 value) {
     }
 
     case NR10 ... NR52: {
-      bus->apu->handle_write(value, (IO_REG)(address - 0xFF00));
+      bus->apu->write(value, (IO_REG)(address - 0xFF00));
 
       break;
     }
@@ -394,10 +398,20 @@ void SM83::io_write(const u16 address, const u8 value) {
 
       return;
     }
-    case HDMA1:
-    case HDMA2:
-    case HDMA3:
+    case HDMA1: {
+      fmt::println("HDMA1: {:#010x}", value);
+      break;
+    }
+    case HDMA2: {
+      fmt::println("HDMA2: {:#010x}", value);
+      break;
+    }
+    case HDMA3: {
+      fmt::println("HDMA3: {:#010x}", value);
+      break;
+    }
     case HDMA4: {
+      fmt::println("HDMA4: {:#010x}", value);
       break;
     }
     case HDMA5: {
@@ -410,15 +424,17 @@ void SM83::io_write(const u16 address, const u8 value) {
         return terminate_hdma();
       }
 
+      bool is_hdma = ((value & 0x80) != 0);
+
       u16 length = (1 + (value & 0x7f)) * 0x10;
       u16 src    = ((bus->io[HDMA1] << 8) + bus->io[HDMA2]) & 0xfff0;
       u16 dst    = ((bus->io[HDMA3] << 8) + bus->io[HDMA4]) & 0x1ff0;
 
-      fmt::println("[(G/H)DMA] src:     {:#16x}", src);
-      fmt::println("[(G/H)DMA] dst:     {:#16x} ({:#04x})", dst, VRAM_ADDRESS_OFFSET + dst);
-      fmt::println("[(G/H)DMA] length:  {:#16x}", length);
+      fmt::println("[{}DMA] src:     {:#16x}", is_hdma ? "H" : "G", src);
+      fmt::println("[{}DMA] dst:     {:#16x} ({:#04x})", is_hdma ? "H" : "G", dst, VRAM_ADDRESS_OFFSET + dst);
+      fmt::println("[{}DMA] length:  {:#16x}", is_hdma ? "H" : "G", length);
 
-      if ((value & 0x80) == 0) {  // GDMA
+      if (!is_hdma) {  // GDMA
         for (size_t index = 0; index < length; index++) {
           u16 src_address = (src + index);
           u8 src_data     = mapper->read8(src_address);
@@ -681,7 +697,8 @@ void SM83::run_instruction() {
       break;
     }
     case 0x10: {
-      Instructions::STOP();
+      fmt::println("ran stop");
+      Instructions::STOP(this);
       PC++;
       break;
     }
@@ -2905,7 +2922,7 @@ void SM83::run_instruction() {
     }
     case 0xF3: {
       IME = false;
-      fmt::println("IME disabled");
+      // fmt::println("IME disabled");
       break;
     }
     case 0xF5: {

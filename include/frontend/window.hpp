@@ -1,5 +1,6 @@
 #pragma once
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_audio.h>
 #include <SDL2/SDL_keyboard.h>
 #include <SDL2/SDL_scancode.h>
 
@@ -23,10 +24,14 @@ struct State {
   bool controls_window_open = false;
   bool memory_viewer_open   = false;
 
+  u32 mixer_audioDevice = 0;
+
   size_t menu_bar_size = 0;
 
   ImGuiIO* io = nullptr;
 };
+
+
 struct Settings {
   struct Keybinds {
     std::unordered_map<BUTTONS, std::pair<SDL_Scancode, bool>> control_map = {

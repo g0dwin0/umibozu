@@ -129,15 +129,11 @@ class Mapper {
   }
 
   void increment_internal_clock(u8 amount, const u16& RTC_DAY) {
-    if (!rtc_enabled) return;
-    if ((RTC_DAY & (1 << 14)) != 0) {
-      // fmt::println("RTC day: {:016b}", RTC_DAY);
-      return;
-    }
+    if (!rtc_ext_ram_enabled) return;
+    if ((RTC_DAY & (1 << 14)) != 0) return;
 
     rtc_internal_clock += amount;
 
-    // fmt::println("[MBC3] internal clock: {}", internal_clock);
     if (rtc_internal_clock == 4194304) {
       tick_rtc();
       rtc_internal_clock = 0;
@@ -148,8 +144,7 @@ class Mapper {
   u8 last_rtc_value                = 0xFF;
   bool latched_occured             = false;
   RTC_INSTANCE latched, actual = {};
-  bool ext_ram_enabled = false;
-  bool rtc_enabled     = false;
+  bool rtc_ext_ram_enabled = false;
 
   virtual u8 read8(const u16 address)                    = 0;
   virtual void write8(const u16 address, const u8 value) = 0;

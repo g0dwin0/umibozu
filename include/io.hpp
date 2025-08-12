@@ -1,7 +1,7 @@
 #pragma once
 #include <fstream>
 #include "common.hpp"
-
+#include <vector>
 struct File {
   std::vector<u8> data;
   u64 file_size;

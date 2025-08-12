@@ -1,11 +1,10 @@
 #include <thread>
 
-#include "CLI11.hpp"
+#include "CLI/CLI11.hpp"
 #include "cpu.hpp"
 #include "frontend/window.hpp"
 #include "gb.hpp"
 #include "io.hpp"
-
 int handle_args(int& argc, char** argv, std::string& filename) {
   CLI::App app{"", "bass"};
   app.add_option("-f,--file", filename, "path to ROM")->required();
@@ -17,7 +16,7 @@ int handle_args(int& argc, char** argv, std::string& filename) {
 using namespace Umibozu;
 
 int main(int argc, char** argv) {
-  GB gb;
+  GB gb = {};
   Frontend fe(&gb);
 
   std::string filename = {};
@@ -26,7 +25,7 @@ int main(int argc, char** argv) {
   auto f = read_file(filename);
 
   gb.load_cart(f);
-
+  
   std::thread system = std::thread(&GB::system_loop, &gb);
 
   while (fe.state.running) {
