@@ -251,14 +251,12 @@ struct FrameSequencer {
   [[nodiscard]] u8 get_step();
 };
 
-class APU {
- private:
- public:
+struct APU {
   Registers regs;
-  void handle_write(u8 v, IO_REG r);
+  void write(u8 v, IO_REG r);
   FrameSequencer frame_sequencer = {&regs};
   void clear_apu_registers();
-  bool is_allowed_reg(IO_REG r);
+  bool can_write_when_power_off(IO_REG r);
   u16 calculate_new_freq();
-  [[nodiscard]] u8 handle_read(IO_REG r);
+  [[nodiscard]] u8 read(IO_REG r);
 };
