@@ -5,6 +5,10 @@ Supports both Game Boy and Game Boy Color games!
 
 (audio soon™....)
 
+For the time being, this will only support Linux. Reason being is that moving from a Makefile to CMake w/ proper ISO C++ compliant code seems to be quite an effort, especially due to usage of GNU extensions.
+
+I'll add Windows support... eventually.
+
 ## Features
 
 Umibozu supports features such as, but not limited to:
