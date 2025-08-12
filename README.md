@@ -13,10 +13,6 @@ Umibozu supports features such as, but not limited to:
 - [ ] Full RTC support
 - [ ] GBC-support
 
-| Column 1      | Column 2      |
-| ------------- | ------------- |
-| Cell 1, Row 1 | Cell 2, Row 1 |
-| Cell 1, Row 2 | Cell 1, Row 2 |
 
 ## NOTE
 
@@ -50,7 +46,7 @@ I used the following resources to create this emulator:
 ### [sm83-test-data](https://github.com/adtennant/sm83-test-data)
 
 
-# Controls :video_game:
+# Controls
 | Original | Keyboard |
 |----------|---------------------|
 | Down     |  Down Key           |
@@ -70,9 +66,6 @@ Don't like the controls? You can rebind them in the settings.
 Binaries are available in the Releases tab.
 
 Want to build from source? Check out the build section.
-
-## Building 🔨
-
 
 ## Known Issues
 
