@@ -21,7 +21,6 @@ static constexpr u16 WHITE     = 0x6BFC;
 static constexpr u16 LIGHTGREY = 0x3B11;
 static constexpr u16 DARKGREY  = 0x29A6;
 static constexpr u16 BLACK     = 0x0000;
-
 static constexpr u16 VRAM_ADDRESS_OFFSET = 0x8000;
 
 struct LCDC_R {
@@ -50,8 +49,10 @@ union Attribute_Data {
   struct {
     u8 color_palette : 3;
     u8 bank          : 1;
-    u8 x_flip        : 1;
-    u8 y_flip        : 1;
+
+    u8               : 1;
+    bool x_flip      : 1;
+    bool y_flip      : 1;
     bool priority    : 1;
   };
 };
@@ -67,19 +68,18 @@ struct Sprite {
   u8 x_pos   = 0;
   u8 tile_no = 0;
   union {
-    u8 value;
+    u8 value = 0;
     struct {
-      u8 cgb_palette        : 3 = 0;
-      u8 bank               : 1 = 0;
-      u8 palette_number     : 1 = 0;
-      u8 x_flip             : 1 = 0;
-      u8 y_flip             : 1 = 0;
-      u8 obj_to_bg_priority : 1 = 0;
+      u8 cgb_palette        : 3;
+      u8 bank               : 1;
+      u8 palette_number     : 1;
+      bool x_flip           : 1;
+      bool y_flip           : 1;
+      u8 obj_to_bg_priority : 1;
     };
   };
 
   Sprite(u8 y_pos, u8 x_pos, u8 tile_no, u8 s_flags) {
-    // this->sprite_index = sprite_index;
     this->y_pos   = y_pos;
     this->x_pos   = x_pos;
     this->tile_no = tile_no;
@@ -88,17 +88,14 @@ struct Sprite {
 };
 struct Frame {
   Frame();
-
-  std::array<u16, 256 * 256> data;      // refactor: what is data? give more descriptive name
-  std::array<u8, 256 * 256> color_id;   // refactor: is this a cgb thing?  more descriptive
-  std::array<bool, 256 * 256> bg_prio;  // refactor: ??? what does this mean?
-                                        // does the bg have prio, or the obj?
-
+  std::array<u8, 256 * 256> color_id;   // holds the current color id occupying this space in the frame, used to determine priority
+  std::array<bool, 256 * 256> bg_prio;  // used to determine priority, checks if background has bit 7 set -- https://gbdev.io/pandocs/Tile_Maps.html#bg-map-attributes-cgb-mode-only
+                                        
   void clear() {
-    data.fill(0);
     color_id.fill(0);
     bg_prio.fill(false);
   }
+
 };
 
 enum class FLIP_AXIS { X, Y };
@@ -122,9 +119,7 @@ struct PPU {
   void set_ppu_mode(RENDERING_MODE mode);
   void add_sprite_to_buffer(u8 spriteIndex);
   u8 get_sprite_size() const;
-  static void flip(Tile &, FLIP_AXIS);  // move to sprite class
-  static void flip_cgb(Tile &, FLIP_AXIS);  // move to sprite class
-  
+  static void flip(Tile &, FLIP_AXIS);
   Tile active_tile;
   u8 window_current_y    = 0;
   u8 window_line_count   = 0;
@@ -163,15 +158,17 @@ struct PPU {
 
   void process_hdma_chunk();
   void increment_scanline() const;
-  [[nodiscard]] Tile get_tile_data(u16 address, bool sprite = false) const;
-  [[nodiscard]] Tile get_tile_sprite_data(u16 index, bool sprite = false, u8 bank = 0) const;
+
+  // REFACTOR: i think these functions actually do the same thing, merge into one.
+  [[nodiscard]] Tile get_tile_data(u16 address, bool sprite = false) const; 
+  [[nodiscard]] Tile get_tile_sprite_data(u16 index, bool sprite = false, u8 bank = 0) const; 
 
   const std::array<u16, 4> shade_table = {WHITE, LIGHTGREY, DARKGREY, BLACK};
   bool window_enabled                  = false;
   static std::array<Pixel, 8> decode_pixel_row(u8 high_byte, u8 low_byte);
-  
-  std::chrono::duration<double, std::milli> target_duration = std::chrono::duration<double, std::milli>(16.7);
+
   Stopwatch stopwatch;
+  std::chrono::duration<double, std::milli> target_duration = std::chrono::duration<double, std::milli>(16.7);
 
   bool hdma_executed_on_scanline = false;
 };

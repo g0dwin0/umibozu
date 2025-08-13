@@ -14,7 +14,7 @@
 #include "common.hpp"
 #include "stopwatch.hpp"
 
-Frame::Frame() { data.fill(0); }
+Frame::Frame() {};
 
 u8 PPU::get_sprite_size() const { return lcdc.sprite_size == 0 ? 8 : 16; }
 
@@ -55,30 +55,10 @@ void PPU::add_sprite_to_buffer(u8 spriteIndex) {
 
   Sprite current_sprite = Sprite(sprite_y, sprite_x, tile_number, sprite_flags);
 
-  // DMG sprite prio
-  // if (bus->mode == SYSTEM_MODE::DMG) {
-  //   for (const auto& sprite : sprite_buf) {
-  //     if (sprite.x_pos == current_sprite.x_pos) {
-  //       return;
-  //     }
-  //   }
-  // }
-  // CGB sprite prio
-
   sprite_buf.push_back(current_sprite);
 }
 
 void PPU::flip(Tile& t, FLIP_AXIS a) {
-  if (a == FLIP_AXIS::X) {
-    for (u8 y = 0; y < 8; y++) {
-      std::reverse(std::begin(t.pixel_data[y]), std::end(t.pixel_data[y]));
-    }
-  } else {
-    std::reverse(std::begin(t.pixel_data), std::end(t.pixel_data));
-  }
-}
-
-void PPU::flip_cgb(Tile& t, FLIP_AXIS a) {
   if (a == FLIP_AXIS::X) {
     for (u8 y = 0; y < 8; y++) {
       std::reverse(std::begin(t.pixel_data[y]), std::end(t.pixel_data[y]));
@@ -97,13 +77,13 @@ void PPU::tick(u16 dots_inc) {
   // Mode 1, is VBLANK, we do nothing but count up until we hit scanline 160~
   // then we start over
 
-  if (lcdc.lcd_ppu_enable == 0) {
+  if (!lcdc.lcd_ppu_enable) {
     return;
   }
-  // fmt::println("LY: {} jumping to: {}", bus->io[LY], (u8)ppu_mode);
-  switch (ppu_mode) {  // What mode are we in?
+
+  switch (ppu_mode) {
     case RENDERING_MODE::OAM_SCAN: {
-      if ((bus->io[WY] == bus->io[LY]) && lcdc.window_disp_enable == 1) {
+      if ((bus->io[WY] == bus->io[LY]) && lcdc.window_disp_enable) {
         window_enabled = true;
       }
 
@@ -113,14 +93,15 @@ void PPU::tick(u16 dots_inc) {
       }
 
       if (dots == 80) {
-        // CGB only
-        if (bus->mode == SYSTEM_MODE::CGB) {  // ?
-          std::reverse(sprite_buf.begin(), sprite_buf.end());
+        if (bus->mode == SYSTEM_MODE::CGB) {
+          // std::reverse(sprite_buf.begin(), sprite_buf.end());
+          std::sort(sprite_buf.begin(), sprite_buf.end(), [](const Sprite& sprite0, const Sprite& sprite1) { return sprite0.x_pos < sprite1.x_pos; });
         }
 
-        if (bus->mode == SYSTEM_MODE::DMG) {
+        if (bus->mode == SYSTEM_MODE::DMG || bus->io[OPRI] == PRIORITY_MODE::DMG) {
           std::stable_sort(sprite_buf.begin(), sprite_buf.end(), [](const Sprite& sprite0, const Sprite& sprite1) { return sprite0.x_pos >= sprite1.x_pos; });
         }
+
         assert(sprite_buf.size() <= 10);
         set_ppu_mode(RENDERING_MODE::PIXEL_DRAW);
       }
@@ -138,7 +119,7 @@ void PPU::tick(u16 dots_inc) {
     case RENDERING_MODE::HBLANK: {
       if ((bus->io[HDMA5] & 0x80) == 0 && bus->mode == SYSTEM_MODE::CGB && !bus->cpu_is_halted && !hdma_executed_on_scanline) {
         assert(bus->io[LY] <= 144);
-        // fmt::println("running block transfer -- LY: {}", bus->io[LY]);
+
         u16 src = ((bus->io[HDMA1] << 8) + bus->io[HDMA2]) & 0xfff0;
         u16 dst = ((bus->io[HDMA3] << 8) + bus->io[HDMA4]) & 0x1ff0;
 
@@ -163,7 +144,6 @@ void PPU::tick(u16 dots_inc) {
             // fmt::println("{:#010x} = {:#02X}", 0x8000 + vram_address, bus->vram->at(vram_address));
           }
         }
-        // fmt::println("pass end");
 
         if ((bus->io[HDMA5] & 0x7f) == 0) {
           // we're done
@@ -218,7 +198,8 @@ void PPU::tick(u16 dots_inc) {
         dots = 0;
 
         sprite_buf.clear();
-        return increment_scanline();
+        increment_scanline();
+        return;
       }
 
       // Reset scanline to line 0, start drawing new frame
@@ -263,13 +244,11 @@ Tile PPU::get_tile_data(u16 address, bool sprite) const {
   u8 index = bus->vram->at(address);
   u8 matching_attr_byte;
   if (bus->mode == SYSTEM_MODE::CGB) {
-    // bus->vram = &bus->vram_banks[1];
-
     matching_attr_byte = bus->vram_banks[1].at(address);
 
     bus->vram = &bus->vram_banks[bus->vbk];
 
-    tile.cgb_attr_data.value = (matching_attr_byte);
+    tile.cgb_attr_data.value = matching_attr_byte;
     bus->vram                = &bus->vram_banks[tile.cgb_attr_data.bank];
   }
 
@@ -312,16 +291,18 @@ Tile PPU::get_tile_data(u16 address, bool sprite) const {
 
 Tile PPU::get_tile_sprite_data(u16 index, bool sprite, u8 bank) const {
   Tile tile;
+
   assert(bank < 2);
 
-  if (bus->mode == SYSTEM_MODE::CGB) {
-    bus->vram = &bus->vram_banks[bank];
-  }
-
   if (lcdc.tiles_select_method == 1 || sprite) {
+    if (bus->mode == SYSTEM_MODE::CGB) {
+      bus->vram = &bus->vram_banks[bank];
+    }
+
     for (u8 row = 0; row < 8; row++) {
-      u8 low_byte  = bus->vram->at((0x8000 + (row * 2) + (index * 16)) - VRAM_ADDRESS_OFFSET);
-      u8 high_byte = bus->vram->at(((0x8000 + (row * 2) + (index * 16)) - VRAM_ADDRESS_OFFSET) + 1);
+      u16 addr     = (0x8000 + (row * 2) + (index * 16)) - VRAM_ADDRESS_OFFSET;
+      u8 low_byte  = bus->vram->at(addr);
+      u8 high_byte = bus->vram->at(addr + 1);
 
       auto pixel_array = decode_pixel_row(high_byte, low_byte);
 
@@ -335,8 +316,7 @@ Tile PPU::get_tile_sprite_data(u16 index, bool sprite, u8 bank) const {
     }
 
     return tile;
-  }
-  if (lcdc.tiles_select_method == 0) {
+  } else {
     for (u8 row = 0; row < 8; row++) {
       u16 address  = (0x9000 + (row * 2) + ((i8)index * 16)) - VRAM_ADDRESS_OFFSET;
       u8 low_byte  = bus->vram->at(address);
@@ -348,14 +328,15 @@ Tile PPU::get_tile_sprite_data(u16 index, bool sprite, u8 bank) const {
         tile.pixel_data[row][pixel_index] = pixel_array[pixel_index];
       }
     }
-  }
 
-  if (bus->mode == SYSTEM_MODE::CGB) {
-    bus->vram = &bus->vram_banks[bus->vbk];
-  }
+    if (bus->mode == SYSTEM_MODE::CGB) {
+      bus->vram = &bus->vram_banks[bus->vbk];
+    }
 
-  return tile;
+    return tile;
+  }
 }
+
 u16 PPU::get_tile_bg_map_address_base() const { return lcdc.bg_tile_map_select == 1 ? 0x9C00 : 0x9800; }
 u16 PPU::get_tile_window_map_address_base() const { return lcdc.window_tile_map_select == 1 ? 0x9C00 : 0x9800; }
 
@@ -391,33 +372,27 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
     if (old_hidden_stat == 0 && bus->hidden_stat == 1) {
       bus->request_interrupt(INTERRUPT_TYPE::LCD);
     }
-    // fmt::println(" LY: {} new mode: {}", bus->io[LY], (u32)new_mode);
 
-    switch (ppu_mode) {  // What to do?
+    switch (ppu_mode) {
       case RENDERING_MODE::HBLANK: {
         u8 y = bus->io[LY] + bus->io[SCY];
 
         for (u16 scanline_tile_index = 0; scanline_tile_index < 32; scanline_tile_index++) {  // A scanline is 256 pixels long.
-          // if (y % 8 == 0) {
-          //   y_index = (y / 8);
-          // }
 
           u16 address = (get_tile_bg_map_address_base() + ((y / 8) * 32) + ((x_pos_offset + (bus->io[SCX] / 8)) % 32)) - VRAM_ADDRESS_OFFSET;
 
-          if (window_enabled && lcdc.window_disp_enable == 1 && bus->io[WX] < 167 && (x_pos_offset * 8) >= bus->io[WX] - 7) {
+          if (window_enabled && lcdc.window_disp_enable && bus->io[WX] < 167 && (x_pos_offset * 8) >= bus->io[WX] - 7) {
             address = (get_tile_window_map_address_base() + (window_line_count * 32) + (window_x_pos_offset)) - VRAM_ADDRESS_OFFSET;
             window_x_pos_offset++;
           }
 
           active_tile = get_tile_data(address);
 
-          // Flip BG tile
-
-          if (active_tile.cgb_attr_data.x_flip == 1) {
-            // flip_cgb(active_tile, FLIP_AXIS::X);
+          if (active_tile.cgb_attr_data.x_flip) {
+            flip(active_tile, FLIP_AXIS::X);
           }
-          if (active_tile.cgb_attr_data.y_flip == 1) {
-            // flip_cgb(active_tile, FLIP_AXIS::Y);
+          if (active_tile.cgb_attr_data.y_flip) {
+            flip(active_tile, FLIP_AXIS::Y);
           }
 
           for (u8 x = 0; x < 8; x++) {
@@ -428,11 +403,12 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
             } else {
               color = sys_palettes.BGP[0][active_tile.pixel_data[y % 8][(7 - x)]];
             }
+
             u32 line_base = ((bus->io[LY]) * 256);
 
             i32 line_x;
 
-            if (window_enabled && lcdc.window_disp_enable == 1 && bus->io[WX] < 167 && x + (x_pos_offset * 8) >= bus->io[WX] - 7) {
+            if (window_enabled && lcdc.window_disp_enable && bus->io[WX] < 167 && x + (x_pos_offset * 8) >= bus->io[WX] - 7) {
               line_x = abs(x + (x_pos_offset * 8));
             } else {
               line_x = abs(x + (x_pos_offset * 8) - (bus->io[SCX] & 7));
@@ -452,7 +428,7 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
             // TODO: holds color_id, not mapped to bgr color
             // used to determine priority
             frame.color_id[buf_pos] = active_tile.pixel_data[y % 8][7 - x];
-            // frame.bg_prio[buf_pos]  = active_tile.attr_data.priority;
+            frame.bg_prio[buf_pos]  = active_tile.cgb_attr_data.priority;
             db.write(buf_pos, color);
           }
 
@@ -465,7 +441,6 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
             Tile top_tile;
             Tile lower_tile;
 
-            // Get sprite data
             if (get_sprite_size() == 16) {
               top_tile   = get_tile_sprite_data((sprite.tile_no & 0xFE), true, sprite.bank);
               lower_tile = get_tile_sprite_data((sprite.tile_no | 0x01), true, sprite.bank);
@@ -473,18 +448,17 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
               top_tile = get_tile_sprite_data(sprite.tile_no, true, sprite.bank);
             }
 
-            // Determine palette depending on system mode
             if (bus->mode == SYSTEM_MODE::CGB) {
               palette = sys_palettes.get_palette_by_id(sprite.cgb_palette);
             } else {
               palette = sys_palettes.get_palette_by_id(sprite.palette_number);
             }
 
-            // flip sprite -- if necessary
             if (sprite.x_flip == 1) {
               flip(top_tile, FLIP_AXIS::X);
               flip(lower_tile, FLIP_AXIS::X);
             }
+
             if (sprite.y_flip == 1) {
               if (get_sprite_size() == 16) {
                 std::swap(top_tile, lower_tile);
@@ -494,6 +468,7 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
             }
 
             u16 current_y = (bus->io[LY] - sprite.y_pos) + 16;
+
             for (u8 x = 0; x < 8; x++) {
               i16 current_x = sprite.x_pos - x - 1;
               if (current_x < 0) {
@@ -502,52 +477,27 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
 
               u32 buf_pos = (current_x) + ((bus->io[LY]) * 256);
 
-              // if(top_tile.pixel_data[current_y % 8][x].color == 0) continue;
-
-              if (bus->mode == SYSTEM_MODE::CGB && (bus->io[OPRI] & 0x1) == (u8)PRIORITY_MODE::CGB) {
-                // BG priority has prio over sprite prio
-
-                // TODO: WHAT DOES THIS DO [NEED REFERENCE]
-                // if (lcdc.bg_and_window_enable_priority && (sprite.obj_to_bg_priority || frame.bg_prio[buf_pos]) && frame.color_id[buf_pos] > 0) {
-                //   continue;
-                // }
-              }
-
-              if (sprite.obj_to_bg_priority == 0) {
-                if (get_sprite_size() == 16) {
-                  if (current_y < 8) {
-                    if (top_tile.pixel_data[current_y % 8][x] == 0) continue;
-
-                    db.write(buf_pos, palette[top_tile.pixel_data[current_y % 8][x]]);
-                  } else {
-                    if (lower_tile.pixel_data[current_y % 8][x] == 0) continue;
-
-                    db.write(buf_pos, palette[lower_tile.pixel_data[current_y % 8][x]]);
-                  }
-                } else {
-                  if (top_tile.pixel_data[current_y % 8][x] == 0) continue;
-
-                  db.write(buf_pos, palette[top_tile.pixel_data[current_y % 8][x]]);
+              if (bus->mode == SYSTEM_MODE::CGB) {
+                // https://gbdev.io/pandocs/Tile_Maps.html#bg-to-obj-priority-in-cgb-mode
+                if (lcdc.bg_and_window_enable_priority && (sprite.obj_to_bg_priority || frame.bg_prio[buf_pos]) && frame.color_id[buf_pos] > 0) {
+                  continue;
                 }
               }
 
-              // Priority: 0 = No, 1 = BG and Window color indices 1–3 are drawn over this OBJ
-              if (sprite.obj_to_bg_priority == 1) {
-                if (frame.color_id[buf_pos] > 0) continue;  // The background/window has priority, if it is not set 0.
-
-                if (get_sprite_size() == 16) {
-                  if (current_y < 8) {
-                    if (top_tile.pixel_data[current_y % 8][x] == 0) continue;
-                    db.write(buf_pos, palette[top_tile.pixel_data[current_y % 8][x]]);
-                  } else {
-                    if (lower_tile.pixel_data[current_y % 8][x] == 0) continue;
-                    db.write(buf_pos, palette[lower_tile.pixel_data[current_y % 8][x]]);
-                  }
-
-                } else {
+              if (get_sprite_size() == 16) {
+                if (current_y < 8) {
                   if (top_tile.pixel_data[current_y % 8][x] == 0) continue;
+
                   db.write(buf_pos, palette[top_tile.pixel_data[current_y % 8][x]]);
+                } else {
+                  if (lower_tile.pixel_data[current_y % 8][x] == 0) continue;
+
+                  db.write(buf_pos, palette[lower_tile.pixel_data[current_y % 8][x]]);
                 }
+              } else {
+                if (top_tile.pixel_data[current_y % 8][x] == 0) continue;
+
+                db.write(buf_pos, palette[top_tile.pixel_data[current_y % 8][x]]);
               }
             }
           }
@@ -558,9 +508,9 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
       case RENDERING_MODE::VBLANK: {
         bus->request_interrupt(INTERRUPT_TYPE::VBLANK);
         db.swap_buffers();
-
+        frame.bg_prio.fill(false);
+        frame.color_id.fill(0);
         stopwatch.end();
-        // fmt::println("Frametime: {}ms", (stopwatch.duration.count()));
 
         auto target_duration = std::chrono::duration<double, std::milli>(16.7);
         std::this_thread::sleep_for(target_duration - stopwatch.duration);
@@ -568,9 +518,7 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
         break;
       }
 
-      case RENDERING_MODE::OAM_SCAN: {
-        break;
-      }
+      case RENDERING_MODE::OAM_SCAN:
       case RENDERING_MODE::PIXEL_DRAW: {
         break;
       }
