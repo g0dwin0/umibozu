@@ -7,7 +7,7 @@
 #include <atomic>
 struct GB {
   SM83 cpu;
-  Timer timer; // DIV etc....
+  Timer timer;
   PPU ppu;
   Bus bus;
   APU apu;

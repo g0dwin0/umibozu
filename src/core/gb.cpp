@@ -5,6 +5,8 @@
 #include "bus.hpp"
 #include "cpu.hpp"
 #include "mapper.hpp"
+#include "io_defs.hpp"
+
 
 void GB::init_hw_regs(SYSTEM_MODE mode) {
   switch (mode) {
@@ -115,7 +117,9 @@ GB::GB() {
 }
 
 GB::~GB() {
-  if (bus.cart.info.title.empty()) {
+  if (bus.cart.info.title.empty()) { 
+    // TODO: if the cart has no title, we can't save it, as we have no name
+    // grab some bytes from the file, hash, and use it as an identifier for saves anyway
     return;
   }
 
@@ -137,7 +141,7 @@ void GB::load_cart(const File &rom) {
 
   // check rom compat mode -- set hw regs on init
 
-  if (bus.io[KEY0] == (u8)SYSTEM_MODE::CGB || bus.io[KEY0] == 0x80) {
+  if (bus.io[KEY0] == static_cast<u8>(SYSTEM_MODE::CGB) || bus.io[KEY0] == 0x80) {
     bus.mode = SYSTEM_MODE::CGB;
   } else {
     bus.mode = SYSTEM_MODE::DMG;
@@ -158,7 +162,9 @@ void GB::load_cart(const File &rom) {
 
 void GB::save_game() {
   if (!std::filesystem::exists("saves")) {
-    std::filesystem::create_directory("saves");
+    if(!std::filesystem::create_directory("saves")) {
+      fmt::println("could not create save directory");
+    }
   }
 
   std::ofstream save(fmt::format("saves/{}.sav", bus.cart.info.title), std::ios::binary | std::ios::trunc);
@@ -178,7 +184,7 @@ void GB::load_save_game() {
     File save_file = read_file(save_path);
     u64 index      = 0;
     for (auto &byte : save_file.data) {
-      bus.cart.ext_ram[index++] = byte;
+      bus.cart.ext_ram.at(index++) = byte;
     }
 
     fmt::println("[GB] save loaded");

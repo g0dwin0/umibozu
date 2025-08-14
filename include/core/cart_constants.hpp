@@ -1,9 +1,9 @@
 #pragma once
+#include "common.hpp"
 #include <unordered_map>
 
-#include "common.hpp"
 
-const std::unordered_map<u8, std::string> cart_types = {
+const std::unordered_map<u8, std::string_view> cart_types = {
     {0x00,                       "ROM ONLY"},
     {0x01,                           "MBC1"},
     {0x02,                       "MBC1+RAM"},

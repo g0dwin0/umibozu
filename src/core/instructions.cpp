@@ -2,6 +2,7 @@
 
 #include "bus.hpp"
 #include "cpu.hpp"
+#include "gb.hpp"
 
 namespace Instructions {
   using Umibozu::SM83;
@@ -139,6 +140,10 @@ namespace Instructions {
 
   void STOP(SM83 *c) {
     if (c->bus->mode != SYSTEM_MODE::CGB) return;
+
+
+
+
     return;
   }
   void ADD_SP_E8(SM83 *c) {

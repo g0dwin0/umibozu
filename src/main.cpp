@@ -1,7 +1,6 @@
 #include <thread>
 
 #include "CLI/CLI11.hpp"
-#include "cpu.hpp"
 #include "frontend/window.hpp"
 #include "gb.hpp"
 #include "io.hpp"
@@ -16,13 +15,13 @@ int handle_args(int& argc, char** argv, std::string& filename) {
 using namespace Umibozu;
 
 int main(int argc, char** argv) {
-  GB gb = {};
-  Frontend fe(&gb);
-
   std::string filename = {};
   handle_args(argc, argv, filename);
 
   auto f = read_file(filename);
+
+  GB gb = {};
+  Frontend fe(&gb);
 
   gb.load_cart(f);
   

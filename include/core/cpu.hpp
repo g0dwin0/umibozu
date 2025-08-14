@@ -21,9 +21,9 @@ static constexpr std::array<u8, 5> IRQ_VECTOR_TABLE = {VBLANK_INTERRUPT, STAT_IN
 namespace Umibozu {
 
   struct SM83 {
-    enum class FLAG { CARRY = 4, HALF_CARRY = 5, NEGATIVE = 6, ZERO = 7 };
-    enum class STATUS { ACTIVE, HALT_MODE, STOP, PAUSED };
-    enum class SPEED { NORMAL = 0x00, DOUBLE = 0x80 };
+    enum class FLAG : u8 { CARRY = 4, HALF_CARRY = 5, NEGATIVE = 6, ZERO = 7 };
+    enum class STATUS : u8 { ACTIVE, HALT_MODE, STOP, PAUSED };
+    enum class SPEED : u8 { NORMAL = 0x00, DOUBLE = 0x80 };
 
     Bus *bus = nullptr;
 
@@ -36,8 +36,8 @@ namespace Umibozu {
 
     /*
       https://gbdev.io/pandocs/Interrupts.html
-      The effect of ei is delayed by one instruction. 
-      This means that ei followed immediately by di does not allow any interrupts between them. 
+      The effect of ei is delayed by one instruction.
+      This means that ei followed immediately by di does not allow any interrupts between them.
       This interacts with the halt bug in an interesting way.
     */
     // EI instruction doesn't instantly enabled the IME, gets checked at next M-cycle and can enable the interrupt
@@ -76,11 +76,11 @@ namespace Umibozu {
       };
     };
 
-    u16 SP        = 0xFFFE;
-    u16 PC        = 0x0100;
-    STATUS status = STATUS::PAUSED;
-    bool IME      = false;
-    SPEED speed   = SPEED::NORMAL;
+    u16 SP                = 0xFFFE;
+    u16 PC                = 0x0100;
+    STATUS status         = STATUS::PAUSED;
+    bool IME              = false;
+    SPEED speed           = SPEED::NORMAL;
 
     PPU *ppu       = nullptr;
     Mapper *mapper = nullptr;
