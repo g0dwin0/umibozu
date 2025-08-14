@@ -23,6 +23,7 @@
 #include "io.hpp"
 #include "joypad.hpp"
 #include "tinyfiledialogs.h"
+
 static MemoryEditor editor_instance;
 
 void Frontend::handle_events() {
@@ -398,7 +399,7 @@ Frontend::Frontend(GB* gb): gb(gb) {
 
   auto window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 
-  this->window   = SDL_CreateWindow("umibozu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, window_flags);
+  this->window   = SDL_CreateWindow("umibozu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 960, 540, window_flags);
   this->renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
   // Setup Dear ImGui context

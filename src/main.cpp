@@ -14,17 +14,18 @@ int handle_args(int& argc, char** argv, std::string& filename) {
 
 using namespace Umibozu;
 
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 int main(int argc, char** argv) {
-  std::string filename = {};
-  handle_args(argc, argv, filename);
+  // std::string filename = {};
+  // handle_args(argc, argv, filename);
 
-  auto f = read_file(filename);
+  // auto f = read_file(filename);
 
   GB gb = {};
   Frontend fe(&gb);
 
-  gb.load_cart(f);
-  
+  // gb.load_cart(f);
+
   std::thread system = std::thread(&GB::system_loop, &gb);
 
   while (fe.state.running) {

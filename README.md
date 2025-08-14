@@ -1,22 +1,13 @@
 # [Umibōzu](https://en.wikipedia.org/wiki/Umib%C5%8Dzu) (海坊主)
 
-Gameboy Color emulator written in C++20.
+Gameboy Color emulator written in C++20
 Supports both Game Boy and Game Boy Color games!
 
-(audio soon™....)
+As of right now, this emulator only supports Linux. 
 
-For the time being, this will only support Linux. Reason being is that moving from a Makefile to CMake w/ proper ISO C++ compliant code seems to be quite an effort, especially due to usage of GNU extensions.
+You can try building it on Windows, it *should* work, as I don't use any compiler specific extensions.
 
-I'll add Windows support... eventually.
-
-## Features
-
-Umibozu supports features such as, but not limited to:
-
-- [ ] 5 save states
-- [ ] Full RTC support
-- [ ] GBC-support
-
+**(audio soon™....)**
 
 ## NOTE
 
@@ -26,9 +17,11 @@ This emulator is far from cycle-accurate. It was not developed with accuracy in 
 
 Support all mainline mappers:
 
-[x] MBC1
-[x] MBC3 (incl. MBC30 up to 512 banks!)
-[x] MBC5
+
+- [x] ROM ONLY
+- [x] MBC1
+- [x] MBC3 w/ RTC (incl. MBC30 up to 512 ROM banks!)
+- [x] MBC5
 
 ## why?
 
@@ -65,20 +58,26 @@ I used the following resources to create this emulator:
 
 Don't like the controls? You can rebind them in the settings.
 
+
+## Dependencies
+
+This needs libSDL2 to run. Install `libsdl2-dev` using your package manager
+
 ## Binaries
 
 Binaries are available in the Releases tab.
 
-Want to build from source? Check out the build section.
-
 ## Known Issues
 
-- [ ] Pokemon Crystal seems to have graphical artifacts when interacting with NPCs -- not sure why (looking into it)
+- [ ] Pokemon Crystal seems to have graphical artifacts when interacting with NPCs -- DMA related
+- [ ] The window in games might get scrolled (Health indicator in DK3)
+- [ ] Games requiring Double Speed (Shantae, DK Country) probably DMA related.
+
 
 ## Issues
 Did you run into a crash/bug? Feel free to open a ticket, and I'll have a look.
 
 ## Screenshots
-![](assets/Screenshot%20from%202023-12-31%2002-55-40.png)
-![](assets/Screenshot%20from%202023-12-31%2003-29-17.png)
-![](assets/Screenshot%20from%202023-12-31%2003-27-07.png)
+![](assets/2025_08_14_17-24__ojB.gif)
+![](assets/smbd.gif)
+![](assets/2025_08_14_17-06__DmB.png)

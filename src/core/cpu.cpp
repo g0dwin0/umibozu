@@ -637,13 +637,13 @@ void SM83::handle_interrupts() {
 };
 void SM83::run_instruction() {
 #ifndef CPU_TEST_MODE_H
+  if (status == STATUS::PAUSED) {
+    return;
+  }
   if (mapper == nullptr) {
     throw std::runtime_error("mapper error");
   }
 
-  if (status == STATUS::PAUSED) {
-    return;
-  }
   handle_interrupts();
 #endif
   if (ei_queued) {
