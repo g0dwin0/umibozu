@@ -44,47 +44,44 @@ u8 Mapper::handle_system_memory_read(const u16 address) {
 }
 
 void Mapper::handle_system_memory_write(const u16 address, const u8 value) {
-  switch (address) {
-    case 0x0000 ... 0x7FFF: {
-      return;
-    }
-    case 0x8000 ... 0x9FFF: {
-      // if (bus->vbk == 1) {
-      //   fmt::println("writing to VRAM {:d}:{:#04x}", +bus->vbk, address);
-      // }
-      bus->vram->at(address - 0x8000) = value;
-      return;
-    }
+  if (address <= 0x7FFF) return;
 
-    case 0xC000 ... 0xCFFF: {
-      bus->wram_banks[0].at(address - 0xC000) = value;
-      return;
-    }
-
-    case 0xD000 ... 0xDFFF: {
-      bus->wram->at(address - 0xD000) = value;
-      return;
-    }
-
-    case 0xE000 ... 0xFDFF: {
-      return handle_system_memory_write((address & 0xDFFF), value);
-    }
-
-    case 0xFE00 ... 0xFE9F: {  // oam
-      bus->oam.at(address - 0xFE00) = value;
-      return;
-    }
-
-    case 0xFEA0 ... 0xFEFF: {  // unused/illegal
-      return;
-    }
-    case 0xFF80 ... 0xFFFE: {
-      bus->hram.at(address - 0xFF80) = value;
-      return;
-    }
+  if (address >= 0x8000 && address <= 0x9FFF) {
+    bus->vram->at(address - 0x8000) = value;
+    return;
   }
 
-  throw std::runtime_error(fmt::format("[CPU] out of bounds CPU write: {:#04x}", address));
+  if (address >= 0xC000 && address <= 0xCFFF) {
+    bus->wram_banks[0].at(address - 0xC000) = value;
+    return;
+  }
+
+  if (address >= 0xD000 && address <= 0xDFFF) {
+    bus->wram->at(address - 0xD000) = value;
+    return;
+  }
+
+  if (address >= 0xE000 && address <= 0xFDFF) {
+    handle_system_memory_write((address & 0xDFFF), value);
+    return;
+  }
+
+  if (address >= 0xFE00 && address <= 0xFE9F) {
+    bus->oam.at(address - 0xFE00) = value;
+    return;
+  }
+
+  if (address >= 0xFEA0 && address <= 0xFEFF) {  // unused/illegal
+    return;
+  }
+
+  if (address >= 0xFF80 && address <= 0xFFFE) {
+    bus->hram.at(address - 0xFF80) = value;
+    return;
+  }
+
+  fmt::println("address: {:#010x}", address);
+  assert(0);
 }
 
 class ROM_ONLY : public Mapper {
@@ -124,6 +121,7 @@ class ROM_ONLY : public Mapper {
 
 Mapper* get_mapper_by_id(u8 mapper_id) {
   fmt::println("[MAPPER] MAPPER ID: {:#04x} ({})", mapper_id, cart_types.at(mapper_id));
+
   Mapper* mapper;
 
   switch (mapper_id) {
@@ -139,7 +137,7 @@ Mapper* get_mapper_by_id(u8 mapper_id) {
       break;
     }
     case 0xF:
-    case 0x10: // MBC30
+    case 0x10:  // MBC30
     case 0x11:
     case 0x12:
     case 0x13: {
