@@ -61,7 +61,7 @@ Don't like the controls? You can rebind them in the settings.
 
 ## Dependencies
 
-This needs libSDL2 to run. Install `libsdl2-dev` using your package manager
+This needs libSDL2 to run. Install `libsdl2-dev` using your package manager.
 
 ## Binaries
 
@@ -71,7 +71,7 @@ Binaries are available in the Releases tab.
 
 - [ ] Pokemon Crystal seems to have graphical artifacts when interacting with NPCs -- DMA related
 - [ ] The window in games might get scrolled (Health indicator in DK3)
-- [ ] Games requiring Double Speed (Shantae, DK Country) probably DMA related.
+- [ ] Games that make use of Double Speed (Shantae, DK Country) suffer from severe graphical artifacting -- *probably* DMA related.
 
 
 ## Issues
