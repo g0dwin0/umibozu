@@ -1,6 +1,5 @@
 #include "core/ppu.hpp"
 
-#include <SDL2/SDL_render.h>
 #include <unistd.h>
 
 #include <algorithm>

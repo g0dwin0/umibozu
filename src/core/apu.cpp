@@ -1,5 +1,4 @@
 #include "apu.hpp"
-#include <SDL2/SDL_audio.h>
 #include "common.hpp"
 
 // pending rewrite, this might be the worst code i ever wrote
