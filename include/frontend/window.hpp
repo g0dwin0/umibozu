@@ -13,24 +13,26 @@
 #include "joypad.hpp"
 
 struct State {
-  SDL_Texture* ppu_texture = nullptr;
-  SDL_Texture* viewport    = nullptr;
-  const u8* keyboardState  = SDL_GetKeyboardState(nullptr);
+  SDL_Texture* ppu_texture    = nullptr;
+  SDL_Texture* viewport       = nullptr;
+
+  const u8* keyboardState = SDL_GetKeyboardState(nullptr);
 
   bool running              = true;
-  bool texture_window_open  = true;
-  bool cpu_info_open        = true;
-  bool ppu_info_open        = true;
+  bool texture_window_open  = false;
+  bool cpu_info_open        = false;
+  bool ppu_info_open        = false;
   bool controls_window_open = false;
   bool memory_viewer_open   = false;
+  bool io_info_open         = false;
 
-  u32 mixer_audioDevice = 0;
+  bool debug_windows_visible        = false;
+  SDL_AudioDeviceID audio_device_id = 0;
 
   size_t menu_bar_size = 0;
 
   ImGuiIO* io = nullptr;
 };
-
 
 struct Settings {
   struct Keybinds {
@@ -55,6 +57,16 @@ struct Frontend {
   Settings settings;
   GB* gb = nullptr;
 
+  SDL_Rect dst;
+  SDL_Rect src = {
+      .x = 0,
+      .y = 0,
+      .w = 160,
+      .h = 148,
+  };
+
+  int screenWidth, screenHeight;
+
   char const* patterns[2] = {"*.gb", "*.gbc"};
 
   void handle_events();
@@ -65,9 +77,10 @@ struct Frontend {
   void show_memory_viewer();
   void show_ppu_info();
   void show_io_info();
-  void show_tile_maps();
+  // void show_tile_maps();
   void show_controls_menu(bool* p_open);
   void shutdown();
+  void init_audio_device();
 
   explicit Frontend(GB*);
 };

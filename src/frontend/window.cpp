@@ -2,6 +2,7 @@
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_audio.h>
+#include <SDL2/SDL_error.h>
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_gamecontroller.h>
 #include <SDL2/SDL_joystick.h>
@@ -68,7 +69,6 @@ void Frontend::handle_events() {
       }
 
       case SDL_KEYUP: {
-        // fmt::println("Triggered UP");
         if (!state.keyboardState[settings.keybinds.control_map.at(RIGHT).first]) {
           gb->bus.joypad.RIGHT = 1;
         }
@@ -111,30 +111,30 @@ void Frontend::shutdown() {
 }
 void Frontend::show_io_info() {
   ImGui::Begin("IO INFO", &state.ppu_info_open, 0);
-  ImGui::Text("LCDC = %02X", gb->bus.io[LCDC]);
-  ImGui::Text("STAT = %02X", gb->bus.io[STAT]);
-  ImGui::Text("SCY = %02X", gb->bus.io[SCY]);
-  ImGui::Text("SCX = %02X", gb->bus.io[SCX]);
-  ImGui::Text("LY = %02X", gb->bus.io[LY]);
-  ImGui::Text("LYC = %02X", gb->bus.io[LYC]);
-  ImGui::Text("DMA = %02X", gb->bus.io[DMA]);
-  ImGui::Text("BGP = %02X", gb->bus.io[BGP]);
-  ImGui::Text("OBP0 = %02X", gb->bus.io[OBP0]);
-  ImGui::Text("OBP1 = %02X", gb->bus.io[OBP1]);
-  ImGui::Text("WY = %02X", gb->bus.io[WY]);
-  ImGui::Text("WX = %02X", gb->bus.io[WX]);
+  ImGui::Text("(LCD Controller) LCDC = %#02x", gb->bus.io[LCDC]);
+  ImGui::Text("STAT = %#02x", gb->bus.io[STAT]);
+  ImGui::Text("(Scroll Y) SCY = %#02x", gb->bus.io[SCY]);
+  ImGui::Text("(Scroll X) SCX = %#02x", gb->bus.io[SCX]);
+  ImGui::Text("LY = %#02x", gb->bus.io[LY]);
+  ImGui::Text("LYC = %#02x", gb->bus.io[LYC]);
+  ImGui::Text("DMA = %#02x", gb->bus.io[DMA]);
+  ImGui::Text("(Background Palette) BGP = %#02x", gb->bus.io[BGP]);
+  ImGui::Text("OBP0 = %#02x", gb->bus.io[OBP0]);
+  ImGui::Text("OBP1 = %#02x", gb->bus.io[OBP1]);
+  ImGui::Text("(Window Y) WY = %#02x", gb->bus.io[WY]);
+  ImGui::Text("(Window X) WX = %#02x", gb->bus.io[WX]);
 
-  ImGui::Text("SVBK = %02X", gb->bus.io[SVBK]);
-  ImGui::Text("VBK = %02X", gb->bus.io[VBK]);
-  ImGui::Text("KEY1 = %02X", gb->bus.io[KEY1]);
-  ImGui::Text("JOYP = %02X", gb->bus.io[JOYPAD]);
-  ImGui::Text("SB = %02X", gb->bus.io[SB]);
-  ImGui::Text("SC = %02X", gb->bus.io[SC]);
+  ImGui::Text("(WRAM BANK) SVBK = %#02x", gb->bus.io[SVBK]);
+  ImGui::Text("(VRAM BANK) VBK = %#02x", gb->bus.io[VBK]);
+  ImGui::Text("KEY1 = %#02x", gb->bus.io[KEY1]);
+  ImGui::Text("JOYP = %#02x", gb->bus.io[JOYPAD]);
+  ImGui::Text("SB = %#02x", gb->bus.io[SB]);
+  ImGui::Text("SC = %#02x", gb->bus.io[SC]);
 
-  ImGui::Text("TIMA = %02X", gb->bus.io[TIMA]);
-  ImGui::Text("TMA = %02X", gb->bus.io[TMA]);
-  ImGui::Text("IF = %02X", gb->bus.io[IF]);
-  ImGui::Text("IE = %02X", gb->bus.io[IE]);
+  ImGui::Text("TIMA = %#02x", gb->bus.io[TIMA]);
+  ImGui::Text("TMA = %#02x", gb->bus.io[TMA]);
+  ImGui::Text("IF = %#02x", gb->bus.io[IF]);
+  ImGui::Text("IE = %#02x", gb->bus.io[IE]);
 
   ImGui::End();
 }
@@ -190,7 +190,7 @@ void Frontend::show_menubar() {
     ImGui::Separator();
     if (ImGui::BeginMenu("File")) {
       if (ImGui::MenuItem("Load ROM")) {
-        auto path = tinyfd_openFileDialog("Load ROM", ".", 1, patterns, "Gameboy ROMs", 0);
+        auto path = tinyfd_openFileDialog("Load ROM", ".", 2, patterns, "Gameboy ROMs", 0);
         if (path != nullptr) {
           this->gb->load_cart(read_file(path));
         }
@@ -210,6 +210,15 @@ void Frontend::show_menubar() {
 
       ImGui::EndMenu();
     }
+
+    if (ImGui::BeginMenu("Debug Options")) {
+      ImGui::Checkbox("Memory Viewer", &state.memory_viewer_open);
+      ImGui::Checkbox("CPU Info", &state.cpu_info_open);
+      ImGui::Checkbox("PPU Info", &state.ppu_info_open);
+      ImGui::Checkbox("IO Info", &state.io_info_open);
+      ImGui::EndMenu();
+    }
+
     ImGui::EndMainMenuBar();
   }
 }
@@ -326,35 +335,51 @@ void Frontend::render_frame() {
   ImGui_ImplSDLRenderer2_NewFrame();
   ImGui_ImplSDL2_NewFrame();
   ImGui::NewFrame();
-  // show_menubar();
+  show_menubar();
   if (state.controls_window_open) {
     show_controls_menu(&state.controls_window_open);
   }
 
-  // #ifdef DEBUG_MODE_H
-  show_viewport();
-  show_cpu_info();
-  show_ppu_info();
-  show_memory_viewer();
+  if (state.texture_window_open) {
+    show_viewport();
+  }
+  if (state.cpu_info_open) {
+    show_cpu_info();
+  }
+  if (state.ppu_info_open) {
+    show_ppu_info();
+  }
+  if (state.memory_viewer_open) {
+    show_memory_viewer();
+  }
+  if (state.io_info_open) {
+    show_io_info();
+  }
 
-  // show_tile_maps();
-  show_io_info();
-  // #endif
-  // Rendering
   ImGui::Render();
   SDL_RenderSetScale(renderer, state.io->DisplayFramebufferScale.x, state.io->DisplayFramebufferScale.y);
 
   SDL_SetRenderTarget(renderer, NULL);
   SDL_RenderClear(renderer);
 
+  SDL_GetWindowSize(window, &screenWidth, &screenHeight);
+
+  dst = { // crops the texture to 160x144 and stretches it to user window size
+      .x = 0,
+      .y = (int)ImGui::GetFrameHeight(),
+      .w = screenWidth,
+      .h = screenHeight,
+  };
+
   SDL_UpdateTexture(state.ppu_texture, nullptr, gb->ppu.db.disp_buf, 256 * 2);
-  SDL_RenderCopy(renderer, state.ppu_texture, NULL, NULL);
+
+  SDL_RenderCopy(renderer, state.ppu_texture, &src, &dst);
 
   ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
   SDL_RenderPresent(renderer);
 }
 void Frontend::show_viewport() {
-  ImGui::Begin("viewport", &state.texture_window_open, 0);
+  ImGui::Begin("PPU Texture", &state.texture_window_open, 0);
   ImGui::Text("pointer to texture = %p", (void*)&state.ppu_texture);
   ImGui::Text("pointer to gb instance = %p", (void*)&gb);
   ImGui::Text("fps = %f", state.io->Framerate);
@@ -363,18 +388,17 @@ void Frontend::show_viewport() {
 
   ImGui::End();
 }
-Frontend::Frontend(GB* gb) {
-  this->gb = gb;
+Frontend::Frontend(GB* gb): gb(gb) {
   assert(this->gb != nullptr);
 
-  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_GAMECONTROLLER) != 0) {
-    fmt::println("ERROR: failed initialize SDL");
+  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_GAMECONTROLLER | SDL_INIT_AUDIO) != 0) {
+    fmt::println("ERROR: {}", SDL_GetError());
     exit(-1);
   }
 
   auto window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 
-  this->window   = SDL_CreateWindow("umibozu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, window_flags);
+  this->window   = SDL_CreateWindow("umibozu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, window_flags);
   this->renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
   // Setup Dear ImGui context
@@ -383,17 +407,17 @@ Frontend::Frontend(GB* gb) {
   ImGuiIO& io = ImGui::GetIO();
   (void)io;
 
-  // io.ConfigFlags |=
-  //     ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
-  io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Controls
+  io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;  
 
   this->state.io = &io;
 
   ImGui::StyleColorsDark();
 
-  this->state.ppu_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_BGR555, SDL_TEXTUREACCESS_TARGET, 256, 256);
+  this->state.ppu_texture    = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_BGR555, SDL_TEXTUREACCESS_TARGET, 256, 256);
 
   this->state.viewport = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_BGR555, SDL_TEXTUREACCESS_TARGET, 256, 256);
+
+  // init_audio_device();
 
   ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
   ImGui_ImplSDLRenderer2_Init(renderer);
@@ -402,11 +426,16 @@ Frontend::Frontend(GB* gb) {
 void Frontend::show_memory_viewer() {
   ImGui::Begin("Memory Viewer", &state.memory_viewer_open, 0);
   const char* regions[] = {
-      "Region: Frame",
+      "Region: [0x8000 - 0x9FFF] VRAM",     "Region: [0xA000 - 0xBFFF] EXT RAM", "Region: [0xC000 - 0xCFFF] WRAM Bank [0]", "Region: [0xD000 - 0xDFFF] WRAM Current Active Bank",
+      "Region: [0xE000 - 0xFDFF] Echo RAM", "Region: [0xFE00 - 0xFE9F] OAM",     "Region: [0xFF80 - 0xFFFE] HRAM",
   };
 
-  const void* memory_partitions[] = {&gb->ppu.frame.data
+  const void* memory_partitions[] = {
+      gb->bus.vram->data(), gb->bus.cart.ext_ram.data(), gb->bus.wram_banks[0].data(), gb->bus.wram->data(), gb->bus.wram_banks[0].data(), gb->bus.oam.data(), gb->bus.hram.data(),
+  };
 
+  const size_t memory_partition_size[] = {
+      gb->bus.vram->size(), gb->bus.cart.ext_ram.size(), gb->bus.wram_banks[0].size(), gb->bus.wram->size(), gb->bus.wram_banks[0].size(), gb->bus.oam.size(), gb->bus.hram.size(),
   };
 
   static int SelectedItem = 0;
@@ -415,9 +444,21 @@ void Frontend::show_memory_viewer() {
     // SPDLOG_DEBUG("switched to: {}", regions[SelectedItem]);
   }
   editor_instance.OptShowAscii = false;
-  // editor_instance.ReadOnly = true;
+  editor_instance.ReadOnly     = true;
 
-  editor_instance.DrawContents((void*)memory_partitions[SelectedItem], 256 * 256);
-
+  editor_instance.DrawContents((void*)memory_partitions[SelectedItem], memory_partition_size[SelectedItem]);
   ImGui::End();
+}
+
+void Frontend::init_audio_device() {
+  SDL_AudioSpec desiredSpec = {}, obtainedSpec = {};
+  desiredSpec.freq      = 48000;
+  desiredSpec.format    = AUDIO_S8;
+  desiredSpec.channels  = 1;
+  desiredSpec.silence   = 0;
+  desiredSpec.samples   = 738;
+  state.audio_device_id = SDL_OpenAudioDevice(nullptr, 0, &desiredSpec, &obtainedSpec, 0);
+  SDL_PauseAudioDevice(state.audio_device_id, 0);
+
+  fmt::println("initialized with audio device ID: {}", state.audio_device_id);
 }
