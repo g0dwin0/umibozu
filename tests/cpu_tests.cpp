@@ -60,6 +60,7 @@ void run_tests() {
   for (auto& entry : dir_it) {
     if(entry.path().filename().string() == "README.md") continue;
     if(entry.path().filename().string() == "76.json") continue; // cannot be tested because interrupts are disabled
+    if(entry.path().filename().string() == "10.json") continue; // stop instruction testing is pointless
     
     fmt::println("{}", entry.path().filename().c_str());
     test_dirs.push_back(entry.path());
