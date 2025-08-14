@@ -6,8 +6,6 @@ OBJS_IMGUI = $(OBJ_IMGUI)/imgui_demo.o $(OBJ_IMGUI)/imgui_draw.o $(OBJ_IMGUI)/im
 OBJS = $(OBJ_DIR)/main.o $(OBJ_DIR)/cart.o $(OBJ_DIR)/cpu.o $(OBJ_DIR)/ppu.o  $(OBJ_DIR)/bus.o $(OBJ_DIR)/gb.o $(OBJ_DIR)/frontend.o $(OBJ_DIR)/file_dialog.o $(OBJ_DIR)/mappers.o  $(OBJ_DIR)/instructions.o $(OBJ_DIR)/apu.o $(OBJ_DIR)/timer.o $(OBJ_DIR)/double_buffer.o
 CC=g++
 CPPFLAGS += -O2
-# CPPFLAGS += -fsanitize=undefined,address -D_GLIBCXX_DEBUG
-
 
 all: final
 
