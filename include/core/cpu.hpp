@@ -25,9 +25,6 @@ namespace Umibozu {
     enum class STATUS { ACTIVE, HALT_MODE, STOP, PAUSED };
     enum class SPEED { NORMAL = 0x00, DOUBLE = 0x80 };
 
-    SM83();
-    ~SM83();
-
     Bus *bus = nullptr;
 
     std::unordered_map<SM83::STATUS, std::string> cpu_mode = {
@@ -37,6 +34,13 @@ namespace Umibozu {
         {   SM83::STATUS::PAUSED, "PAUSED"},
     };
 
+    /*
+      https://gbdev.io/pandocs/Interrupts.html
+      The effect of ei is delayed by one instruction. 
+      This means that ei followed immediately by di does not allow any interrupts between them. 
+      This interacts with the halt bug in an interesting way.
+    */
+    // EI instruction doesn't instantly enabled the IME, gets checked at next M-cycle and can enable the interrupt
     bool ei_queued = false;
 
     // Registers
