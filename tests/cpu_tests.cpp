@@ -47,24 +47,25 @@ void run_tests() {
   u32 completed_test_count;
   
   std::ifstream f;
-  const std::string test_directory = "tests/sm83-test-data/cpu_tests/v1";
+  const std::string test_directory = "tests/sm83-test-data/v1";
   std::vector<std::filesystem::path> test_dirs;
   
   if (!std::filesystem::exists(test_directory)) {
     throw std::runtime_error(
-        "could not find cpu tests, are you sure sm83 data is present?");
+        "could not find cpu test directory, are you sure sm83 data is present?");
   }
   
-  // get all test files
   auto dir_it = std::filesystem::directory_iterator(test_directory);
+
   for (auto& entry : dir_it) {
-    fmt::println("{}", entry.path().c_str());
+    if(entry.path().filename().string() == "README.md") continue;
+    if(entry.path().filename().string() == "76.json") continue; // cannot be tested because interrupts are disabled
+    
+    fmt::println("{}", entry.path().filename().c_str());
     test_dirs.push_back(entry.path());
   }
 
-  // run all the test cases per opcode
   for (auto& test_dir : test_dirs) {
-    if(test_dir.filename().string() == "76.json") continue; // cannot be tested because interrupts are disabled
     std::string path = fmt::format(
         "{}", test_dir.string());
     fmt::print("opcode: {} ", test_dir.filename().replace_extension("").c_str());
@@ -202,14 +203,12 @@ void run_tests() {
         }
         i++;
       }
-
-      completed_test_count++;
     }
     fmt::println("OK");
     f.close();
   }
 
-  fmt::println("ALL GOOD! ran {:d} test cases", completed_test_count);
+  fmt::println("all tests passed");
   
 }
 
