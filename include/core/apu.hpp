@@ -3,6 +3,7 @@
 #include <array>
 
 #include "common.hpp"
+#include "io_defs.hpp"
 
 static constexpr u8 SOUND_LENGTH_RATE   = 2;
 static constexpr u8 ENVELOPE_SWEEP_RATE = 8;
