@@ -1,6 +1,9 @@
 #pragma once
 #include "common.hpp"
 
+
+enum BUTTONS { B, A, SELECT, START, RIGHT, LEFT, UP, DOWN, NONE = 0xFF };
+
 struct Joypad {
   u8 A      : 1 = 1;
   u8 B      : 1 = 1;
@@ -20,7 +23,6 @@ struct Joypad {
     return RIGHT + (LEFT << 1) + (UP << 2) + (DOWN << 3);
   }
 };
-enum BUTTONS { B, A, SELECT, START, RIGHT, LEFT, UP, DOWN, NONE = 0xFF };
 
 [[nodiscard]] inline std::string get_button_name_from_enum(BUTTONS b) {
   switch (b) {

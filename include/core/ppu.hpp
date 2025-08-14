@@ -17,28 +17,24 @@ struct Bus;
 class Mapper;
 #include "mapper.hpp"
 
-static constexpr u16 WHITE     = 0x6BFC;
-static constexpr u16 LIGHTGREY = 0x3B11;
-static constexpr u16 DARKGREY  = 0x29A6;
-static constexpr u16 BLACK     = 0x0000;
+static constexpr u16 WHITE               = 0x6BFC;
+static constexpr u16 LIGHTGREY           = 0x3B11;
+static constexpr u16 DARKGREY            = 0x29A6;
+static constexpr u16 BLACK               = 0x0000;
 static constexpr u16 VRAM_ADDRESS_OFFSET = 0x8000;
 
-struct LCDC_R {
-  // this doesn't need to be a struct, this could just a be union,
-  // besides this should be on the bus as it's a memory mapped io register
-  union {
-    u8 value;
-    struct {
-      u8 bg_and_window_enable_priority : 1;
-      bool sprite_enable               : 1;
-      u8 sprite_size                   : 1;
-      u8 bg_tile_map_select            : 1;
-      u8 tiles_select_method           : 1;
+union LCDC {
+  u8 value;
+  struct {
+    u8 bg_and_window_enable_priority : 1;
+    bool sprite_enable               : 1;
+    u8 sprite_size                   : 1;
+    u8 bg_tile_map_select            : 1;
+    u8 tiles_select_method           : 1;
 
-      bool window_disp_enable          : 1;
-      u8 window_tile_map_select        : 1;
-      bool lcd_ppu_enable              : 1;
-    };
+    bool window_disp_enable          : 1;
+    u8 window_tile_map_select        : 1;
+    bool lcd_ppu_enable              : 1;
   };
 };
 
@@ -87,29 +83,18 @@ struct Sprite {
   }
 };
 struct Frame {
-  Frame();
   std::array<u8, 256 * 256> color_id;   // holds the current color id occupying this space in the frame, used to determine priority
   std::array<bool, 256 * 256> bg_prio;  // used to determine priority, checks if background has bit 7 set -- https://gbdev.io/pandocs/Tile_Maps.html#bg-map-attributes-cgb-mode-only
-                                        
+
   void clear() {
     color_id.fill(0);
     bg_prio.fill(false);
   }
-
 };
 
 enum class FLIP_AXIS { X, Y };
 
 typedef std::array<u16, 4> Palette;
-
-struct SystemPalettes {
-  std::array<Palette, 8> BGP;
-  std::array<Palette, 8> OBP;
-
-  SystemPalettes();
-
-  [[nodiscard]] Palette get_palette_by_id(u8 index);
-};
 
 struct PPU {
   RENDERING_MODE ppu_mode = RENDERING_MODE::VBLANK;
@@ -119,7 +104,7 @@ struct PPU {
   void set_ppu_mode(RENDERING_MODE mode);
   void add_sprite_to_buffer(u8 spriteIndex);
   u8 get_sprite_size() const;
-  static void flip(Tile &, FLIP_AXIS);
+  void flip(Tile &, FLIP_AXIS);
   Tile active_tile;
   u8 window_current_y    = 0;
   u8 window_line_count   = 0;
@@ -135,10 +120,9 @@ struct PPU {
 
   DoubleBuffer db = DoubleBuffer(disp_buf, write_buf);
 
-  SystemPalettes sys_palettes;
   RENDERING_MODE get_mode() const { return ppu_mode; }
 
-  struct LCDC_R lcdc{0x91};
+  union LCDC lcdc{0x91};
   u16 dots       = 0;
   Bus *bus       = nullptr;
   Mapper *mapper = nullptr;
@@ -160,8 +144,8 @@ struct PPU {
   void increment_scanline() const;
 
   // REFACTOR: i think these functions actually do the same thing, merge into one.
-  [[nodiscard]] Tile get_tile_data(u16 address, bool sprite = false) const; 
-  [[nodiscard]] Tile get_tile_sprite_data(u16 index, bool sprite = false, u8 bank = 0) const; 
+  [[nodiscard]] Tile get_tile_data(u16 address, bool sprite = false) const;
+  [[nodiscard]] Tile get_tile_sprite_data(u16 index, bool sprite = false, u8 bank = 0) const;
 
   const std::array<u16, 4> shade_table = {WHITE, LIGHTGREY, DARKGREY, BLACK};
   bool window_enabled                  = false;
@@ -171,4 +155,15 @@ struct PPU {
   std::chrono::duration<double, std::milli> target_duration = std::chrono::duration<double, std::milli>(16.7);
 
   bool hdma_executed_on_scanline = false;
+  bool ly_is_lyc_latch           = false;
+
+  std::array<Palette, 8> DMG_BGP;
+  std::array<Palette, 8> DMG_OBP;
+
+  // ONLY USED IN CGB
+  std::array<Palette, 8> CGB_BGP;
+  std::array<Palette, 8> CGB_OBP;
+  
+
+  [[nodiscard]] Palette get_palette_by_id(u8 index);
 };

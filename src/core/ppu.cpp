@@ -14,11 +14,11 @@
 #include "common.hpp"
 #include "stopwatch.hpp"
 
-Frame::Frame() {};
-
 u8 PPU::get_sprite_size() const { return lcdc.sprite_size == 0 ? 8 : 16; }
 
 void PPU::add_sprite_to_buffer(u8 spriteIndex) {
+  // fmt::println("sprite Index: {}", sprite_index);
+
   u8 sprite_y     = bus->oam.at(spriteIndex);
   u8 sprite_x     = bus->oam.at(spriteIndex + 1);
   u8 tile_number  = bus->oam.at(spriteIndex + 2);
@@ -32,8 +32,6 @@ void PPU::add_sprite_to_buffer(u8 spriteIndex) {
   // fmt::println("tile_number: {}", bus->oam.at(spriteIndex + 2));
   // fmt::println("sprite_flags: {}", bus->oam.at(spriteIndex + 3));
   // fmt::println("==================================");
-
-  // Check if the sprite is to be rendered on the current scanline
 
   if (!(sprite_x > 0)) {
     return;
@@ -87,13 +85,17 @@ void PPU::tick(u16 dots_inc) {
         window_enabled = true;
       }
 
-      if (dots % 2 == 0 && dots != 80) {
+      if (dots_inc == 4) {
         add_sprite_to_buffer(sprite_index);
         add_sprite_to_buffer(sprite_index);
       }
 
+      if (dots_inc == 2) {
+        add_sprite_to_buffer(sprite_index);
+      }
+
       if (dots == 80) {
-        if (bus->mode == SYSTEM_MODE::CGB) {
+        if (bus->mode == SYSTEM_MODE::CGB && bus->io[OPRI] != PRIORITY_MODE::DMG) {
           // std::reverse(sprite_buf.begin(), sprite_buf.end());
           std::sort(sprite_buf.begin(), sprite_buf.end(), [](const Sprite& sprite0, const Sprite& sprite1) { return sprite0.x_pos < sprite1.x_pos; });
         }
@@ -155,7 +157,7 @@ void PPU::tick(u16 dots_inc) {
           u8 remaining_blocks = bus->io[HDMA5] & 0x7f;
           remaining_blocks--;
           bus->io[HDMA5] = remaining_blocks;
-          fmt::println("remaining blocks: {}", remaining_blocks);
+          // fmt::println("remaining blocks: {}", remaining_blocks);
         }
         hdma_executed_on_scanline = true;
       }
@@ -205,8 +207,9 @@ void PPU::tick(u16 dots_inc) {
       // Reset scanline to line 0, start drawing new frame
       if (bus->io[LY] == 153 && dots == 456) {
         set_ppu_mode(RENDERING_MODE::OAM_SCAN);
-        bus->io[LY] = 0;
-        dots        = 0;
+        bus->io[LY]  = 0;
+        dots         = 0;
+        sprite_index = 0;
         stopwatch.start();
       }
 
@@ -317,6 +320,10 @@ Tile PPU::get_tile_sprite_data(u16 index, bool sprite, u8 bank) const {
 
     return tile;
   } else {
+    if (bus->mode == SYSTEM_MODE::CGB) {
+      bus->vram = &bus->vram_banks[bank];
+    }
+
     for (u8 row = 0; row < 8; row++) {
       u16 address  = (0x9000 + (row * 2) + ((i8)index * 16)) - VRAM_ADDRESS_OFFSET;
       u8 low_byte  = bus->vram->at(address);
@@ -399,9 +406,9 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
             u16 color;
 
             if (bus->mode == SYSTEM_MODE::CGB) {
-              color = sys_palettes.BGP[active_tile.cgb_attr_data.color_palette][active_tile.pixel_data[y % 8][(7 - x)]];
+              color = CGB_BGP[active_tile.cgb_attr_data.color_palette][active_tile.pixel_data[y % 8][(7 - x)]];
             } else {
-              color = sys_palettes.BGP[0][active_tile.pixel_data[y % 8][(7 - x)]];
+              color = DMG_BGP[0][active_tile.pixel_data[y % 8][(7 - x)]];
             }
 
             u32 line_base = ((bus->io[LY]) * 256);
@@ -449,9 +456,9 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
             }
 
             if (bus->mode == SYSTEM_MODE::CGB) {
-              palette = sys_palettes.get_palette_by_id(sprite.cgb_palette);
+              palette = get_palette_by_id(sprite.cgb_palette);
             } else {
-              palette = sys_palettes.get_palette_by_id(sprite.palette_number);
+              palette = get_palette_by_id(sprite.palette_number);
             }
 
             if (sprite.x_flip == 1) {
@@ -482,22 +489,59 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
                 if (lcdc.bg_and_window_enable_priority && (sprite.obj_to_bg_priority || frame.bg_prio[buf_pos]) && frame.color_id[buf_pos] > 0) {
                   continue;
                 }
-              }
 
-              if (get_sprite_size() == 16) {
-                if (current_y < 8) {
+                if (get_sprite_size() == 16) {
+                  if (current_y < 8) {
+                    if (top_tile.pixel_data[current_y % 8][x] == 0) continue;
+
+                    db.write(buf_pos, palette[top_tile.pixel_data[current_y % 8][x]]);
+                  } else {
+                    if (lower_tile.pixel_data[current_y % 8][x] == 0) continue;
+
+                    db.write(buf_pos, palette[lower_tile.pixel_data[current_y % 8][x]]);
+                  }
+                } else {
                   if (top_tile.pixel_data[current_y % 8][x] == 0) continue;
 
                   db.write(buf_pos, palette[top_tile.pixel_data[current_y % 8][x]]);
-                } else {
-                  if (lower_tile.pixel_data[current_y % 8][x] == 0) continue;
-
-                  db.write(buf_pos, palette[lower_tile.pixel_data[current_y % 8][x]]);
                 }
-              } else {
-                if (top_tile.pixel_data[current_y % 8][x] == 0) continue;
 
-                db.write(buf_pos, palette[top_tile.pixel_data[current_y % 8][x]]);
+              } else {
+                if (sprite.obj_to_bg_priority) {  // BG w/ index of 1 - 3 gets drawn over the OBJ
+
+                  if (get_sprite_size() == 16) {
+                    if (current_y < 8) {
+                      if (frame.color_id[buf_pos] > 0) continue;
+
+                      db.write(buf_pos, palette[top_tile.pixel_data[current_y % 8][x]]);
+                    } else {
+                      if (frame.color_id[buf_pos] > 0) continue;
+
+                      db.write(buf_pos, palette[lower_tile.pixel_data[current_y % 8][x]]);
+                    }
+                  } else {
+                    if (frame.color_id[buf_pos] > 0) continue;
+
+                    db.write(buf_pos, palette[top_tile.pixel_data[current_y % 8][x]]);
+                  }
+
+                } else {
+                  if (get_sprite_size() == 16) {
+                    if (current_y < 8) {
+                      if (top_tile.pixel_data[current_y % 8][x] == 0) continue;
+
+                      db.write(buf_pos, palette[top_tile.pixel_data[current_y % 8][x]]);
+                    } else {
+                      if (lower_tile.pixel_data[current_y % 8][x] == 0) continue;
+
+                      db.write(buf_pos, palette[lower_tile.pixel_data[current_y % 8][x]]);
+                    }
+                  } else {
+                    if (top_tile.pixel_data[current_y % 8][x] == 0) continue;
+
+                    db.write(buf_pos, palette[top_tile.pixel_data[current_y % 8][x]]);
+                  }
+                }
               }
             }
           }
@@ -510,8 +554,9 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
         db.swap_buffers();
         frame.bg_prio.fill(false);
         frame.color_id.fill(0);
-        stopwatch.end();
 
+        // check how long frame took, sleep thread remaining time to sync emu thread to 60FPS
+        stopwatch.end();
         auto target_duration = std::chrono::duration<double, std::milli>(16.7);
         std::this_thread::sleep_for(target_duration - stopwatch.duration);
 
@@ -526,9 +571,11 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
   }
 }
 
-SystemPalettes::SystemPalettes() { BGP[0] = {WHITE, LIGHTGREY, DARKGREY, BLACK}; }
-
-Palette SystemPalettes::get_palette_by_id(u8 index) {
+Palette PPU::get_palette_by_id(u8 index) {
   assert(index < 8);
-  return OBP[index];
+  if (bus->mode == SYSTEM_MODE::CGB) {
+    return CGB_OBP[index];
+  } else {
+    return DMG_OBP[index];
+  }
 }
