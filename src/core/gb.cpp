@@ -9,6 +9,7 @@
 
 
 void GB::init_hw_regs(SYSTEM_MODE mode) {
+
   switch (mode) {
     case SYSTEM_MODE::DMG: {
       bus.io[JOYPAD]      = 0xCF;
@@ -103,6 +104,7 @@ void GB::init_hw_regs(SYSTEM_MODE mode) {
   }
   cpu.PC = 0x0100;
   cpu.SP = 0xFFFE;
+  cpu.speed = Umibozu::SM83::SPEED::NORMAL;
 }
 
 GB::GB() {
@@ -146,6 +148,8 @@ void GB::load_cart(const File &rom) {
   } else {
     bus.mode = SYSTEM_MODE::DMG;
   }
+
+
 
   init_hw_regs(bus.mode);
 

@@ -84,12 +84,7 @@ void PPU::tick(u16 dots_inc) {
         window_enabled = true;
       }
 
-      if (dots_inc == 4) {
-        add_sprite_to_buffer(sprite_index);
-        add_sprite_to_buffer(sprite_index);
-      }
-
-      if (dots_inc == 2) {
+      for (u8 i = 0; i < (dots_inc / 2); i++) {
         add_sprite_to_buffer(sprite_index);
       }
 

@@ -5,7 +5,7 @@
 #include "gb.hpp"
 #include "io.hpp"
 int handle_args(int& argc, char** argv, std::string& filename) {
-  CLI::App app{"", "bass"};
+  CLI::App app{"", "umibozu"};
   app.add_option("-f,--file", filename, "path to ROM")->required();
 
   CLI11_PARSE(app, argc, argv);
