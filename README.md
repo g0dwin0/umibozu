@@ -8,6 +8,7 @@ As of right now, this emulator only supports Linux.
 You can try building it on Windows, it *should* work, as I don't use any compiler specific extensions.
 
 **(audio soon™....)**
+[Screenshots](#Screenshots)
 
 ## NOTE
 
