@@ -55,14 +55,12 @@ void SM83::m_cycle() {
 u8 SM83::read8(const u16 address) {
 #ifdef CPU_TEST_MODE_H
   return test_memory[address];
-#endif
+#else
   m_cycle();
 
   return bus->read8(address);
 
-  // if (address >= 0xFE00 && address <= 0xFE9F && (u8)ppu->get_mode() >= 2) {
-  //   return 0xFF;
-  // }
+#endif
 };
 
 u16 SM83::read16(const u16 address) {
@@ -72,7 +70,12 @@ u16 SM83::read16(const u16 address) {
   return (high << 8) + low;
 }
 
-u8 SM83::peek(const u16 address) const { return bus->read8(address); }
+u8 SM83::peek(const u16 address) const {
+#ifdef CPU_TEST_MODE_H
+  return 0xFF;
+#endif
+  return bus->read8(address);
+}
 
 void SM83::write8(const u16 address, const u8 value) {
 #ifdef CPU_TEST_MODE_H
@@ -104,6 +107,7 @@ void SM83::unset_flag(FLAG flag) { F &= ~(1 << (u8)flag); };
 u8 SM83::get_flag(FLAG flag) const { return (F & (1 << (u8)flag)) ? 1 : 0; }
 
 void SM83::handle_interrupts() {
+#ifndef CPU_TEST_MODE_H
   // fmt::println("[CPU] IME:  {:08b}", IME);
   // fmt::println("handling interrupts");
 
@@ -156,6 +160,7 @@ void SM83::handle_interrupts() {
     // Bit 0 (VBlank) has the highest priority, and Bit 4 (Joypad) has the
     // lowest priority.
   }
+#endif
 };
 void SM83::run_instruction() {
 #ifndef CPU_TEST_MODE_H
@@ -167,11 +172,11 @@ void SM83::run_instruction() {
   // }
 
   handle_interrupts();
-#endif
   if (ei_queued) {
     IME       = true;
     ei_queued = false;
   }
+#endif
 
   u8 opcode = read8(PC++);
   switch (opcode) {
@@ -240,6 +245,7 @@ void SM83::run_instruction() {
       Instructions::RRCA(this);
       break;
     }
+#ifndef CPU_TEST_MODE_H
     case 0x10: {
       fmt::println("STOP called");
 
@@ -291,6 +297,7 @@ void SM83::run_instruction() {
 
       break;
     }
+#endif
     case 0x11: {
       Instructions::LD_R16_U16(this, DE, read16(PC++));
       break;
@@ -2299,7 +2306,10 @@ void SM83::run_instruction() {
         }
 
         default: {
+#ifndef CPU_TEST_MODE_H
           fmt::println("[CPU] unimplemented CB op: {:#04x}", peek(PC - 1));
+#endif
+          assert(0);
           // exit(-1);
         }
       }

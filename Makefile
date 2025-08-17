@@ -55,7 +55,7 @@ $(OBJ_DIR)/double_buffer.o: src/core/double_buffer.cpp include/core/double_buffe
 
 
 check: tests/cpu_tests.cpp
-	$(CC) tests/cpu_tests.cpp src/core/cpu.cpp src/core/bus.cpp src/core/instructions.cpp  src/core/timer.cpp src/core/apu.cpp  -O2 -DCPU_TEST_MODE_H -Ilib/ -Iinclude -Iinclude/core -std=c++20 -o build/bin/tests
+	$(CC) tests/cpu_tests.cpp src/core/cpu.cpp src/core/instructions.cpp  -O2 -DCPU_TEST_MODE_H -Ilib/ -Iinclude -Iinclude/core -std=c++20 -o build/bin/tests
 	build/bin/tests
 
 clean:
