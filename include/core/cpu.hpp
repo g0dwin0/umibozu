@@ -8,7 +8,6 @@
 #include "common.hpp"
 #include "mapper.hpp"
 #include "ppu.hpp"
-#include "timer.hpp"
 
 static constexpr u8 VBLANK_INTERRUPT = 0x40;
 static constexpr u8 STAT_INTERRUPT   = 0x48;
@@ -82,9 +81,6 @@ namespace Umibozu {
     bool IME              = false;
     SPEED speed           = SPEED::NORMAL;
 
-    PPU *ppu       = nullptr;
-    Mapper *mapper = nullptr;
-    Timer *timer   = nullptr;
 
     // State
     [[nodiscard]] std::string get_cpu_mode_string() const { return cpu_mode.at(status); };
@@ -96,8 +92,7 @@ namespace Umibozu {
     void write8(const u16 address, const u8 value);
     void push_to_stack(const u8 value);
     u8 pull_from_stack();
-    void io_write(const u16 address, const u8 value);
-    u8 io_read(const u16 address);
+    
 
     // CPU Internals
     void run_instruction();

@@ -1,3 +1,4 @@
+#pragma once
 #include <array>
 
 #include "apu.hpp"

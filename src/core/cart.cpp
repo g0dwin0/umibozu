@@ -8,10 +8,7 @@
 #include "fmt/core.h"
 using namespace Umibozu;
 
-Cartridge::Cartridge()  = default;
-Cartridge::~Cartridge() = default;
-
-std::string Cartridge::get_title(std::span<const u8> title_bytes) {
+std::string Cartridge::get_title(std::span<const u8> title_bytes) const {
   std::stringstream ss;
 
   for (auto& title_byte : title_bytes) {

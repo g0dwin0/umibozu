@@ -128,8 +128,6 @@ class Mapper {
   virtual u8 read8(const u16 address)                    = 0;
   virtual void write8(const u16 address, const u8 value) = 0;
 
-  u8 handle_system_memory_read(const u16 address);
-  void handle_system_memory_write(const u16 address, const u8 value);
 };
 
 Mapper* get_mapper_by_id(u8 mapper_id);

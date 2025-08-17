@@ -4,12 +4,10 @@
 
 #include "bus.hpp"
 #include "cpu.hpp"
-#include "mapper.hpp"
 #include "io_defs.hpp"
-
+#include "mapper.hpp"
 
 void GB::init_hw_regs(SYSTEM_MODE mode) {
-
   switch (mode) {
     case SYSTEM_MODE::DMG: {
       bus.io[JOYPAD]      = 0xCF;
@@ -102,31 +100,27 @@ void GB::init_hw_regs(SYSTEM_MODE mode) {
       break;
     }
   }
-  cpu.PC = 0x0100;
-  cpu.SP = 0xFFFE;
+  cpu.PC    = 0x0100;
+  cpu.SP    = 0xFFFE;
   cpu.speed = Umibozu::SM83::SPEED::NORMAL;
 }
 
 GB::GB() {
   Mapper::bus = &bus;
+  cpu.bus     = &bus;
+  ppu.bus     = &bus;
+  bus.ppu     = &ppu;
+  bus.timer   = &timer;
   bus.apu     = &apu;
-  cpu.ppu     = &ppu;
-  cpu.timer   = &timer;
-  timer.apu = &apu;
-  cpu.bus   = &bus;
-  ppu.bus   = &bus;
-  bus.ppu   = &ppu;
+
+  timer.apu   = &apu;
 }
 
 GB::~GB() {
-  if (bus.cart.info.title.empty()) { 
-    // TODO: if the cart has no title, we can't save it, as we have no name
-    // grab some bytes from the file, hash, and use it as an identifier for saves anyway
-    return;
-  }
+  if (cart.info.title.empty()) return;
 
-  if (!(cpu.mapper->id == 0x03 || cpu.mapper->id == 0x06 || cpu.mapper->id == 0x09 || cpu.mapper->id == 0x0D || cpu.mapper->id == 0x0F || cpu.mapper->id == 0x10 || cpu.mapper->id == 0x13 ||
-        cpu.mapper->id == 0x1B || cpu.mapper->id == 0x1E || cpu.mapper->id == 0x22 || cpu.mapper->id == 0xFF)) {  // mapper ids with save compatiblity
+  if (!(bus.mapper->id == 0x03 || bus.mapper->id == 0x06 || bus.mapper->id == 0x09 || bus.mapper->id == 0x0D || bus.mapper->id == 0x0F || bus.mapper->id == 0x10 || bus.mapper->id == 0x13 ||
+        bus.mapper->id == 0x1B || bus.mapper->id == 0x1E || bus.mapper->id == 0x22 || bus.mapper->id == 0xFF)) {  // mapper ids with save compatiblity
     return;
   }
 
@@ -134,12 +128,12 @@ GB::~GB() {
 }
 
 void GB::load_cart(const File &rom) {
-  bus.cart.memory    = rom.data;
-  bus.cart.info.path = rom.path;
+  cart.memory    = rom.data;
+  cart.info.path = rom.path;
 
-  std::fill(bus.cart.ext_ram.begin(), bus.cart.ext_ram.end(), 0);
+  std::fill(cart.ext_ram.begin(), cart.ext_ram.end(), 0);
 
-  bus.io[KEY0] = bus.cart.memory[0x143];
+  bus.io[KEY0] = cart.memory[0x143];
 
   // check rom compat mode -- set hw regs on init
 
@@ -149,14 +143,12 @@ void GB::load_cart(const File &rom) {
     bus.mode = SYSTEM_MODE::DMG;
   }
 
-
-
   init_hw_regs(bus.mode);
 
-  bus.cart.set_cart_info();
-  bus.cart.print_cart_info();
-  Mapper *mapper_ptr = get_mapper_by_id(bus.cart.info.mapper_id);
-  cpu.mapper         = mapper_ptr;
+  cart.set_cart_info();
+  cart.print_cart_info();
+  Mapper *mapper_ptr = get_mapper_by_id(cart.info.mapper_id);
+  bus.mapper         = mapper_ptr;
   ppu.mapper         = mapper_ptr;
 
   load_save_game();
@@ -166,21 +158,21 @@ void GB::load_cart(const File &rom) {
 
 void GB::save_game() {
   if (!std::filesystem::exists("saves")) {
-    if(!std::filesystem::create_directory("saves")) {
+    if (!std::filesystem::create_directory("saves")) {
       fmt::println("could not create save directory");
     }
   }
 
-  std::ofstream save(fmt::format("saves/{}.sav", bus.cart.info.title), std::ios::binary | std::ios::trunc);
+  std::ofstream save(fmt::format("saves/{}.sav", cart.info.title), std::ios::binary | std::ios::trunc);
 
   std::ostream_iterator<u8> output_iterator(save);
-  std::copy(std::begin(bus.cart.ext_ram), std::end(bus.cart.ext_ram), output_iterator);
+  std::copy(std::begin(cart.ext_ram), std::end(cart.ext_ram), output_iterator);
 
   save.close();
 }
 
 void GB::load_save_game() {
-  std::string save_path = fmt::format("saves/{}.sav", bus.cart.info.title);
+  std::string save_path = fmt::format("saves/{}.sav", cart.info.title);
 
   if (std::filesystem::exists(save_path)) {
     std::ifstream save(save_path, std::ios::binary);
@@ -188,7 +180,7 @@ void GB::load_save_game() {
     File save_file = read_file(save_path);
     u64 index      = 0;
     for (auto &byte : save_file.data) {
-      bus.cart.ext_ram.at(index++) = byte;
+      cart.ext_ram.at(index++) = byte;
     }
 
     fmt::println("[GB] save loaded");

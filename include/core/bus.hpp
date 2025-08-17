@@ -1,11 +1,16 @@
 #pragma once
-#include "apu.hpp"
+
+// #include "apu.hpp"
 #include "cart.hpp"
 #include "common.hpp"
 #include "joypad.hpp"
 #include "ppu.hpp"
+#include "timer.hpp"
 struct PPU;
 #include "ppu.hpp"
+
+#include "mapper.hpp"
+
 using namespace Umibozu;
 
 enum class INTERRUPT_TYPE : u8 {
@@ -26,10 +31,12 @@ struct PaletteSpecification {
 struct Bus {
   SYSTEM_MODE mode = SYSTEM_MODE::DMG;
 
-  Cartridge cart;
   Joypad joypad;
-  APU* apu = nullptr;
-  PPU* ppu = nullptr;
+  Cartridge* cart = nullptr;
+  APU* apu       = nullptr;
+  PPU* ppu       = nullptr;
+  Timer* timer   = nullptr;
+  Mapper* mapper = nullptr;
 
   // WRAM Bank
   u8 svbk = 0;
@@ -49,19 +56,16 @@ struct Bus {
   std::array<u8, 0x2000>* vram = &vram_banks[0];
   std::array<u8, 0x1000>* wram = &wram_banks[1];
 
-  std::array<u8, 0xA0> oam;            
-  std::array<u8, 0x100> io;            
-  std::array<u8, 0x80> hram;           
-  std::array<u8, 0x40> bg_palette_ram; 
+  std::array<u8, 0xA0> oam;
+  std::array<u8, 0x100> io;
+  std::array<u8, 0x80> hram;
+  std::array<u8, 0x40> bg_palette_ram;
   std::array<u8, 0x40> obj_palette_ram;
 
   bool hidden_stat = should_raise_mode_0() || should_raise_mode_1() || should_raise_mode_2() || should_raise_ly_lyc();
 
-  void update_hidden_stat() {
-    hidden_stat = should_raise_mode_0() || should_raise_mode_1() || should_raise_mode_2() || should_raise_ly_lyc();
-  }
+  void update_hidden_stat() { hidden_stat = should_raise_mode_0() || should_raise_mode_1() || should_raise_mode_2() || should_raise_ly_lyc(); }
 
-  // WAVE RAM
   std::array<u8, 0x40> wave_ram;
   u8 wave_last_written_value = 0xFF;
 
@@ -73,10 +77,21 @@ struct Bus {
   u16 serial_port_index = 0;
   std::array<char, 0xFFFF> serial_port_buffer;
 
-  bool should_raise_mode_0(); 
-  bool should_raise_mode_1();
-  bool should_raise_mode_2();
-  bool should_raise_ly_lyc();
+  bool should_raise_mode_0() const;
+  bool should_raise_mode_1() const;
+  bool should_raise_mode_2() const;
+  bool should_raise_ly_lyc() const;
 
   [[nodiscard]] std::string get_label(u16 addr);
+
+  u8 read8(const u16 address);
+  void write8(const u16 address, const u8 value);
+
+  u8 io_read(const u16 address);
+  void io_write(const u16 address, const u8 value);
+
+  void init_hdma(u16 length);
+  void terminate_hdma();
+
+  bool double_speed_mode = false;
 };

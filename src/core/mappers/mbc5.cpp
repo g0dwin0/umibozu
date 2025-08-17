@@ -6,16 +6,16 @@ class MBC5 : public Mapper {
  private:
   u8 read8(const u16 address) override {
     if (address >= 0x4000 && address <= 0x7FFF) {
-      return bus->cart.read8((0x4000 * rom_bank) + (address - 0x4000));
+      return bus->cart->read8((0x4000 * rom_bank) + (address - 0x4000));
     }
     if (address >= 0xA000 && address <= 0xBFFF) {
       if (rtc_ext_ram_enabled) {
-        return bus->cart.ext_ram.at((0x2000 * ram_bank) +
-                                       (address - 0xA000));
+        return bus->cart->ext_ram.at((0x2000 * ram_bank) + (address - 0xA000));
       }
       return 0xFF;
     }
-    return handle_system_memory_read(address);
+
+    return bus->read8(address);
   }
   void write8(const u16 address, const u8 value) override {
     if (address <= 0x1FFF) {
@@ -29,7 +29,7 @@ class MBC5 : public Mapper {
 
     if (address >= 0x2000 && address <= 0x2FFF) {
       // Low 8
-      rom_bank = value & (bus->cart.info.rom_banks - 1);
+      rom_bank = value & (bus->cart->info.rom_banks - 1);
       return;
     }
     if (address >= 0x3000 && address <= 0x3FFF) {
@@ -43,17 +43,20 @@ class MBC5 : public Mapper {
     }
 
     if (address >= 0x4000 && address <= 0x5FFF) {
-      if (value < 0xF) { ram_bank = value; }
+      if (value < 0xF) {
+        ram_bank = value;
+      }
       return;
     }
 
     if (address >= 0xA000 && address <= 0xBFFF) {
       if (rtc_ext_ram_enabled) {
-        bus->cart.ext_ram.at((0x2000 * ram_bank) + (address - 0xA000)) = value;
+        bus->cart->ext_ram.at((0x2000 * ram_bank) + (address - 0xA000)) = value;
       }
       return;
     }
 
-    return handle_system_memory_write(address, value);
+    bus->write8(address, value);
+    return;
   }
 };

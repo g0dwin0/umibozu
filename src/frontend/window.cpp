@@ -198,8 +198,8 @@ void Frontend::show_menubar() {
       }
 
       if (ImGui::MenuItem("Reset")) {
-        if (!gb->bus.cart.info.path.empty()) {
-          this->gb->load_cart(read_file(gb->bus.cart.info.path));
+        if (!gb->cart.info.path.empty()) {
+          this->gb->load_cart(read_file(gb->cart.info.path));
         }
       }
       ImGui::EndMenu();
@@ -285,8 +285,10 @@ void Frontend::show_ppu_info() {
 
 void Frontend::show_cpu_info() {
   ImGui::Begin("CPU INFO", &state.cpu_info_open, 0);
-  ImGui::Text("ROM BANK: %d", gb->cpu.mapper->rom_bank);
-  ImGui::Text("RAM BANK: %d", gb->cpu.mapper->ram_bank);
+  if (gb->bus.mapper != nullptr) {
+    ImGui::Text("ROM BANK: %d", gb->bus.mapper->rom_bank);
+    ImGui::Text("RAM BANK: %d", gb->bus.mapper->ram_bank);
+  }
   ImGui::Separator();
   ImGui::Text("SPEED: %s", gb->cpu.speed == Umibozu::SM83::SPEED::DOUBLE ? "DOUBLE" : "NORMAL");
   ImGui::Separator();
@@ -298,13 +300,15 @@ void Frontend::show_cpu_info() {
   ImGui::Separator();
   ImGui::Text("pointer to cpu = %p", (void*)&gb->cpu);
   ImGui::Text("pc = 0x%x", gb->cpu.PC);
-  ImGui::Text("opcode: 0x%x", gb->cpu.peek(gb->cpu.PC));
+  if (gb->bus.mapper != nullptr) {
+    ImGui::Text("opcode: 0x%x", gb->cpu.peek(gb->cpu.PC));
+  }
   ImGui::Text("status: %s", gb->cpu.get_cpu_mode_string().c_str());
   ImGui::Separator();
-  ImGui::Text("DIV = 0x%x", gb->cpu.timer->get_div());
-  ImGui::Text("TIMA = 0x%x", gb->cpu.timer->counter);
-  ImGui::Text("TMA = 0x%x", gb->cpu.timer->modulo);
-  ImGui::Text("timer enabled = %d", gb->cpu.timer->ticking_enabled);
+  ImGui::Text("DIV = 0x%x", gb->bus.timer->get_div());
+  ImGui::Text("TIMA = 0x%x", gb->bus.timer->counter);
+  ImGui::Text("TMA = 0x%x", gb->bus.timer->modulo);
+  ImGui::Text("timer enabled = %d", gb->bus.timer->ticking_enabled);
   ImGui::Separator();
   ImGui::Text("mode = %s", gb->bus.get_mode_string().c_str());
   ImGui::Separator();
@@ -365,7 +369,8 @@ void Frontend::render_frame() {
 
   SDL_GetWindowSize(window, &screenWidth, &screenHeight);
 
-  dst = { // crops the texture to 160x144 and stretches it to user window size
+  dst = {
+      // crops the texture to 160x144 and stretches it to user window size
       .x = 0,
       .y = (int)ImGui::GetFrameHeight(),
       .w = screenWidth,
@@ -389,7 +394,7 @@ void Frontend::show_viewport() {
 
   ImGui::End();
 }
-Frontend::Frontend(GB* gb): gb(gb) {
+Frontend::Frontend(GB* gb) : gb(gb) {
   assert(this->gb != nullptr);
 
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_GAMECONTROLLER | SDL_INIT_AUDIO) != 0) {
@@ -408,13 +413,13 @@ Frontend::Frontend(GB* gb): gb(gb) {
   ImGuiIO& io = ImGui::GetIO();
   (void)io;
 
-  io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;  
+  io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 
   this->state.io = &io;
 
   ImGui::StyleColorsDark();
 
-  this->state.ppu_texture    = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_BGR555, SDL_TEXTUREACCESS_TARGET, 256, 256);
+  this->state.ppu_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_BGR555, SDL_TEXTUREACCESS_TARGET, 256, 256);
 
   this->state.viewport = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_BGR555, SDL_TEXTUREACCESS_TARGET, 256, 256);
 
@@ -432,11 +437,11 @@ void Frontend::show_memory_viewer() {
   };
 
   const void* memory_partitions[] = {
-      gb->bus.vram->data(), gb->bus.cart.ext_ram.data(), gb->bus.wram_banks[0].data(), gb->bus.wram->data(), gb->bus.wram_banks[0].data(), gb->bus.oam.data(), gb->bus.hram.data(),
+      gb->bus.vram->data(), gb->bus.cart->ext_ram.data(), gb->bus.wram_banks[0].data(), gb->bus.wram->data(), gb->bus.wram_banks[0].data(), gb->bus.oam.data(), gb->bus.hram.data(),
   };
 
   const size_t memory_partition_size[] = {
-      gb->bus.vram->size(), gb->bus.cart.ext_ram.size(), gb->bus.wram_banks[0].size(), gb->bus.wram->size(), gb->bus.wram_banks[0].size(), gb->bus.oam.size(), gb->bus.hram.size(),
+      gb->bus.vram->size(), gb->bus.cart->ext_ram.size(), gb->bus.wram_banks[0].size(), gb->bus.wram->size(), gb->bus.wram_banks[0].size(), gb->bus.oam.size(), gb->bus.hram.size(),
   };
 
   static int SelectedItem = 0;

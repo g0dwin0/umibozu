@@ -6,7 +6,7 @@
 namespace Umibozu {
   class Cartridge {
    private:
-    static std::string get_title(std::span<const u8>);
+    std::string get_title(std::span<const u8>) const;
     
     struct Info {
       std::string title;
@@ -24,8 +24,6 @@ namespace Umibozu {
     std::vector<u8> memory;
     std::array<u8, 0x100000> ext_ram;
     Info info;
-    Cartridge();
-    ~Cartridge();
 
     u8 read8(u64);
   };

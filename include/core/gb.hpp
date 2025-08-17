@@ -1,6 +1,7 @@
 #pragma once
 
 #include "bus.hpp"
+#include "cart.hpp"
 #include "cpu.hpp"
 #include "io.hpp"
 #include "apu.hpp"
@@ -11,6 +12,7 @@ struct GB {
   PPU ppu;
   Bus bus;
   APU apu;
+  Cartridge cart;
 
   GB();
   ~GB();

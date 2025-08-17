@@ -5,16 +5,16 @@ class MBC3 : public Mapper {
 
   u8 read8(const u16 address) override {
     if (address >= 0x4000 && address <= 0x7FFF) {
-      return bus->cart.read8((0x4000 * rom_bank) + (address - 0x4000));
+      return bus->cart->read8((0x4000 * rom_bank) + (address - 0x4000));
     }
 
     if (address >= 0xA000 && address <= 0xBFFF) {
-      
-      if (ram_bank >= 8) { return 0xFF; }
-      
+      if (ram_bank >= 8) {
+        return 0xFF;
+      }
+
       if (register_mode == WRITING_MODE::RAM && rtc_ext_ram_enabled) {
-        return bus->cart.ext_ram.at((0x2000 * ram_bank) +
-                                       (address - 0xA000));
+        return bus->cart->ext_ram.at((0x2000 * ram_bank) + (address - 0xA000));
       }
 
       if (register_mode == WRITING_MODE::RTC && rtc_ext_ram_enabled) {
@@ -24,18 +24,18 @@ class MBC3 : public Mapper {
 
       return 0xFF;
     }
-    return handle_system_memory_read(address);
+    return bus->read8(address);
   }
   void write8(const u16 address, const u8 value) override {
-    if (address <= 0x1FFF) { 
+    if (address <= 0x1FFF) {
       if ((value & 0xF) == 0xA) {
         rtc_ext_ram_enabled = true;
       } else {
         rtc_ext_ram_enabled = false;
         // rtc_internal_clock = 0;
-        // fmt::println("[MBC3] EXT RAM/RTC DISABLED"); 
+        // fmt::println("[MBC3] EXT RAM/RTC DISABLED");
       }
-      
+
       return;
     }
 
@@ -45,7 +45,7 @@ class MBC3 : public Mapper {
         return;
       }
 
-      rom_bank = value & (bus->cart.info.rom_banks - 1);
+      rom_bank = value & (bus->cart->info.rom_banks - 1);
       // fmt::println("new rom bank: {:d}", rom_bank);
 
       return;
@@ -85,10 +85,12 @@ class MBC3 : public Mapper {
       // fmt::println("RAM BANK: {:#08x}");
 
       if (register_mode == WRITING_MODE::RAM && rtc_ext_ram_enabled) {
-        if (ram_bank >= 8) { return; }
+        if (ram_bank >= 8) {
+          return;
+        }
         // fmt::println("writing to ext ram loc: {:#08x}",
         //              (0x2000 * ram_bank) + (address - 0xA000));
-        bus->cart.ext_ram.at((0x2000 * ram_bank) + (address - 0xA000)) = value;
+        bus->cart->ext_ram.at((0x2000 * ram_bank) + (address - 0xA000)) = value;
       }
       if (register_mode == WRITING_MODE::RTC && rtc_ext_ram_enabled) {
         // fmt::println("writing to RTC register: {:#08x}", (u8)active_rtc_register);
@@ -99,6 +101,7 @@ class MBC3 : public Mapper {
       return;
     }
     // fmt::println("address: {:#08x} value: {:#08x}", address, value);
-    return handle_system_memory_write(address, value);
+    bus->write8(address, value);
+    return;
   }
 };
