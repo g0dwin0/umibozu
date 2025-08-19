@@ -53,7 +53,7 @@ I used the following resources to create this emulator:
 | Right    | Right Key           |
 | Start    | Enter               |
 | Select   | BACKSPACE           |
-| B        | A                   |
+| B        | X                   |
 | A        | Z                   |
 
 
