@@ -1,28 +1,22 @@
 #include "frontend/window.hpp"
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_audio.h>
-#include <SDL2/SDL_error.h>
-#include <SDL2/SDL_events.h>
-#include <SDL2/SDL_gamecontroller.h>
-#include <SDL2/SDL_joystick.h>
-#include <SDL2/SDL_keyboard.h>
-#include <SDL2/SDL_pixels.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_scancode.h>
-#include <SDL2/SDL_video.h>
+#include <SDL3/SDL.h>
 
-#include <tuple>
-
+#include "SDL3/SDL_audio.h"
+#include "SDL3/SDL_error.h"
+#include "SDL3/SDL_render.h"
+#include "SDL3/SDL_video.h"
+#include "backends/imgui_impl_sdl3.h"
+#include "backends/imgui_impl_sdlrenderer3.h"
 #include "bus.hpp"
 #include "common.hpp"
 #include "cpu.hpp"
 #include "imgui.h"
-#include "imgui_impl_sdl2.h"
-#include "imgui_impl_sdlrenderer2.h"
 #include "io.hpp"
+#include "io_defs.hpp"
 #include "joypad.hpp"
-#include "tinyfiledialogs.h"
+#include "lib/tinyfiledialogs/tinyfiledialogs.h"
+#include <filesystem>
 
 static MemoryEditor editor_instance;
 
@@ -30,70 +24,70 @@ void Frontend::handle_events() {
   SDL_Event event;
 
   while (SDL_PollEvent(&event)) {
-    ImGui_ImplSDL2_ProcessEvent(&event);
+    ImGui_ImplSDL3_ProcessEvent(&event);
 
     switch (event.type) {
-      case SDL_QUIT: {
+      case SDL_EVENT_QUIT: {
         state.running = false;
         gb->active    = false;
         break;
       }
 
-      case SDL_KEYDOWN: {
-        if (state.keyboardState[settings.keybinds.control_map.at(RIGHT).first]) {
+      case SDL_EVENT_KEY_DOWN: {
+        if (state.keyboard_state[settings.keybinds.control_map.at(RIGHT).first]) {
           gb->bus.joypad.RIGHT = 0;
         }
-        if (state.keyboardState[settings.keybinds.control_map.at(LEFT).first]) {
+        if (state.keyboard_state[settings.keybinds.control_map.at(LEFT).first]) {
           gb->bus.joypad.LEFT = 0;
         }
-        if (state.keyboardState[settings.keybinds.control_map.at(UP).first]) {
+        if (state.keyboard_state[settings.keybinds.control_map.at(UP).first]) {
           gb->bus.joypad.UP = 0;
         }
-        if (state.keyboardState[settings.keybinds.control_map.at(DOWN).first]) {
+        if (state.keyboard_state[settings.keybinds.control_map.at(DOWN).first]) {
           gb->bus.joypad.DOWN = 0;
         }
 
-        if (state.keyboardState[settings.keybinds.control_map.at(A).first]) {
+        if (state.keyboard_state[settings.keybinds.control_map.at(A).first]) {
           gb->bus.joypad.A = 0;
         }
-        if (state.keyboardState[settings.keybinds.control_map.at(B).first]) {
+        if (state.keyboard_state[settings.keybinds.control_map.at(B).first]) {
           gb->bus.joypad.B = 0;
         }
-        if (state.keyboardState[settings.keybinds.control_map.at(START).first]) {
+        if (state.keyboard_state[settings.keybinds.control_map.at(START).first]) {
           gb->bus.joypad.START = 0;
         }
-        if (state.keyboardState[settings.keybinds.control_map.at(SELECT).first]) {
+        if (state.keyboard_state[settings.keybinds.control_map.at(SELECT).first]) {
           gb->bus.joypad.SELECT = 0;
         }
 
         break;
       }
 
-      case SDL_KEYUP: {
-        if (!state.keyboardState[settings.keybinds.control_map.at(RIGHT).first]) {
+      case SDL_EVENT_KEY_UP: {
+        if (!state.keyboard_state[settings.keybinds.control_map.at(RIGHT).first]) {
           gb->bus.joypad.RIGHT = 1;
         }
-        if (!state.keyboardState[settings.keybinds.control_map.at(LEFT).first]) {
+        if (!state.keyboard_state[settings.keybinds.control_map.at(LEFT).first]) {
           gb->bus.joypad.LEFT = 1;
         }
 
-        if (!state.keyboardState[settings.keybinds.control_map.at(UP).first]) {
+        if (!state.keyboard_state[settings.keybinds.control_map.at(UP).first]) {
           gb->bus.joypad.UP = 1;
         }
-        if (!state.keyboardState[settings.keybinds.control_map.at(DOWN).first]) {
+        if (!state.keyboard_state[settings.keybinds.control_map.at(DOWN).first]) {
           gb->bus.joypad.DOWN = 1;
         }
 
-        if (!state.keyboardState[settings.keybinds.control_map.at(A).first]) {
+        if (!state.keyboard_state[settings.keybinds.control_map.at(A).first]) {
           gb->bus.joypad.A = 1;
         }
-        if (!state.keyboardState[settings.keybinds.control_map.at(B).first]) {
+        if (!state.keyboard_state[settings.keybinds.control_map.at(B).first]) {
           gb->bus.joypad.B = 1;
         }
-        if (!state.keyboardState[settings.keybinds.control_map.at(START).first]) {
+        if (!state.keyboard_state[settings.keybinds.control_map.at(START).first]) {
           gb->bus.joypad.START = 1;
         }
-        if (!state.keyboardState[settings.keybinds.control_map.at(SELECT).first]) {
+        if (!state.keyboard_state[settings.keybinds.control_map.at(SELECT).first]) {
           gb->bus.joypad.SELECT = 1;
         }
 
@@ -104,8 +98,8 @@ void Frontend::handle_events() {
 }
 
 void Frontend::shutdown() {
-  ImGui_ImplSDLRenderer2_Shutdown();
-  ImGui_ImplSDL2_Shutdown();
+  ImGui_ImplSDLRenderer3_Shutdown();
+  ImGui_ImplSDL3_Shutdown();
   ImGui::DestroyContext();
 
   SDL_Quit();
@@ -147,8 +141,8 @@ void Frontend::show_controls_menu(bool* p_open) {
 
   bool invalid_keybind = false;
 
-  for (SDL_Scancode start = SDL_SCANCODE_A; start < SDL_SCANCODE_AUDIOFASTFORWARD; start = (SDL_Scancode)(start + 1)) {
-    if (!state.keyboardState[start]) continue;
+  for (SDL_Scancode start = SDL_SCANCODE_A; start < SDL_SCANCODE_MEDIA_FAST_FORWARD; start = (SDL_Scancode)(start + 1)) {
+    if (!state.keyboard_state[start]) continue;
     ImGui::SameLine();
 
     // refactor: hard to read; use structured bindings
@@ -186,19 +180,22 @@ void Frontend::show_controls_menu(bool* p_open) {
   }
   ImGui::End();
 }
+
 void Frontend::show_menubar() {
   if (ImGui::BeginMainMenuBar()) {
     ImGui::Separator();
     if (ImGui::BeginMenu("File")) {
       if (ImGui::MenuItem("Load ROM")) {
-        auto path = tinyfd_openFileDialog("Load ROM", ".", 2, patterns, "Gameboy ROMs", 0);
+        auto path = tinyfd_openFileDialog("Load ROM", "roms/", 2, patterns, "Gameboy ROM", 0);
         if (path != nullptr) {
+          gb->reset();
           this->gb->load_cart(read_file(path));
         }
       }
 
       if (ImGui::MenuItem("Reset")) {
         if (!gb->cart.info.path.empty()) {
+          gb->reset();
           this->gb->load_cart(read_file(gb->cart.info.path));
         }
       }
@@ -217,11 +214,52 @@ void Frontend::show_menubar() {
       ImGui::Checkbox("CPU Info", &state.cpu_info_open);
       ImGui::Checkbox("PPU Info", &state.ppu_info_open);
       ImGui::Checkbox("IO Info", &state.io_info_open);
+      ImGui::Checkbox("APU Info", &state.apu_info_open);
+
       ImGui::EndMenu();
     }
 
     ImGui::EndMainMenuBar();
   }
+}
+void Frontend::show_apu_info() {
+  ImGui::Begin("APU Info", &state.apu_info_open, 0);
+
+  bool a = gb->apu.regs.NR52.AUDIO_ON;
+  bool b = gb->apu.regs.channel_1.dac_enabled();
+  bool c = gb->apu.regs.channel_2.dac_enabled();
+
+  ImGui::Checkbox("APU [NR52] - Enabled {}", &a);
+
+  ImGui::SeparatorText("Channel 1 - Square + Sweep");
+  ImGui::Checkbox("Enabled##x", &gb->apu.regs.channel_1.channel_enabled);
+  ImGui::Checkbox("DAC Enabled##xxx", &b);
+  ImGui::Text("Length Timer: %d", gb->apu.regs.channel_1.length_timer);
+  ImGui::Text("Duty Step: %d", gb->apu.regs.channel_1.duty_step);
+
+  ImGui::SeparatorText("Channel 2 - Square");
+  ImGui::Checkbox("Enabled##xx", &gb->apu.regs.channel_2.channel_enabled);
+  ImGui::Checkbox("DAC Enabled##x", &c);
+  ImGui::Text("Length Timer: %d", gb->apu.regs.channel_2.length_timer);
+  ImGui::Text("Duty Step: %d", gb->apu.regs.channel_2.duty_step);
+
+  ImGui::SeparatorText("Channel 3 - Wave");
+  ImGui::Checkbox("Enabled##xxx", &gb->apu.regs.channel_3.channel_enabled);
+
+  ImGui::SeparatorText("Channel 4 - Noise");
+  ImGui::Checkbox("Enabled##xxxx", &gb->apu.regs.channel_4.channel_enabled);
+
+  ImGui::SeparatorText("Sample Buffer");
+  ImGui::Text("Write position: %d", gb->apu.write_pos);
+  ImGui::Text("Sample value: %.3f", gb->apu.audio_buf[gb->apu.write_pos]);
+
+  ImGui::SeparatorText("Sound Panning");
+  ImGui::Text("NR51: %d", gb->apu.regs.NR51.value);
+  ImGui::Text("CH1 L: %d R: %d", +gb->apu.regs.NR51.CH1_LEFT, +gb->apu.regs.NR51.CH1_RIGHT);
+  ImGui::Text("CH2 L: %d R: %d", +gb->apu.regs.NR51.CH2_LEFT, +gb->apu.regs.NR51.CH2_RIGHT);
+  ImGui::Text("CH3 L: %d R: %d", +gb->apu.regs.NR51.CH3_LEFT, +gb->apu.regs.NR51.CH3_RIGHT);
+  ImGui::Text("CH4 L: %d R: %d", +gb->apu.regs.NR51.CH4_LEFT, +gb->apu.regs.NR51.CH4_RIGHT);
+  ImGui::End();
 }
 void Frontend::show_ppu_info() {
   ImGui::Begin("PPU INFO", &state.ppu_info_open, 0);
@@ -277,6 +315,10 @@ void Frontend::show_ppu_info() {
     gb->bus.request_interrupt(INTERRUPT_TYPE::TIMER);
   }
 
+  if (ImGui::Button("Toggle Window")) {
+    gb->ppu.lcdc.window_disp_enable ^= 1;
+  }
+
   if (ImGui::Button("STEP")) {
     gb->cpu.run_instruction();
   }
@@ -290,7 +332,7 @@ void Frontend::show_cpu_info() {
     ImGui::Text("RAM BANK: %d", gb->bus.mapper->ram_bank);
   }
   ImGui::Separator();
-  ImGui::Text("SPEED: %s", gb->cpu.speed == Umibozu::SM83::SPEED::DOUBLE ? "DOUBLE" : "NORMAL");
+  ImGui::Text("SPEED: %s", gb->cpu.speed == SPEED::DOUBLE ? "DOUBLE" : "NORMAL");
   ImGui::Separator();
 
   ImGui::Text("Z: %x", gb->cpu.get_flag(Umibozu::SM83::FLAG::ZERO));
@@ -337,13 +379,13 @@ void Frontend::show_cpu_info() {
 }
 
 void Frontend::render_frame() {
-  ImGui_ImplSDLRenderer2_NewFrame();
-  ImGui_ImplSDL2_NewFrame();
+  ImGui_ImplSDLRenderer3_NewFrame();
+  ImGui_ImplSDL3_NewFrame();
   ImGui::NewFrame();
   show_menubar();
-  if (state.controls_window_open) {
-    show_controls_menu(&state.controls_window_open);
-  }
+  // if (state.controls_window_open) {
+  //   show_controls_menu(&state.controls_window_open);
+  // }
 
   if (state.texture_window_open) {
     show_viewport();
@@ -354,6 +396,10 @@ void Frontend::render_frame() {
   if (state.ppu_info_open) {
     show_ppu_info();
   }
+  if (state.apu_info_open) {
+    show_apu_info();
+  }
+
   if (state.memory_viewer_open) {
     show_memory_viewer();
   }
@@ -362,7 +408,7 @@ void Frontend::render_frame() {
   }
 
   ImGui::Render();
-  SDL_RenderSetScale(renderer, state.io->DisplayFramebufferScale.x, state.io->DisplayFramebufferScale.y);
+  SDL_SetRenderScale(renderer, state.io->DisplayFramebufferScale.x, state.io->DisplayFramebufferScale.y);
 
   SDL_SetRenderTarget(renderer, NULL);
   SDL_RenderClear(renderer);
@@ -372,17 +418,26 @@ void Frontend::render_frame() {
   dst = {
       // crops the texture to 160x144 and stretches it to user window size
       .x = 0,
-      .y = (int)ImGui::GetFrameHeight(),
-      .w = screenWidth,
-      .h = screenHeight,
+      .y = (float)ImGui::GetFrameHeight(),
+      .w = (float)screenWidth,
+      .h = (float)screenHeight,
   };
 
   SDL_UpdateTexture(state.ppu_texture, nullptr, gb->ppu.db.disp_buf, 256 * 2);
 
-  SDL_RenderCopy(renderer, state.ppu_texture, &src, &dst);
+  SDL_RenderTexture(renderer, state.ppu_texture, &src, &dst);
 
-  ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
+  ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
   SDL_RenderPresent(renderer);
+  end_ticks = SDL_GetTicks();
+
+  float frameTime = (end_ticks - start_ticks) / 1000.0f;  // in seconds
+
+  if (frameTime > 0) {
+    fps = 1.0f / frameTime;
+    printf("FPS: %.2f\n", fps);
+  }
+  start_ticks = SDL_GetTicks();
 }
 void Frontend::show_viewport() {
   ImGui::Begin("PPU Texture", &state.texture_window_open, 0);
@@ -397,15 +452,17 @@ void Frontend::show_viewport() {
 Frontend::Frontend(GB* gb) : gb(gb) {
   assert(this->gb != nullptr);
 
-  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_GAMECONTROLLER | SDL_INIT_AUDIO) != 0) {
+  if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_AUDIO)) {
     fmt::println("ERROR: {}", SDL_GetError());
     exit(-1);
   }
 
-  auto window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+  auto window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 
-  this->window   = SDL_CreateWindow("umibozu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 960, 540, window_flags);
-  this->renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+  this->window   = SDL_CreateWindow(fmt::format("umibozu-{}", SOFTWARE_VERSION).c_str(), 960, 540, window_flags);
+  this->renderer = SDL_CreateRenderer(window, NULL);
+
+  SDL_SetRenderVSync(renderer, 1);
 
   // Setup Dear ImGui context
   IMGUI_CHECKVERSION();
@@ -419,14 +476,14 @@ Frontend::Frontend(GB* gb) : gb(gb) {
 
   ImGui::StyleColorsDark();
 
-  this->state.ppu_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_BGR555, SDL_TEXTUREACCESS_TARGET, 256, 256);
+  this->state.ppu_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_XBGR1555, SDL_TEXTUREACCESS_TARGET, 256, 256);
 
-  this->state.viewport = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_BGR555, SDL_TEXTUREACCESS_TARGET, 256, 256);
+  this->state.viewport = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_XBGR1555, SDL_TEXTUREACCESS_TARGET, 256, 256);
 
-  // init_audio_device();
+  init_audio_device();
 
-  ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
-  ImGui_ImplSDLRenderer2_Init(renderer);
+  ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
+  ImGui_ImplSDLRenderer3_Init(renderer);
 }
 
 void Frontend::show_memory_viewer() {
@@ -457,14 +514,20 @@ void Frontend::show_memory_viewer() {
 }
 
 void Frontend::init_audio_device() {
-  SDL_AudioSpec desiredSpec = {}, obtainedSpec = {};
-  desiredSpec.freq      = 48000;
-  desiredSpec.format    = AUDIO_S8;
-  desiredSpec.channels  = 1;
-  desiredSpec.silence   = 0;
-  desiredSpec.samples   = 738;
-  state.audio_device_id = SDL_OpenAudioDevice(nullptr, 0, &desiredSpec, &obtainedSpec, 0);
-  SDL_PauseAudioDevice(state.audio_device_id, 0);
+  SDL_AudioSpec spec = {};
+  spec.freq          = 48000;
+  spec.format        = SDL_AUDIO_F32;
+  spec.channels      = 2;
+  stream             = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, NULL, NULL);
 
-  fmt::println("initialized with audio device ID: {}", state.audio_device_id);
+  if (!stream) {
+    fmt::println("Couldn't create audio stream: {}", SDL_GetError());
+    exit(-1);
+  }
+
+  SDL_ResumeAudioStreamDevice(stream);
+}
+
+void Frontend::dump_framebuffer() {
+  SDL_Log("dumped framebuffer to %s\n", "UNIMPL");
 }
