@@ -22,9 +22,9 @@ namespace Umibozu {
   struct SM83 {
     enum class FLAG : u8 { CARRY = 4, HALF_CARRY = 5, NEGATIVE = 6, ZERO = 7 };
     enum class STATUS : u8 { ACTIVE, HALT_MODE, STOP, PAUSED };
-    enum class SPEED : u8 { NORMAL = 0x00, DOUBLE = 0x80 };
 
-    Bus *bus = nullptr;
+    u64 cycles_elapsed = 0;
+    Bus *bus           = nullptr;
 
     std::unordered_map<SM83::STATUS, std::string> cpu_mode = {
         {   SM83::STATUS::ACTIVE, "ACTIVE"},
@@ -75,12 +75,11 @@ namespace Umibozu {
       };
     };
 
-    u16 SP                = 0xFFFE;
-    u16 PC                = 0x0100;
-    STATUS status         = STATUS::PAUSED;
-    bool IME              = false;
-    SPEED speed           = SPEED::NORMAL;
-
+    u16 SP        = 0xFFFE;
+    u16 PC        = 0x0100;
+    STATUS status = STATUS::PAUSED;
+    bool IME      = false;
+    SPEED speed   = SPEED::NORMAL;
 
     // State
     [[nodiscard]] std::string get_cpu_mode_string() const { return cpu_mode.at(status); };
@@ -92,10 +91,9 @@ namespace Umibozu {
     void write8(const u16 address, const u8 value);
     void push_to_stack(const u8 value);
     u8 pull_from_stack();
-    
 
     // CPU Internals
-    void run_instruction();
+    u32 run_instruction();
     void handle_interrupts();
     void m_cycle();
 

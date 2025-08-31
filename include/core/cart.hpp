@@ -2,6 +2,7 @@
 #include <span>
 #include <string>
 #include <vector>
+#include <array>
 #include "common.hpp"
 namespace Umibozu {
   class Cartridge {

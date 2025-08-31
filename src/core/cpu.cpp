@@ -1,6 +1,5 @@
 #include "cpu.hpp"
 
-#include <bitset>
 #include <cassert>
 #include <cmath>
 #include <stdexcept>
@@ -17,12 +16,21 @@ using namespace Umibozu;
 void SM83::m_cycle() {
 #ifndef CPU_TEST_MODE_H
   if (speed == SPEED::DOUBLE) {
-    bus->timer->increment_div(2);
-    bus->mapper->increment_internal_clock(2, bus->mapper->actual.RTC_DAY);
+    bus->timer->increment_div(2, true);
+    // cycles_elapsed += 2;
+    // fmt::println("cycles elapsed in m_cycle = {}", cycles_elapsed);
+    // bus->mapper->increment_internal_clock(2, bus->mapper->actual.RTC_DAY);
+
+    // bus->apu->tick(2);
     bus->ppu->tick(2);
   } else {
-    bus->timer->increment_div(4);
-    bus->mapper->increment_internal_clock(4, bus->mapper->actual.RTC_DAY);  // refactor: this is not elegant
+    bus->timer->increment_div(4, false);
+// cycles_elapsed += 4;
+// bus->mapper->increment_internal_clock(4, bus->mapper->actual.RTC_DAY);  // refactor: this is not elegant
+// fmt::println("ticking");
+#ifndef SYSTEM_TEST_MODE
+    bus->apu->tick(4);
+#endif
     bus->ppu->tick(4);
   }
 
@@ -162,10 +170,11 @@ void SM83::handle_interrupts() {
   }
 #endif
 };
-void SM83::run_instruction() {
+u32 SM83::run_instruction() {
+  // cycles_elapsed = 0;
 #ifndef CPU_TEST_MODE_H
   if (status == STATUS::PAUSED) {
-    return;
+    return 0;
   }
   // if (mapper == nullptr) {
   //   throw std::runtime_error("mapper error");
@@ -255,14 +264,12 @@ void SM83::run_instruction() {
 
       if (button_cond) {
         fmt::println("buttons pressed");
-        if (bus->interrupt_pending()) {
-          return;
-        }
+        if (bus->interrupt_pending()) return cycles_elapsed;
 
         PC++;
 
         Instructions::HALT(this);
-        return;
+        return cycles_elapsed;
 
       } else {
         fmt::println("no buttons pressed");
@@ -273,24 +280,26 @@ void SM83::run_instruction() {
             fmt::println("interrupt pending");
             if (!IME) throw std::runtime_error("non deterministic glitching");
 
-            bus->timer->reset_div();
+            bus->timer->reset_div(speed == SPEED::DOUBLE);
             speed                  = static_cast<SPEED>((u8)speed ^ 0x80);
             bus->double_speed_mode = (u8)speed & 0x80;
+            bus->io[KEY1] ^= 1;
           } else {  // no interrupt pending, enter halt mode, reset div, change speed
             fmt::println("no interrupt pending, enter halt mode, reset div, change speed");
             PC++;
             speed                  = static_cast<SPEED>((u8)speed ^ 0x80);
             bus->double_speed_mode = (u8)speed & 0x80;
+            bus->io[KEY1] ^= 1;
           }
         } else {  // speed switch IS NOT armed
 
           if (bus->interrupt_pending()) {  // Interrupt pending --> 1 byte opcode, stop mode entered, div reset
             fmt::println("should enter stop mode");
-            bus->timer->reset_div();
+            bus->timer->reset_div(speed == SPEED::DOUBLE);
           } else {  // no interrupt pending -- 2 byte opcode -- stop mode is entered, div is reset
             PC++;
             fmt::println("should enter STOP mode");
-            bus->timer->reset_div();
+            bus->timer->reset_div(speed == SPEED::DOUBLE);
           }
         }
       }
@@ -2569,4 +2578,5 @@ void SM83::run_instruction() {
       throw std::runtime_error(fmt::format("[CPU] unimplemented opcode: {:#04x}", opcode));
     }
   }
+  return cycles_elapsed;
 }
