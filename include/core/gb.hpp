@@ -28,6 +28,4 @@ struct GB {
   void system_loop();
 
   void reset();
-
-  void audio_callback(void* userdata, SDL_AudioStream *stream, int additional_amount);
 };
