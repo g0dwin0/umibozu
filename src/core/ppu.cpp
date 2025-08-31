@@ -1,7 +1,5 @@
 #include "core/ppu.hpp"
 
-#include <unistd.h>
-
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -18,19 +16,12 @@ u8 PPU::get_sprite_size() const { return lcdc.sprite_size == 0 ? 8 : 16; }
 void PPU::add_sprite_to_buffer(u8 spriteIndex) {
   // fmt::println("sprite Index: {}", sprite_index);
 
-  u8 sprite_y     = bus->oam.at(spriteIndex);
-  u8 sprite_x     = bus->oam.at(spriteIndex + 1);
-  u8 tile_number  = bus->oam.at(spriteIndex + 2);
-  u8 sprite_flags = bus->oam.at(spriteIndex + 3);
+  u8 sprite_y     = bus->oam.data()[(spriteIndex)];
+  u8 sprite_x     = bus->oam.data()[(spriteIndex + 1)];
+  u8 tile_number  = bus->oam.data()[(spriteIndex + 2)];
+  u8 sprite_flags = bus->oam.data()[(spriteIndex + 3)];
 
   this->sprite_index += 4;
-
-  // fmt::println("==== sprite index: {} ====", (spriteIndex/4));
-  // fmt::println("sprite_y: {}", bus->oam.at(spriteIndex));
-  // fmt::println("sprite_x: {}", bus->oam.at(spriteIndex + 1));
-  // fmt::println("tile_number: {}", bus->oam.at(spriteIndex + 2));
-  // fmt::println("sprite_flags: {}", bus->oam.at(spriteIndex + 3));
-  // fmt::println("==================================");
 
   if (!(sprite_x > 0)) {
     return;
@@ -106,55 +97,14 @@ void PPU::tick(u16 dots_inc) {
     }
 
     case RENDERING_MODE::PIXEL_DRAW: {
-      if (dots == 368) {
+      if (dots == 252) {
         set_ppu_mode(RENDERING_MODE::HBLANK);
       }
       break;
     }
 
     case RENDERING_MODE::HBLANK: {
-      if ((bus->io[HDMA5] & 0x80) == 0 && bus->mode == SYSTEM_MODE::CGB && !bus->cpu_is_halted && !hdma_executed_on_scanline) {
-        assert(bus->io[LY] <= 144);
-
-        u16 src = ((bus->io[HDMA1] << 8) + bus->io[HDMA2]) & 0xfff0;
-        u16 dst = ((bus->io[HDMA3] << 8) + bus->io[HDMA4]) & 0x1ff0;
-
-        for (size_t index = 0; index < 0x10; index++) {
-          u16 src_address = (src + (hdma_index * 0x10) + index);
-          u8 src_data     = mapper->read8(src_address);
-
-          u16 vram_address = ((dst + (hdma_index * 0x10) + index));
-
-          if (vram_address > 0x1FFF) {
-            bus->io[HDMA5] |= 0x80;
-            // fmt::println("[PPU] overflow");
-            // assert(false && "overflow");
-          } else {
-            // fmt::println(
-            //     "[HDMA] addr: {:#16x} data: {:#04x} -> VRAM ADDRESS: "
-            //     "{:#16x} ",
-            //     src_address, src_data, 0x8000 + vram_address);
-
-            // fmt::println("{:#010x}", 0x8000 + vram_address);
-            bus->vram->at(vram_address) = src_data;
-            // fmt::println("{:#010x} = {:#02X}", 0x8000 + vram_address, bus->vram->at(vram_address));
-          }
-        }
-
-        if ((bus->io[HDMA5] & 0x7f) == 0) {
-          // we're done
-          fmt::println("[PPU] TRANSFER FINISHNED");
-          bus->io[HDMA5] = 0xFF;
-          hdma_index     = 0;
-        } else {
-          hdma_index++;
-          u8 remaining_blocks = bus->io[HDMA5] & 0x7f;
-          remaining_blocks--;
-          bus->io[HDMA5] = remaining_blocks;
-          // fmt::println("remaining blocks: {}", remaining_blocks);
-        }
-        hdma_executed_on_scanline = true;
-      }
+      process_hdma_chunk();
 
       if (dots == 456) {
         x_pos_offset        = 0;
@@ -216,7 +166,7 @@ void PPU::tick(u16 dots_inc) {
 void PPU::increment_scanline() const {
   bool old_hidden_stat = bus->hidden_stat;
 
-  bus->io.at(LY) = bus->io.at(LY) + 1;
+  bus->io[LY] = bus->io[LY] + 1;
 
   bus->update_hidden_stat();
 
@@ -225,7 +175,7 @@ void PPU::increment_scanline() const {
   }
 }
 
-std::array<Pixel, 8> PPU::decode_pixel_row(u8 high_byte, u8 low_byte) {
+inline std::array<Pixel, 8> PPU::decode_pixel_row(u8 high_byte, u8 low_byte) {
   std::array<Pixel, 8> pixel_array;
 
   for (u8 i = 0; i < 8; i++) {
@@ -235,13 +185,13 @@ std::array<Pixel, 8> PPU::decode_pixel_row(u8 high_byte, u8 low_byte) {
   return pixel_array;
 }
 
-Tile PPU::get_tile_data(u16 address, bool sprite) const {
+inline Tile PPU::get_tile_data(u16 address, bool sprite) const {
   Tile tile;
 
-  u8 index = bus->vram->at(address);
+  u8 index = bus->vram->data()[address];
   u8 matching_attr_byte;
   if (bus->mode == SYSTEM_MODE::CGB) {
-    matching_attr_byte = bus->vram_banks[1].at(address);
+    matching_attr_byte = bus->vram_banks[1].data()[address];
 
     bus->vram = &bus->vram_banks[bus->vbk];
 
@@ -251,8 +201,8 @@ Tile PPU::get_tile_data(u16 address, bool sprite) const {
 
   if (lcdc.tiles_select_method == 1 || sprite) {
     for (u8 row = 0; row < 8; row++) {
-      u8 low_byte  = bus->vram->at((0x8000 + (row * 2) + (index * 16)) - VRAM_ADDRESS_OFFSET);
-      u8 high_byte = bus->vram->at(((0x8000 + (row * 2) + (index * 16)) - VRAM_ADDRESS_OFFSET) + 1);
+      u8 low_byte  = bus->vram->data()[((0x8000 + (row * 2) + (index * 16)) - VRAM_ADDRESS_OFFSET)];
+      u8 high_byte = bus->vram->data()[(((0x8000 + (row * 2) + (index * 16)) - VRAM_ADDRESS_OFFSET) + 1)];
 
       auto pixel_array = decode_pixel_row(high_byte, low_byte);
 
@@ -286,7 +236,7 @@ Tile PPU::get_tile_data(u16 address, bool sprite) const {
   return tile;
 }
 
-Tile PPU::get_tile_sprite_data(u16 index, bool sprite, u8 bank) const {
+inline Tile PPU::get_tile_sprite_data(u16 index, bool sprite, u8 bank) const {
   Tile tile;
 
   assert(bank < 2);
@@ -338,8 +288,8 @@ Tile PPU::get_tile_sprite_data(u16 index, bool sprite, u8 bank) const {
   }
 }
 
-u16 PPU::get_tile_bg_map_address_base() const { return lcdc.bg_tile_map_select == 1 ? 0x9C00 : 0x9800; }
-u16 PPU::get_tile_window_map_address_base() const { return lcdc.window_tile_map_select == 1 ? 0x9C00 : 0x9800; }
+inline u16 PPU::get_tile_bg_map_address_base() const { return lcdc.bg_tile_map_select == 1 ? 0x9C00 : 0x9800; }
+inline u16 PPU::get_tile_window_map_address_base() const { return lcdc.window_tile_map_select == 1 ? 0x9C00 : 0x9800; }
 
 std::string PPU::get_mode_string() const {
   switch (get_mode()) {
@@ -359,7 +309,7 @@ std::string PPU::get_mode_string() const {
   assert(false);
 }
 
-void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
+inline void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
   if (this->ppu_mode != new_mode) {
     ppu_mode = new_mode;
 
@@ -378,12 +328,13 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
       case RENDERING_MODE::HBLANK: {
         u8 y = bus->io[LY] + bus->io[SCY];
 
-        for (u16 scanline_tile_index = 0; scanline_tile_index < 32; scanline_tile_index++) {  // A scanline is 256 pixels long.
+        for (u16 scanline_tile_index = 0; scanline_tile_index < 24; scanline_tile_index++) {  // A scanline is 256 pixels long.
 
           u16 address = (get_tile_bg_map_address_base() + ((y / 8) * 32) + ((x_pos_offset + (bus->io[SCX] / 8)) % 32)) - VRAM_ADDRESS_OFFSET;
 
           if (window_enabled && lcdc.window_disp_enable && bus->io[WX] < 167 && (x_pos_offset * 8) >= bus->io[WX] - 7) {
             address = (get_tile_window_map_address_base() + (window_line_count * 32) + (window_x_pos_offset)) - VRAM_ADDRESS_OFFSET;
+            y       = bus->io[LY];
             window_x_pos_offset++;
           }
 
@@ -409,7 +360,7 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
 
             i32 line_x;
 
-            if (window_enabled && lcdc.window_disp_enable && bus->io[WX] < 167 && x + (x_pos_offset * 8) >= bus->io[WX] - 7) {
+            if (window_enabled && lcdc.window_disp_enable && (bus->io[WX] < 167) && x + (x_pos_offset * 8) >= bus->io[WX] - 7) {
               line_x = abs(x + (x_pos_offset * 8));
             } else {
               line_x = abs(x + (x_pos_offset * 8) - (bus->io[SCX] & 7));
@@ -548,12 +499,12 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
         db.swap_buffers();
         frame.bg_prio.fill(false);
         frame.color_id.fill(0);
+        frame_queued = true;
 
         // check how long frame took, sleep thread remaining time to sync emu thread to 60FPS
-        stopwatch.end();
-        auto target_duration = std::chrono::duration<double, std::milli>(16.7);
-        std::this_thread::sleep_for(target_duration - stopwatch.duration);
-
+        // stopwatch.end();
+        // auto target_duration = std::chrono::duration<double, std::milli>(16.67);
+        // std::this_thread::sleep_for(target_duration - stopwatch.duration);
         break;
       }
 
@@ -565,11 +516,62 @@ void PPU::set_ppu_mode(RENDERING_MODE new_mode) {
   }
 }
 
-Palette PPU::get_palette_by_id(u8 index) {
+inline Palette PPU::get_palette_by_id(u8 index) {
   assert(index < 8);
   if (bus->mode == SYSTEM_MODE::CGB) {
     return CGB_OBP[index];
   } else {
     return DMG_OBP[index];
+  }
+}
+
+inline void PPU::process_hdma_chunk() {
+  if (bus->mode == SYSTEM_MODE::CGB && (bus->io[HDMA5] & 0x80) == 0 && !bus->cpu_is_halted && !hdma_executed_on_scanline) {
+    assert(bus->io[LY] <= 143);
+
+    u16 src = ((bus->io[HDMA1] << 8) + bus->io[HDMA2]) & 0xfff0;
+    u16 dst = ((bus->io[HDMA3] << 8) + bus->io[HDMA4]) & 0x1ff0;
+
+    for (size_t index = 0; index < 0x10; index++) {
+      u16 src_address = (src + index);
+      u8 src_data     = mapper->read8(src_address);
+
+      u16 vram_address = ((dst + index));
+
+      if (vram_address > 0x1FFF) {
+        bus->io[HDMA5] |= 0x80;
+        fmt::println("[PPU] overflow");
+        assert(-1 && "overflow");
+      }
+
+      fmt::println(
+          "[HDMA] addr: {:#16x} data: {:#04x} -> VRAM ADDRESS: "
+          "{:#16x} ",
+          src_address, src_data, 0x8000 + vram_address);
+
+      bus->vram->at(vram_address) = src_data;
+    }
+
+    src += 0x10;
+    dst += 0x10;
+
+    bus->io[HDMA1] = (src >> 8);
+    bus->io[HDMA2] = (src & 0xFF);
+    bus->io[HDMA3] = (dst >> 8);
+    bus->io[HDMA4] = (dst & 0xFF);
+
+    if ((bus->io[HDMA5] & 0x7f) == 0) {
+      // we're done
+      fmt::println("[PPU] TRANSFER FINISH");
+      bus->io[HDMA5] = 0xFF;
+    } else {
+      u8 remaining_blocks = bus->io[HDMA5] & 0x7f;
+      remaining_blocks--;
+
+      bus->io[HDMA5] = remaining_blocks;
+      fmt::println("remaining blocks: {}", remaining_blocks);
+    }
+    hdma_executed_on_scanline = true;
+    // fmt::println("B");
   }
 }
