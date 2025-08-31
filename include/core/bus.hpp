@@ -1,15 +1,16 @@
 #pragma once
-
-// #include "apu.hpp"
+struct APU;
+#include "apu.hpp"
 #include "cart.hpp"
 #include "common.hpp"
+#include "io_defs.hpp"
 #include "joypad.hpp"
 #include "ppu.hpp"
+struct Timer;
 #include "timer.hpp"
 struct PPU;
-#include "ppu.hpp"
-
 #include "mapper.hpp"
+#include "ppu.hpp"
 
 using namespace Umibozu;
 
@@ -23,9 +24,13 @@ enum class INTERRUPT_TYPE : u8 {
 
 enum class SYSTEM_MODE : u8 { DMG, CGB = 0xC0 };
 
-struct PaletteSpecification {
-  u8 address : 6      = 0x0;
-  bool auto_increment = false;
+union PaletteSpecification {
+  u8 v;
+  struct {
+    u8 address          : 6 = 0x0;
+    u8                  : 1;
+    bool auto_increment : 1 = false;
+  };
 };
 
 struct Bus {
@@ -33,11 +38,10 @@ struct Bus {
 
   Joypad joypad;
   Cartridge* cart = nullptr;
-  APU* apu       = nullptr;
-  PPU* ppu       = nullptr;
-  Timer* timer   = nullptr;
-  Mapper* mapper = nullptr;
-
+  PPU* ppu        = nullptr;
+  Timer* timer    = nullptr;
+  Mapper* mapper  = nullptr;
+  APU* apu        = nullptr;
   // WRAM Bank
   u8 svbk = 0;
 
@@ -66,7 +70,7 @@ struct Bus {
 
   void update_hidden_stat() { hidden_stat = should_raise_mode_0() || should_raise_mode_1() || should_raise_mode_2() || should_raise_ly_lyc(); }
 
-  std::array<u8, 0x40> wave_ram;
+  std::array<u8, 0x10> wave_ram;
   u8 wave_last_written_value = 0xFF;
 
   void request_interrupt(INTERRUPT_TYPE);
@@ -92,6 +96,7 @@ struct Bus {
 
   void init_hdma(u16 length);
   void terminate_hdma();
+  void reset();
 
   bool double_speed_mode = false;
 };

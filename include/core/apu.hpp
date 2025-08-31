@@ -1,31 +1,35 @@
 #pragma once
 
-#include <array>
+#include <SDL3/SDL.h>
 
+#include <array>
+#include <vector>
+#include "SDL3/SDL_audio.h"
+struct Bus;
+#include "bus.hpp"
 #include "common.hpp"
 #include "io_defs.hpp"
 
-static constexpr u8 SOUND_LENGTH_RATE   = 2;
-static constexpr u8 ENVELOPE_SWEEP_RATE = 8;
-static constexpr u8 CH1_FREQ_SWEEP      = 4;
+static constexpr u32 SAMPLE_RATE = 4194304 / 48000;
 
-enum DIRECTION { ADDITION, SUBTRACTION };
+enum DIRECTION : u8 { ADDITION = 0, SUBTRACTION = 1 };
+enum ENV_DIRECTION : u8 { DECREASE, INCREASE };
 
-static constexpr u32 SAMPLE_RATE = 4213440 / 44100;
+// https://gbdev.io/pandocs/Audio_Registers.html
+// https://gbdev.gg8.se/wiki/articles/Gameboy_sound_hardware
 
 struct Registers {
-  // Master
   union {
     u8 value = 0xF1;
     struct {
-      u8 CH1_ON       : 1;
-      u8 CH2_ON       : 1;
-      u8 CH3_ON       : 1;
-      u8 CH4_ON       : 1;
-      u8              : 3;
-      u8 AUDIO_ON_OFF : 1;
+      bool CH1_ON   : 1;
+      bool CH2_ON   : 1;
+      bool CH3_ON   : 1;
+      bool CH4_ON   : 1;
+      u8            : 3;
+      bool AUDIO_ON : 1;
     };
-  } NR52;  // Audio Master Control
+  } NR52;
 
   union {
     u8 value = 0xF3;
@@ -39,7 +43,7 @@ struct Registers {
       u8 CH3_LEFT  : 1;
       u8 CH4_LEFT  : 1;
     };
-  } NR51;  // Sound panning
+  } NR51;
 
   union {
     u8 value = 0x77;
@@ -48,20 +52,22 @@ struct Registers {
       u8 VIN_RIGHT    : 1;
       u8 LEFT_VOLUME  : 3;
       u8 VIN_LEFT     : 1;
-    } registers;
-  } NR50;  // Master volume & VIN panning
+    };
+  } NR50;
 
-  // Channel 1
-
+  // channel 1
   struct {
     bool channel_enabled = false;
     u8 length_timer      = 63;
-    u8 duty_step_counter;
+    u8 duty_step         = 0;
 
-    u8 volume_ctr;
+    i32 frequency_timer;
 
-    u32 sweep_shadow_reg;
-    u16 period;  // 11 bit value; cover edge cases later
+    u32 sweep_freq_shadow_reg;
+    u16 frequency;  // frequency/period -- 11 bit value; cover edge cases later
+
+    u8 channel_volume;
+    i32 period_timer = 0;  // relates to vol env
     u32 sweep_timer;
     bool sweep_enabled;
 
@@ -72,102 +78,110 @@ struct Registers {
     union {
       u8 value = 0x80;
       struct {
-        u8 SHIFT        : 3;
-        u8 NEGATE       : 1;
-        u8 SWEEP_PERIOD : 3;
-        u8              : 1;
+        u8 sweep_shift             : 3;
+        DIRECTION direction_negate : 1;
+        u8 sweep_period            : 3;
+        u8                         : 1;
       };
-    } NR10;  // Channel 1 sweep
+    } NR10;
 
     union {
       u8 value = 0xBF;
       struct {
         u8 INITIAL_LENGTH_TIMER : 6;
         u8 WAVE_DUTY            : 2;
-      } registers;
-    } NR11;  // Channel 1 length timer & duty cycle
+      };
+    } NR11;
 
     union {
       u8 value = 0xF3;
       struct {
-        u8 SWEEP_PACE         : 3;
-        u8 ENVELOPE_DIRECTION : 1;
-        u8 INITIAL_VOLUME     : 4;
-      } registers;
-    } NR12;  // Channel 1 volume & envelope
+        u8 sweep_pace                    : 3;
+        ENV_DIRECTION envelope_direction : 1;
+        u8 initial_volume                : 4;
+      };
+    } NR12;
 
     union {
       u8 value = 0xFF;
-    } NR13;  // Channel 1 period low
-    struct {
-      union {
-        u8 value = 0xBF;
-        struct {
-          u8 PERIOD        : 3;
-          u8               : 3;
-          u8 LENGTH_ENABLE : 1;
-          u8 TRIGGER       : 1;
-        } registers;
-      };  // Channel 1 period high & control
+    } NR13;
+
+    union {
+      u8 value = 0xBF;
+      struct {
+        u8 period        : 3;
+        u8               : 3;
+        u8 length_enable : 1;
+        u8 trigger       : 1;
+      };
     } NR14;
 
-    bool get_dac_enabled() { return (NR12.value & 0xf8) != 0; }
-  } CHANNEL_1;
-  // Channel 2
+    bool dac_enabled() const { return (NR12.value & 0xf8) != 0; }
+  } channel_1;
 
+  // channel 2
   struct {
     bool channel_enabled = false;
     u8 length_timer      = 63;
-    u32 duty_step_counter;
+    i32 frequency_timer  = 0;
+    u8 duty_step         = 0;
+    i32 vol_env_timer    = 0;
+    // frequency and period
+    u16 frequency;
+    i32 period_timer = 0;
+
+    u8 channel_volume;
 
     union {
       u8 value = 0x3F;
       struct {
-        u8 INITIAL_LENGTH_TIMER : 6;
-        u8 WAVE_DUTY            : 2;
-      } registers;
-    } NR21;  // Channel 2 length timer & duty cycle
+        u8 initial_length_timer : 6;
+        u8 wave_duty_pattern    : 2;
+      };
+    } NR21;
 
     union {
       u8 value = 0x00;
       struct {
-        u8 SWEEP_PACE         : 3;
-        u8 ENVELOPE_DIRECTION : 1;
-        u8 INITIAL_VOLUME     : 4;
-      } registers;
-    } NR22;  // Channel 2 volume & envelope
+        u8 sweep_pace                    : 3;
+        ENV_DIRECTION envelope_direction : 1;
+        u8 initial_volume                : 4;
+      };
+    } NR22;
 
     union {
       u8 value = 0xFF;
-    } NR23;  // Channel 2 period low
+    } NR23;
 
-    struct {
-      union {
-        u8 value = 0xBF;
-        struct {
-          u8 PERIOD        : 3;
-          u8               : 3;
-          u8 LENGTH_ENABLE : 1;
-          u8 TRIGGER       : 1;
-        } registers;
-      };  // Channel 2 period high & control
+    union {
+      u8 value = 0xBF;
+      struct {
+        u8 period          : 3;
+        u8                 : 3;
+        bool length_enable : 1;
+        u8 trigger         : 1;
+      };
     } NR24;
-    bool get_dac_enabled() { return (NR22.value & 0xf8) != 0; }
-  } CHANNEL_2;
-  // Channel 3 - Wave output
+
+    bool dac_enabled() const { return (NR22.value & 0xf8) != 0; }
+  } channel_2;
+
+  // channel 3 - wave
   struct {
     bool channel_enabled = false;
     u16 length_timer     = 63;
-    u8 duty_step_counter;
-    u8 sample_index;
+    u8 channel_volume;
+    u32 frequency_timer = 0;
+    u32 period          = 0;
+    u8 sample_index     = 0;
 
     union {
       u8 value = 0x7F;
       struct {
-        u8            : 7;
-        u8 DAC_ON_OFF : 1;
-      } registers;
-    } NR30;  // Channel 3 DAC enable
+        u8          : 7;
+        bool DAC_ON : 1;
+      };
+    } NR30;
 
     union {
       u8 value = 0x9F;
@@ -175,94 +189,140 @@ struct Registers {
         u8              : 5;
         u8 output_level : 2;
         u8              : 1;
-      } registers;
-    } NR32;  // Channel 3 output level
+      };
+    } NR32;
 
     union {
       u8 value = 0xFF;
-    } NR33;  // Channel 3 period low
+    } NR33;
 
     union {
       u8 value = 0xBF;
       struct {
-        u8 PERIOD        : 3;
+        u8 period        : 3;
         u8               : 3;
-        u8 LENGTH_ENABLE : 1;
-        u8 TRIGGER       : 1;
-      } registers;
-    } NR34;  // Channel 3 period high & control
-    bool get_dac_enabled() { return NR30.registers.DAC_ON_OFF == 1 ? true : false; }
-  } CHANNEL_3;
-  // Channel 4 - Noise
+        u8 length_enable : 1;
+        u8 trigger       : 1;
+      };
+    } NR34;
+    bool dac_enabled() const { return NR30.DAC_ON; };
+  } channel_3;
+
+  // channel 4 - noise
   struct {
     bool channel_enabled = false;
     u8 length_timer      = 63;
-    u8 duty_step_counter;
+    i32 frequency_timer  = 0;
+
+    u8 channel_volume;
+    i32 period_timer = 0;  // relates to vol env
+    u16 lfsr;
 
     union {
       u8 value = 0xFF;
       struct {
-        u8 INITIAL_LENGTH_TIMER : 6;
+        u8 initial_length_timer : 6;
         u8                      : 2;
-      } registers;
-    } NR41;  // Channel 4 period high & control
+      };
+    } NR41;
 
     union {
       u8 value = 0x00;
       struct {
-        u8 SWEEP_PACE         : 3;
-        u8 ENVELOPE_DIRECTION : 1;
-        u8 INITIAL_VOLUME     : 4;
-      } registers;
-    } NR42;  // Channel 4 volume & envelope
+        u8 sweep_pace                    : 3;
+        ENV_DIRECTION envelope_direction : 1;
+        u8 initial_volume                : 4;
+      };
+    } NR42;
 
     union {
       u8 value = 0x00;
       struct {
-        u8 CLOCK_DIVIDER : 3;
-        u8 LFSR_WIDTH    : 1;
-        u8 CLOCK_SHIFT   : 4;
-      } registers;
-    } NR43;  // Channel 4 frequency & randomness
+        u8 clock_divider : 3;
+        u8 lfsr_width    : 1;
+        u8 clock_shift   : 4;
+      };
+    } NR43;
 
     union {
       u8 value = 0xBF;
       struct {
         u8               : 6;
-        u8 LENGTH_ENABLE : 1;
-        u8 TRIGGER       : 1;
-      } registers;
-    } NR44;  // Channel 4 control
-    bool get_dac_enabled() { return (NR42.value & 0xf8) != 0; }
-  } CHANNEL_4;
-};
-struct FrameSequencer {
-  u8 nStep = 0;
-
- private:
-  Registers* regs = nullptr;
-
- public:
-  FrameSequencer() = delete;
-
-  FrameSequencer(Registers* ptr) : regs(ptr) {
-    if (regs == nullptr) {
-      fmt::println("bad pointer to APU registers");
-      exit(-1);
-    }
-  };
-
-  void step();
-  void reset();
-  [[nodiscard]] u8 get_step();
+        u8 length_enable : 1;
+        u8 trigger       : 1;
+      };
+    } NR44;
+    bool dac_enabled() const { return (NR42.value & 0xf8) != 0; }
+  } channel_4;
 };
 
 struct APU {
+  APU() : audio_buf(32767) {
+    std::fill(audio_buf.begin(), audio_buf.end(), 0.0f);
+  };
+
   Registers regs;
-  void write(u8 v, IO_REG r);
-  FrameSequencer frame_sequencer = {&regs};
-  void clear_apu_registers();
-  bool can_write_when_power_off(IO_REG r);
-  u16 calculate_new_freq();
+  void write(IO_REG reg, u8 value);
   [[nodiscard]] u8 read(IO_REG r);
+
+  void clear_apu_registers();
+
+  // returns true the register can be written to when the APU is off, otherwise returns false.
+  bool writable_when_off(IO_REG sndreg);
+
+  u32 calculate_sweep_freq();
+
+  // current step of the frame sequencer
+  u8 seq_current_step = 0;
+
+  void step_seq();
+  void reset_seq();
+
+  Bus* bus = nullptr;
+
+  void tick(u32 cycles);
+
+  const std::array<std::array<u8, 8>, 4> SQUARE_DUTY_WAVEFORMS = {
+      {
+       {0, 0, 0, 0, 0, 0, 0, 1},
+       {1, 0, 0, 0, 0, 0, 1, 1},
+       {1, 0, 0, 0, 0, 1, 1, 1},
+       {0, 1, 1, 1, 1, 1, 1, 0},
+       }
+  };
+
+  u32 write_pos = 0;
+  std::vector<f32> audio_buf;
+  
+  #ifndef SYSTEM_TEST_MODE
+  f32 sample_ch1();
+  f32 sample_ch2();
+  f32 sample_ch3();
+  f32 sample_ch4();
+
+  void sample();
+  f32 dac(u8 in, bool dac_enabled);
+  bool all_dacs_off() const;
+  SDL_AudioStream* stream = nullptr;
+  #endif
+
+  i32 sample_rate = SAMPLE_RATE;
+
+  f32 left_amp, right_amp;
+  f32 l_ch1_amp, r_ch1_amp;
+  f32 l_ch2_amp, r_ch2_amp;
+  f32 l_ch3_amp, r_ch3_amp;
+  f32 l_ch4_amp, r_ch4_amp;
+
+  void ch1_trigger_event();
+  void ch2_trigger_event();
+  void ch3_trigger_event();
+  void ch4_trigger_event();
+
+  void tick_vol_env_ch1();
+  void tick_vol_env_ch2();
+  void tick_vol_env_ch3();
+  void tick_vol_env_ch4();
+
+  
 };
