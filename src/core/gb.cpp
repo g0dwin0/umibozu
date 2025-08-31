@@ -4,12 +4,14 @@
 
 #include "bus.hpp"
 #include "cpu.hpp"
+#include "fmt/base.h"
 #include "io_defs.hpp"
 #include "mapper.hpp"
 
 void GB::init_hw_regs(SYSTEM_MODE mode) {
   switch (mode) {
     case SYSTEM_MODE::DMG: {
+      fmt::println("INIT DMG REGS");
       bus.io[JOYPAD]      = 0xCF;
       bus.io[SB]          = 0x00;
       bus.io[SC]          = 0x7E;
@@ -46,6 +48,28 @@ void GB::init_hw_regs(SYSTEM_MODE mode) {
       bus.io[OCPD]  = 0x0D;
       bus.io[SVBK]  = 0xFF;
       bus.io[IE]    = 0x00;
+
+      bus.io[NR10] = 0x80;
+      bus.io[NR11] = 0xBF;
+      bus.io[NR12] = 0xF3;
+      bus.io[NR13] = 0xFF;
+      bus.io[NR14] = 0xBF;
+      bus.io[NR21] = 0x3F;
+      bus.io[NR22] = 0x00;
+      bus.io[NR23] = 0xFF;
+      bus.io[NR24] = 0xBF;
+      bus.io[NR30] = 0x7F;
+      bus.io[NR31] = 0xFF;
+      bus.io[NR32] = 0x9F;
+      bus.io[NR33] = 0xFF;
+      bus.io[NR34] = 0xBF;
+      bus.io[NR41] = 0xFF;
+      bus.io[NR42] = 0x00;
+      bus.io[NR43] = 0x00;
+      bus.io[NR44] = 0xBF;
+      bus.io[NR50] = 0x77;
+      bus.io[NR51] = 0xF3;
+      bus.io[NR52] = 0xF1;
 
       cpu.AF = 0x01B0;
       cpu.BC = 0x0013;
@@ -84,14 +108,16 @@ void GB::init_hw_regs(SYSTEM_MODE mode) {
       bus.io[HDMA2] = 0xFF;
       bus.io[HDMA3] = 0xFF;
       bus.io[HDMA4] = 0xFF;
+      // fmt::println("INIT CGB REGS");
       bus.io[HDMA5] = 0xFF;
-      bus.io[RP]    = 0xFF;
-      bus.io[BCPS]  = 0xC0;
-      bus.io[BCPD]  = 0xFF;
-      bus.io[OCPS]  = 0xC1;
-      bus.io[OCPD]  = 0xA4;
-      bus.io[SVBK]  = 0xF8;
-      bus.io[IE]    = 0x00;
+      // fmt::println("[IHW] HDMA5: {}", bus.io[HDMA5]);
+      bus.io[RP]   = 0xFF;
+      bus.io[BCPS] = 0xC0;
+      bus.io[BCPD] = 0xFF;
+      bus.io[OCPS] = 0xC1;
+      bus.io[OCPD] = 0xA4;
+      bus.io[SVBK] = 0xF8;
+      bus.io[IE]   = 0x00;
 
       cpu.AF = 0x1180;
       cpu.BC = 0x0000;
@@ -102,18 +128,25 @@ void GB::init_hw_regs(SYSTEM_MODE mode) {
   }
   cpu.PC    = 0x0100;
   cpu.SP    = 0xFFFE;
-  cpu.speed = Umibozu::SM83::SPEED::NORMAL;
+  cpu.speed = SPEED::NORMAL;
+  bus.reset();
 }
 
 GB::GB() {
   Mapper::bus = &bus;
   cpu.bus     = &bus;
   ppu.bus     = &bus;
-  bus.ppu     = &ppu;
-  bus.timer   = &timer;
-  bus.apu     = &apu;
+  timer.bus   = &bus;
 
-  timer.apu   = &apu;
+  bus.apu   = &apu;
+  bus.ppu   = &ppu;
+  bus.cart  = &cart;
+  bus.timer = &timer;
+
+  apu.bus = &bus;
+
+  fmt::println("[0] bus ptr on apu: {}", fmt::ptr(bus.timer));
+  fmt::println("[0] bus ptr on apu: {}", fmt::ptr(timer.bus));
 }
 
 GB::~GB() {
@@ -128,6 +161,7 @@ GB::~GB() {
 }
 
 void GB::load_cart(const File &rom) {
+  reset();
   cart.memory    = rom.data;
   cart.info.path = rom.path;
 
@@ -191,4 +225,40 @@ void GB::system_loop() {
   while (active) {
     cpu.run_instruction();
   }
+}
+
+
+
+void GB::reset() {
+  cpu        = {};
+  cpu.status = Umibozu::SM83::STATUS::PAUSED;
+  cpu.bus    = &bus;
+
+  timer = {};
+
+  ppu.lcdc.value   = 0x91;
+  ppu.dots         = 0;
+  ppu.frame_queued = false;
+  ppu.frame_skip   = false;
+
+  ppu.hdma_active                        = false;
+  ppu.remaining_length                   = 0;
+  ppu.stat_irq_fired_on_current_scanline = false;
+  ppu.x_pos_offset                       = 0;
+  ppu.window_current_y                   = 0;
+  ppu.window_x_pos_offset                = 0;
+  ppu.window_enabled                     = 0;
+  ppu.window_line_count                  = 0;
+
+  ppu.hdma_executed_on_scanline = false;
+  ppu.ly_is_lyc_latch           = false;
+
+  ppu.DMG_BGP = {};
+  ppu.DMG_OBP = {};
+
+  ppu.CGB_BGP = {};
+  ppu.CGB_OBP = {};
+
+  // resetting of IO is handled in init_hw_regs
+  bus.reset();
 }
