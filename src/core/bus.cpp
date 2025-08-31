@@ -1,6 +1,11 @@
 #include "core/bus.hpp"
 
+#include <string>
+
 #include "common.hpp"
+#include "fmt/base.h"
+#include "io_defs.hpp"
+#include "ppu.hpp"
 
 void Bus::request_interrupt(INTERRUPT_TYPE t) { io[IF] |= (1 << (u8)t); }
 
@@ -36,7 +41,7 @@ bool Bus::should_raise_mode_1() const {
 
 bool Bus::should_raise_mode_2() const {
   bool mode_2_interrupt_enabled = (io[STAT] & (1 << 5)) ? true : false;
-  return mode_2_interrupt_enabled && ppu->ppu_mode == RENDERING_MODE::OAM_SCAN;
+  return mode_2_interrupt_enabled && (ppu->ppu_mode == RENDERING_MODE::OAM_SCAN);
 };
 
 bool Bus::should_raise_ly_lyc() const {
@@ -46,12 +51,28 @@ bool Bus::should_raise_ly_lyc() const {
 };
 
 u8 Bus::io_read(const u16 address) {
-  // if ((address - 0xFF00) >= 0x30 && 0x3F <= (address - 0xFF00)) {
-  //   // fmt::println("[APU] reading from Wave RAM: {:#16x} - {:#08x}", address, wave_ram.at((address - 0xFF30)));
-  //   return wave_ram.at((address - 0xFF30));
-  // }
+  u8 io_addr = (address - 0xFF00);
+
+  if ((address - 0xFF00) >= 0x30 && (address - 0xFF00) <= 0x3F) {
+    // fmt::println("WAVE RAM READ");
+    return wave_ram.at(address - 0xFF30);
+  }
+
+  if (io_addr >= 0x10 && io_addr <= 0x2F) {
+    u8 result = apu->read(static_cast<IO_REG>(address - 0xFF00));
+    // fmt::println("APU read from: {} -> {:#02X}", get_label(address), result);
+    return result;
+  }
 
   switch (address - 0xFF00) {
+    case HDMA1:
+    case HDMA2:
+    case HDMA3:
+    case HDMA4: {
+      fmt::println("[R] HDMA read");
+      break;
+    }
+
     case JOYPAD: {
       switch ((io[JOYPAD] & 0x30) >> 4) {
         case 0x1: {
@@ -82,42 +103,16 @@ u8 Bus::io_read(const u16 address) {
     }
     case LY: {
       if (ppu->lcdc.lcd_ppu_enable == 0) {
+        // fmt::println(("reading LY when screen off"));
         return 0;
       }
       return io[LY];
     }
 
     case LCDC: {
-      // break;
       return ppu->lcdc.value;
     }
-    case NR10:
-    case NR11:
-    case NR12:
-    case NR13:
-    case NR14:
-    case NR21:
-    case NR22:
-    case NR23:
-    case NR24:
-    case NR30:
-    case NR31:
-    case NR32:
-    case NR33:
-    case NR34:
-    case NR41:
-    case NR42:
-    case NR43:
-    case NR44:
-    case NR50:
-    case NR51:
-    case NR52: {
-      u8 retval = 0;
-      retval    = apu->read((IO_REG)(address - 0xFF00));
-      // fmt::println("[APU] reading {:#4x} from {:#4x}", retval, (address));
-      return retval;
-      // break;
-    }
+
     case 0x27:
     case 0x28:
     case 0x29:
@@ -132,6 +127,7 @@ u8 Bus::io_read(const u16 address) {
     }
     case STAT: {
       if (ppu->lcdc.lcd_ppu_enable == 0) {
+        fmt::println("PPU is off, returning 0 in read");
         io[LY] = 0;
         return 0 | (1 << 7);
       }
@@ -150,11 +146,11 @@ u8 Bus::io_read(const u16 address) {
 
       u8 speed = double_speed_mode ? 0x80 : 0;
 
-      fmt::println("returning key1: {:08b}", (static_cast<u8>(speed)) | (io[KEY1] & 1));
+      // fmt::println("returning key1: {:08b}", (static_cast<u8>(speed)) | (io[KEY1] & 1));
       return (static_cast<u8>(speed)) | (io[KEY1] & 1);
     }
     case HDMA5: {
-      fmt::println("HDMA5 read while active: {:08b}", io[HDMA5]);
+      fmt::println("HDMA5 read: {:08b}", io[HDMA5]);
       break;
     }
   }
@@ -163,17 +159,21 @@ u8 Bus::io_read(const u16 address) {
 }
 
 void Bus::io_write(const u16 address, const u8 value) {
+  // fmt::println("[W] {:010X} - {}", address, get_label(address));
   u8 io_addr = (address - 0xFF00);
 
-  // if (io_addr >= NR10 && NR52 <= io_addr) { // APU writes ignored
-  //   apu->write(value, (IO_REG)io_addr);
-  //   return;
-  // }
+  // wave ram
+  if (io_addr >= 0x30 && io_addr <= 0x3F) {
+    // fmt::println("WAVE RAM WRITE");
+    wave_ram.at(io_addr - 0x30) = value;
+    return;
+  }
 
-  // if (io_addr >= 0x30 && 0x3F <= io_addr) {  // WAVE RAM
-  //   wave_ram.at(address - 0xFF30) = value;
-  //   return;
-  // }
+  // apu registers
+  if (io_addr >= 0x10 && io_addr <= 0x2F) {
+    // fmt::println("APU write to: {:#04X} [{}] -> {:#02X}", address, get_label(address), value);
+    return apu->write(static_cast<IO_REG>(io_addr), value);
+  }
 
   switch (io_addr) {
     case JOYPAD: {
@@ -198,7 +198,7 @@ void Bus::io_write(const u16 address, const u8 value) {
       break;
     }
     case DIV: {
-      timer->reset_div();
+      timer->reset_div(double_speed_mode);
       break;
     }
     case TIMA: {
@@ -226,12 +226,11 @@ void Bus::io_write(const u16 address, const u8 value) {
       //   // LCDC turned off, latch LY=LYC
       //   ppu->ly_is_lyc_latch = io[LY] == io[LYC];
       // }
-
       ppu->lcdc.value = value;
       break;
     }
     case STAT: {
-      fmt::println("STAT: {:08b}", value);
+      fmt::println("STAT: {:08b} - {:#04X}", value, value);
       u8 read_only_bits = value & 0x78;
 
       bool old_hidden_stat = hidden_stat;
@@ -284,11 +283,6 @@ void Bus::io_write(const u16 address, const u8 value) {
       ppu->DMG_BGP[0][1] = ppu->shade_table[id_1];
       ppu->DMG_BGP[0][2] = ppu->shade_table[id_2];
       ppu->DMG_BGP[0][3] = ppu->shade_table[id_3];
-
-      //      fmt::println("BGP0[0] = {:#16x}", ppu->sys_palettes.BGP[0][0]);
-      //      fmt::println("BGP0[1] = {:#16x}", ppu->sys_palettes.BGP[0][1]);
-      //      fmt::println("BGP0[2] = {:#16x}", ppu->sys_palettes.BGP[0][2]);
-      //      fmt::println("BGP0[3] = {:#16x}", ppu->sys_palettes.BGP[0][3]);
       break;
     }
     case OBP0: {
@@ -354,21 +348,7 @@ void Bus::io_write(const u16 address, const u8 value) {
         return;
       }
 
-      fmt::println("write: {}", value);
-
-      // u8 current_speed = (io[KEY1] & 0x80);
-      // u8 desired_speed = (value & 0x80);
-
-      // if (current_speed != desired_speed) {
-      fmt::println("[CPU] value: {:#04x}", value);
-      fmt::println("[CPU] desired speed: {:#04x}", value & 0x80);
-      fmt::println("[CPU] current speed: {:#04x}", io[KEY1] & 0x80);
-
-      // requested_speed = static_cast<SPEED>(desired_speed);
       io[KEY1] |= 1;
-
-      fmt::println("[CPU] speed switch armed");
-      // }
 
       return;
     }
@@ -390,23 +370,29 @@ void Bus::io_write(const u16 address, const u8 value) {
     }
     case HDMA5: {
       if (mode != SYSTEM_MODE::CGB) return;
+      fmt::println("HDMA VALUE PRE-WRITE: {:08b}", io[HDMA5]);
+      fmt::println("writing HDMA5 -- {:08b}", value);
 
       // fmt::println("[(G/H)DMA] initiatied with value: {:#08b}", value);
+      bool dma_is_active    = (io[HDMA5] & 0x80) == 0;  // hdma is active
+      bool cancel_requested = (value & 0x80) == 0;
 
-      if ((io[HDMA5] & 0x80) == 0 && (value & 0x80) == 0x80) {
-        // fmt::println("[HDMA] terminated HDMA");
-        return terminate_hdma();
+      if (dma_is_active && cancel_requested) {
+        fmt::println("[HDMA] terminated HDMA early");
+        io[HDMA5] = value;
+        terminate_hdma();
+        return;
       }
 
-      bool is_hdma = ((value & 0x80) != 0);
+      bool is_hdma = ((value & (1 << 7)) != 0);
 
       u16 length = (1 + (value & 0x7f)) * 0x10;
       u16 src    = ((io[HDMA1] << 8) + io[HDMA2]) & 0xfff0;
       u16 dst    = ((io[HDMA3] << 8) + io[HDMA4]) & 0x1ff0;
 
-      // fmt::println("[{}DMA] src:     {:#16x}", is_hdma ? "H" : "G", src);
-      // fmt::println("[{}DMA] dst:     {:#16x} ({:#04x})", is_hdma ? "H" : "G", dst, VRAM_ADDRESS_OFFSET + dst);
-      // fmt::println("[{}DMA] length:  {:#16x}", is_hdma ? "H" : "G", length);
+      fmt::println("[{}DMA] src:     {:#16x}", is_hdma ? "H" : "G", src);
+      fmt::println("[{}DMA] dst:     {:#16x} ({:#04x})", is_hdma ? "H" : "G", dst, VRAM_ADDRESS_OFFSET + dst);
+      fmt::println("[{}DMA] length:  {:#16x}", is_hdma ? "H" : "G", length);
 
       if (!is_hdma) {  // GDMA
         for (size_t index = 0; index < length; index++) {
@@ -421,10 +407,18 @@ void Bus::io_write(const u16 address, const u8 value) {
             exit(-1);
             return;
           }
-          // fmt::println("[GDMA] addr: {:#16x} data: {:#04x} -> VRAM ADDRESS: {:#16x} ", src_address, src_data, 0x8000 + vram_address);
+          fmt::println("[GDMA] addr: {:#16x} data: {:#04x} -> VRAM ADDRESS: {:#16x} ", src_address, src_data, 0x8000 + vram_address);
 
           vram->at(vram_address) = src_data;
         }
+        fmt::println("[GDMA] complete");
+        src += length;
+        dst += length;
+
+        io[HDMA1] = (src >> 8);
+        io[HDMA2] = (src & 0xFF);
+        io[HDMA3] = (dst >> 8);
+        io[HDMA4] = (dst & 0xF0);
         io[HDMA5] = 0xFF;
         return;
       } else {  // hblank dma
@@ -440,8 +434,7 @@ void Bus::io_write(const u16 address, const u8 value) {
         return;
       }
 
-      bcps.address        = value & 0b111111;
-      bcps.auto_increment = (value & (1 << 7)) >> 7;
+      bcps.v = value;
 
       break;
     }
@@ -471,9 +464,7 @@ void Bus::io_write(const u16 address, const u8 value) {
       if (mode != SYSTEM_MODE::CGB) {
         return;
       }
-      ocps.address        = value & 0x3f;
-      ocps.auto_increment = (value & (1 << 7)) >> 7;
-
+      ocps.v = value;
       break;
     }
     case OCPD: {
@@ -481,7 +472,7 @@ void Bus::io_write(const u16 address, const u8 value) {
         return;
       }
 
-      obj_palette_ram[ocps.address] = value;
+      obj_palette_ram.at(ocps.address) = value;
       if (ocps.auto_increment) {
         ocps.address++;
       }
@@ -506,24 +497,33 @@ void Bus::io_write(const u16 address, const u8 value) {
 };
 
 void Bus::init_hdma(u16 length) {
-  ppu->hdma_index = 0;
-
   io[HDMA5] = (length / 0x10) - 1;
   fmt::println("HDMA initialized, remaining blocks: {:#010x}", io[HDMA5]);
+  // if (ppu->ppu_mode == RENDERING_MODE::HBLANK) ppu->process_hdma_chunk();
 };
 void Bus::terminate_hdma() {
-  fmt::println("HDMA terminated early.");
-  io[HDMA5] &= ~(1 << 7);
+  // fmt::println("HDMA terminated early.");
+  io[HDMA5] |= (1 << 7);
 
   // fmt::println("HDMA5: {:08b}", io[HDMA5]);
 };
 
 u8 Bus::read8(const u16 address) {
+  assert(cart != nullptr);
+  assert(vram != nullptr);
+  assert(wram != nullptr);
+
   if (address <= 0x3FFF) {
     return cart->read8(address);
   }
+  if (address >= 0x4000 && address <= 0x7FFF) {
+    return mapper->read8(address);
+  }
   if (address >= 0x8000 && address <= 0x9FFF) {
     return vram->at((address - 0x8000));
+  }
+  if (address >= 0xA000 && address <= 0xBFFF) {
+    return mapper->read8(address);
   }
   if (address >= 0xC000 && address <= 0xCFFF) {
     return wram_banks[0].at(address - 0xC000);
@@ -544,8 +544,9 @@ u8 Bus::read8(const u16 address) {
   }
 
   if ((address >= 0xFF00 && address <= 0xFF7F) || address == 0xFFFF) {
-    return io.at(address - 0xFF00);
+    return io_read(address);
   }
+
   if (address >= 0xFF80 && address <= 0xFFFE) {
     return hram.at(address - 0xFF80);
   }
@@ -564,6 +565,11 @@ void Bus::write8(const u16 address, const u8 value) {
 
   if (address >= 0x8000 && address <= 0x9FFF) {
     vram->at(address - 0x8000) = value;
+    return;
+  }
+
+  if (address >= 0xA000 && address <= 0xBFFF) {
+    mapper->write8(address, value);
     return;
   }
 
@@ -604,4 +610,30 @@ void Bus::write8(const u16 address, const u8 value) {
 
   fmt::println("address: {:#010x}", address);
   assert(0);
+}
+
+void Bus::reset() {
+  vram_banks = {};
+  wram_banks = {};
+
+  vram = &vram_banks[0];
+  wram = &wram_banks[1];
+
+  bcps = {};
+  ocps = {};
+
+  oam = {};
+  // io              = {};
+  hram            = {};
+  bg_palette_ram  = {};
+  obj_palette_ram = {};
+
+  hidden_stat = {};
+
+  svbk = 0;
+  vbk  = 0;
+
+  fmt::println("[1] bus ptr on apu: {}", fmt::ptr(timer));
+  timer->bus = this;
+  fmt::println("[1] bus ptr on apu: {}", fmt::ptr(timer->bus));
 }
