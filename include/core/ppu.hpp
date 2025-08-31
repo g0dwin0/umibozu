@@ -101,9 +101,9 @@ struct PPU {
   u8 get_sprite_size() const;
   void flip(Tile &, FLIP_AXIS);
   Tile active_tile;
-  u8 window_current_y    = 0;
-  u8 window_line_count   = 0;
-  u8 window_x_pos_offset = 0;
+  u16 window_current_y    = 0;
+  u16 window_line_count   = 0;
+  u16 window_x_pos_offset = 0;
   [[nodiscard]] u16 get_tile_bg_map_address_base() const;
   [[nodiscard]] u16 get_tile_window_map_address_base() const;
 
@@ -127,7 +127,6 @@ struct PPU {
 
   bool hdma_active     = false;
   u16 remaining_length = 0;
-  u16 hdma_index       = 0;
 
   bool stat_irq_fired_on_current_scanline = false;
 
@@ -147,7 +146,7 @@ struct PPU {
   static std::array<Pixel, 8> decode_pixel_row(u8 high_byte, u8 low_byte);
 
   Stopwatch stopwatch;
-  std::chrono::duration<double, std::milli> target_duration = std::chrono::duration<double, std::milli>(16.7);
+  std::chrono::duration<double, std::milli> target_duration = std::chrono::duration<double, std::milli>(1000/59.7);
 
   bool hdma_executed_on_scanline = false;
   bool ly_is_lyc_latch           = false;

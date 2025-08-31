@@ -5,7 +5,6 @@ build/
 .clang-format
 roms/
 compile_commands.json
-*.txt
 *.log
 *.ini
 callgrind.*
