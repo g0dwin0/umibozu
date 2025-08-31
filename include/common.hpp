@@ -18,4 +18,7 @@ using i16 = int16_t;
 using i32 = int32_t;
 using i64 = int64_t;
 
+using f32 = float;
+
 enum PRIORITY_MODE { CGB, DMG };
+enum class SPEED : u8 { NORMAL = 0x00, DOUBLE = 0x80 };

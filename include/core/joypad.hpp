@@ -1,7 +1,6 @@
 #pragma once
 #include "common.hpp"
 
-
 enum BUTTONS { B, A, SELECT, START, RIGHT, LEFT, UP, DOWN, NONE = 0xFF };
 
 struct Joypad {
@@ -15,17 +14,12 @@ struct Joypad {
   u8 UP     : 1 = 1;
   u8 DOWN   : 1 = 1;
 
-  [[nodiscard]] u8 get_buttons() const {
-    return A + (B << 1) + (SELECT << 2) + (START << 3);
-  }
-
-  [[nodiscard]] u8 get_dpad() const {
-    return RIGHT + (LEFT << 1) + (UP << 2) + (DOWN << 3);
-  }
+  [[nodiscard]] u8 get_buttons() const;
+  [[nodiscard]] u8 get_dpad() const;
 };
 
-[[nodiscard]] inline std::string get_button_name_from_enum(BUTTONS b) {
-  switch (b) {
+[[nodiscard]] inline std::string get_button_name_from_enum(BUTTONS button) {
+  switch (button) {
     case A: {
       return "A";
     }
