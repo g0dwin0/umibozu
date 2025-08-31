@@ -16,6 +16,7 @@ enum IO_REG {
   NR12        = 0x12,
   NR13        = 0x13,
   NR14        = 0x14,
+  NR15        = 0x15,
   NR21        = 0x16,
   NR22        = 0x17,
   NR23        = 0x18,
