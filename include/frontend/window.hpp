@@ -1,22 +1,21 @@
 #pragma once
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_audio.h>
-#include <SDL2/SDL_keyboard.h>
-#include <SDL2/SDL_scancode.h>
 
-#include <queue>
+#include <SDL3/SDL.h>
+
 #include <unordered_map>
 
+#include "SDL3/SDL_keyboard.h"
 #include "core/gb.hpp"
+#include "core/version.h"
 #include "imgui.h"
 #include "imgui_memory_edit.h"
 #include "joypad.hpp"
 
 struct State {
-  SDL_Texture* ppu_texture    = nullptr;
-  SDL_Texture* viewport       = nullptr;
+  SDL_Texture* ppu_texture = nullptr;
+  SDL_Texture* viewport    = nullptr;
 
-  const u8* keyboardState = SDL_GetKeyboardState(nullptr);
+  const bool* keyboard_state = SDL_GetKeyboardState(NULL);
 
   bool running              = true;
   bool texture_window_open  = false;
@@ -25,9 +24,9 @@ struct State {
   bool controls_window_open = false;
   bool memory_viewer_open   = false;
   bool io_info_open         = false;
+  bool apu_info_open        = true;
 
-  bool debug_windows_visible        = false;
-  SDL_AudioDeviceID audio_device_id = 0;
+  bool debug_windows_visible = false;
 
   size_t menu_bar_size = 0;
 
@@ -55,15 +54,18 @@ struct Frontend {
   SDL_Renderer* renderer;
   State state;
   Settings settings;
-  GB* gb = nullptr;
-
-  SDL_Rect dst;
-  SDL_Rect src = {
+  GB* gb                  = nullptr;
+  SDL_AudioStream* stream = nullptr;
+  SDL_FRect dst;
+  SDL_FRect src = {
       .x = 0,
       .y = 0,
       .w = 160,
       .h = 148,
   };
+
+  Uint32 start_ticks, end_ticks;
+  f32 fps;
 
   int screenWidth, screenHeight;
 
@@ -74,13 +76,17 @@ struct Frontend {
   void show_menubar();
   void show_viewport();
   void show_cpu_info();
+  void show_apu_info();
   void show_memory_viewer();
   void show_ppu_info();
   void show_io_info();
+  void dump_framebuffer();
   // void show_tile_maps();
   void show_controls_menu(bool* p_open);
   void shutdown();
   void init_audio_device();
+
+  SDL_AudioSpec spec;
 
   explicit Frontend(GB*);
 };
