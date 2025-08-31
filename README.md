@@ -1,4 +1,4 @@
-# [Umibōzu](https://en.wikipedia.org/wiki/Umib%C5%8Dzu) (海坊主)
+# [Umibozu](https://en.wikipedia.org/wiki/Umib%C5%8Dzu)
 
 Gameboy Color emulator written in C++20
 Supports both Game Boy and Game Boy Color games!
@@ -7,10 +7,9 @@ As of right now, this emulator only supports Linux.
 
 You can try building it on Windows, it *should* work, as I don't use any compiler specific extensions.
 
-**(audio soon™....)**
 [Screenshots](#Screenshots)
 
-## NOTE
+## Accuracy
 
 This emulator is far from cycle-accurate. It was not developed with accuracy in mind, nevertheless, most games are playable!
 
@@ -58,11 +57,6 @@ I used the following resources to create this emulator:
 
 
 Don't like the controls? You can rebind them in the settings.
-
-
-## Dependencies
-
-This needs libSDL2 to run. Install `libsdl2-dev` using your package manager.
 
 ## Binaries
 

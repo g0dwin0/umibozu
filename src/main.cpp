@@ -1,5 +1,3 @@
-#include <thread>
-
 #include "CLI/CLI11.hpp"
 #include "frontend/window.hpp"
 #include "gb.hpp"
@@ -14,27 +12,31 @@ int handle_args(int& argc, char** argv, std::string& filename) {
 
 using namespace Umibozu;
 
-#pragma GCC diagnostic ignored "-Wunused-parameter"
+// #pragma GCC diagnostic ignored "-Wunused-parameter"
 int main(int argc, char** argv) {
-  // std::string filename = {};
-  // handle_args(argc, argv, filename);
+  std::string filename = {};
+  handle_args(argc, argv, filename);
 
-  // auto f = read_file(filename);
+  auto f = read_file(filename);
 
   GB gb = {};
   Frontend fe(&gb);
 
-  // gb.load_cart(f);
-
-  std::thread system = std::thread(&GB::system_loop, &gb);
+  gb.load_cart(f);
+  gb.apu.stream = fe.stream;
+  // std::thread system = std::thread(&GB::system_loop, &gb);
 
   while (fe.state.running) {
-    fe.render_frame();
+    gb.cpu.run_instruction();
     fe.handle_events();
+    if (gb.ppu.frame_queued) {
+      fe.render_frame();
+      gb.ppu.frame_queued = false;
+    }
   }
 
-  gb.active = false;
-  system.join();
+  // gb.active = false;
+  // system.join();
 
   fe.shutdown();
 }
