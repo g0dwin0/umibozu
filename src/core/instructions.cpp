@@ -2,7 +2,6 @@
 
 #include "bus.hpp"
 #include "cpu.hpp"
-#include "gb.hpp"
 
 namespace Instructions {
   using Umibozu::SM83;
