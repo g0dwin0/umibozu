@@ -10,7 +10,11 @@ class MBC5 : public Mapper {
     }
     if (address >= 0xA000 && address <= 0xBFFF) {
       if (rtc_ext_ram_enabled) {
-        return bus->cart->ext_ram.at((0x2000 * ram_bank) + (address - 0xA000));
+        if (ram_bank == 1) {
+          return bus->cart->ext_ram.at(address - 0xA000);
+        } else {
+          return bus->cart->ext_ram.at(((ram_bank * 0x2000) + (address - 0xA000)) % (bus->cart->info.ram_banks * 0x2000));
+        }
       }
       return 0xFF;
     }
@@ -28,7 +32,6 @@ class MBC5 : public Mapper {
     }
 
     if (address >= 0x2000 && address <= 0x2FFF) {
-      // Low 8
       rom_bank = value & (bus->cart->info.rom_banks - 1);
       return;
     }
@@ -51,7 +54,11 @@ class MBC5 : public Mapper {
 
     if (address >= 0xA000 && address <= 0xBFFF) {
       if (rtc_ext_ram_enabled) {
-        bus->cart->ext_ram.at((0x2000 * ram_bank) + (address - 0xA000)) = value;
+        if (ram_bank == 1) {
+          bus->cart->ext_ram.at(((0x2000 * 0) + (address - 0xA000))) = value;
+        } else {
+          bus->cart->ext_ram.at(((0x2000 * ram_bank) + (address - 0xA000)) % (0x2000 * bus->cart->info.ram_banks)) = value;
+        }
       }
       return;
     }

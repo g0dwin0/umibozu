@@ -2,7 +2,6 @@
 class MBC3 : public Mapper {
  public:
   MBC3() { rom_bank = 1; }
-
   u8 read8(const u16 address) override {
     if (address >= 0x4000 && address <= 0x7FFF) {
       return bus->cart->read8((0x4000 * rom_bank) + (address - 0x4000));
@@ -14,13 +13,17 @@ class MBC3 : public Mapper {
       }
 
       if (register_mode == WRITING_MODE::RAM && rtc_ext_ram_enabled) {
-        return bus->cart->ext_ram.at((0x2000 * ram_bank) + (address - 0xA000));
+        if (ram_bank == 0) {
+          return bus->cart->ext_ram.at(address - 0xA000);
+        } else {
+          return bus->cart->ext_ram.at(((ram_bank * 0x2000) + (address - 0xA000)) % (bus->cart->info.ram_banks * 0x2000));
+        }
       }
 
-      if (register_mode == WRITING_MODE::RTC && rtc_ext_ram_enabled) {
-        if (!latched_occured) return 0xFF;
-        return latched.read_from_active_reg(active_rtc_register);
-      }
+      // if (register_mode == WRITING_MODE::RTC && rtc_ext_ram_enabled) {
+      //   if (!latched_occured) return 0xFF;
+      //   return latched.read_from_active_reg(active_rtc_register);
+      // }
 
       return 0xFF;
     }
@@ -57,8 +60,8 @@ class MBC3 : public Mapper {
         ram_bank      = value;
       }
       if (value >= 0x08 && value <= 0x0C) {
-        register_mode       = WRITING_MODE::RTC;
-        active_rtc_register = (RTC_REGISTER)value;
+        register_mode = WRITING_MODE::RTC;
+        // active_rtc_register = (RTC_REGISTER)value;
       }
 
       // if (value >= 0x08 && value <= 0x0C) {
@@ -70,37 +73,44 @@ class MBC3 : public Mapper {
     }
 
     if (address >= 0x6000 && address <= 0x7FFF) {
-      if (value == 0x01 && last_rtc_value == 0x00 && rtc_ext_ram_enabled) {
-        latched_occured = true;
-        latched         = actual;
-        // fmt::println("latching");
-      } else {
-        last_rtc_value = value;
-      }
+      // if (value == 0x01 && last_rtc_value == 0x00 && rtc_ext_ram_enabled) {
+      //   // latched_occured = true;
+      //   // latched         = actual;
+      //   // fmt::println("latching");
+      // } else {
+      //   // last_rtc_value = value;
+      // }
       return;
     }
 
     if (address >= 0xA000 && address <= 0xBFFF) {
-      // fmt::println("CATCH!");
-      // fmt::println("RAM BANK: {:#08x}");
-
       if (register_mode == WRITING_MODE::RAM && rtc_ext_ram_enabled) {
+        // fmt::println("in ram write");
         if (ram_bank >= 8) {
+          assert(0);
+          // fmt::println("more than 8");
           return;
         }
-        // fmt::println("writing to ext ram loc: {:#08x}",
-        //              (0x2000 * ram_bank) + (address - 0xA000));
-        bus->cart->ext_ram.at((0x2000 * ram_bank) + (address - 0xA000)) = value;
+
+        // fmt::println("ram bank: {}", ram_bank);
+        // fmt::println("cart max: {}", bus->cart->info.ram_banks);
+
+        if (ram_bank == 0 || bus->cart->info.ram_banks == 0) {
+          bus->cart->ext_ram.at(address - 0xA000) = value;
+        } else {
+          bus->cart->ext_ram.at(((0x2000 * ram_bank) + (address - 0xA000)) % (0x2000 * bus->cart->info.ram_banks)) = value;
+        }
       }
       if (register_mode == WRITING_MODE::RTC && rtc_ext_ram_enabled) {
+        // fmt::println("in RTC MODE");
         // fmt::println("writing to RTC register: {:#08x}", (u8)active_rtc_register);
 
-        latched.write_to_active_reg(active_rtc_register, value, this->rtc_internal_clock);
-        actual.write_to_active_reg(active_rtc_register, value, this->rtc_internal_clock);
+        // rtc_latched.write_to_active_reg(active_rtc_register, value, this->rtc_internal_clock);
+        // rtc_actual.write_to_active_reg(active_rtc_register, value, this->rtc_internal_clock);
       }
       return;
     }
-    // fmt::println("address: {:#08x} value: {:#08x}", address, value);
+    
     bus->write8(address, value);
     return;
   }
